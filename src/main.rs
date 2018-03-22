@@ -445,7 +445,7 @@ fn many_bfs(reps: usize) { //{@
     for _ in 0 .. reps {
         let basemtx = rng.choose(&xmats).unwrap();
         let x = basemtx.fill();
-        let (a, y) = trial(&x);
+        let (a, y) = trial(&x, false);
         let u_i = rand_init(&y);
         //println!("a = {}\ny = {}\nUi = {}", a, y, u_i);
         let bfs = find_bfs(&u_i, &y);
@@ -501,8 +501,9 @@ fn use_given_matrices() -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
 //@}
 fn run_reps() { //{@
     // TODO: Revert this to previous form.
+    let complex = false;
     let reps_per = 200;
-    let dims = vec![(2, 3), (3, 6), (5, 9), (5, 12), (5, 15), (6, 12), (6, 18),
+    let dims = vec![(2, 3), (4,8), (4,12), (4,16), (6, 12), (6, 18),
         (6, 24), (8, 20), (8, 28), (8, 36)];
     /*
     let reps_per = 1;
@@ -515,13 +516,16 @@ fn run_reps() { //{@
     for _iter in 0 .. reps_per * dims.len() {
         let which = _iter / reps_per;
         // Select X matrix.
+        if complex && (dims[which].0 % 2 != 0) {
+            panic!("Complex case must have even n");
+        }
         let x = get_matrix(&dims[which .. which + 1]);
         trace!("selected x = {}", x);
         let ref mut res = results.iter_mut().find(|ref e| e.0 == x.shape()).unwrap();
         res.1 += 1;
 
         // Obtain A, Y matrices, then run.
-        let (a, y) = trial(&x);
+        let (a, y) = trial(&x, complex);
         let timer = std::time::Instant::now();
         match single_run(&y) {
             Err(e) => println!("single_run critical error = {}", e),
@@ -643,6 +647,45 @@ fn rand_matrix(nrows: usize, ncols: usize) -> na::DMatrix<f64> { //{@
     }
     na::DMatrix::from_column_slice(nrows, ncols, &data)
 } //@}
+
+///Genreate a random Gaussian(0, 1) complex matrix that is n x n.
+///represented as [re im; -im re]
+#[allow(dead_code)]
+fn rand_complex_matrix( n: usize ) -> na::DMatrix<f64> {
+    let nb = n /2;
+
+    let mut rng = rand::thread_rng();
+    let mut real_data = Vec::with_capacity(nb * nb);
+    let mut imag_data = Vec::with_capacity(nb * nb);
+    let mut data = Vec::with_capacity(n * n);
+
+    let dist = rand::distributions::Normal::new(0.0, 1.0);
+    for _ in 0 .. (nb * nb) {
+        real_data.push(dist.ind_sample(&mut rng));
+        imag_data.push(dist.ind_sample(&mut rng));
+    }
+
+    for i in 0 .. nb {
+        for j in 0 .. nb {
+            data.push( real_data[(nb*i)+j] );
+        }
+        for j in 0 .. nb {
+            data.push( imag_data[(nb*i)+j] );
+        }
+    }
+
+    for i in 0 .. nb {
+        for j in 0 .. nb {
+            data.push( (-1.0 * imag_data[(nb*i)+j]) );
+        }
+        for j in 0 .. nb {
+            data.push(real_data[(nb*i)+j] );
+        }
+    }
+
+    na::DMatrix::from_row_slice(n, n, &data)
+}
+
 #[allow(dead_code)]
 //{@
 /// Generate a random \pm 1 matrix of the given dimensions.
@@ -795,13 +838,18 @@ fn gen_pairs<T: 'static>(h: &HashSet<T>) -> Box<FnMut() -> Option<(T, T)>> //{@
 /// Generate matrix y = a * x.
 /// Return (a, y)
 //@}
-fn trial(x: &na::DMatrix<f64>) -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
+fn trial(x: &na::DMatrix<f64>, complex: bool) -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
     //println!("X = {}", x);
     let n = x.nrows();
     let k = x.ncols();
 
     // Generate random Gaussian matrix A.
-    let a = rand_matrix(n, n);
+
+    let a = if complex {
+        rand_complex_matrix(n) 
+    } else {
+        rand_matrix(n,n)
+    };
 
     // Compute Y = A * X
     let mut y = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
