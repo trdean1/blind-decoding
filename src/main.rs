@@ -501,10 +501,10 @@ fn use_given_matrices() -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
 //@}
 fn run_reps() { //{@
     // TODO: Revert this to previous form.
-    let complex = false;
+    let complex = true;
     let reps_per = 200;
     let dims = vec![(2, 3), (4,8), (4,12), (4,16), (6, 12), (6, 18),
-        (6, 24), (8, 20), (8, 28), (8, 36)];
+        (6, 24), (8, 36)];
     /*
     let reps_per = 1;
     let dims = vec![(6, 15)];
@@ -666,21 +666,23 @@ fn rand_complex_matrix( n: usize ) -> na::DMatrix<f64> {
     }
 
     for i in 0 .. nb {
-        for j in 0 .. nb {
-            data.push( real_data[(nb*i)+j] );
-        }
-        for j in 0 .. nb {
-            data.push( imag_data[(nb*i)+j] );
-        }
+        data.extend(&real_data[(nb*i) .. nb*(i+1)]);
+        data.extend(&imag_data[(nb*i) .. nb*(i+1)]);
     }
 
     for i in 0 .. nb {
-        for j in 0 .. nb {
-            data.push( (-1.0 * imag_data[(nb*i)+j]) );
-        }
-        for j in 0 .. nb {
-            data.push(real_data[(nb*i)+j] );
-        }
+        //v = -1.0 * imag_data[nb*i .. nb*(i+1)]
+        let v = imag_data
+            .iter()
+            .cloned()
+            .map(|x| -1.0 * x)
+            .skip(nb*i)
+            .take(nb)
+            .collect::<Vec<f64>>();
+
+        data.extend(&v);
+
+        data.extend(&real_data[(nb*i) .. nb*(i+1)]);
     }
 
     na::DMatrix::from_row_slice(n, n, &data)
@@ -850,6 +852,8 @@ fn trial(x: &na::DMatrix<f64>, complex: bool) -> (na::DMatrix<f64>, na::DMatrix<
     } else {
         rand_matrix(n,n)
     };
+
+    //println!("a = {:.5}", a);
 
     // Compute Y = A * X
     let mut y = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
