@@ -1,0 +1,11 @@
+[package]
+name = "blind_decode"
+version = "0.1.0"
+authors = ["JP"]
+
+[dependencies]
+nalgebra = "*"
+rand = "*"
+regex = "*"
+log = "*"
+env_logger = "*"
