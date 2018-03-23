@@ -500,11 +500,12 @@ fn use_given_matrices() -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
 /// failure for each matrix types.
 //@}
 fn run_reps() { //{@
-    // TODO: Revert this to previous form.
-    let complex = true;
+    let complex = false;
+    let use_basis = true;
     let reps_per = 200;
-    let dims = vec![(2, 3), (4,8), (4,12), (4,16), (6, 12), (6, 18),
-        (6, 24), (8, 36)];
+    //let dims = vec![(2, 3), (4,8), (4,12), (4,16), (6, 12), (6, 18),
+    //    (6, 24), (8, 36)];
+    let dims = vec![(4,5),(4,6),(4,7),(4,8),(4,9),(4,10)];
     /*
     let reps_per = 1;
     let dims = vec![(6, 15)];
@@ -519,7 +520,7 @@ fn run_reps() { //{@
         if complex && (dims[which].0 % 2 != 0) {
             panic!("Complex case must have even n");
         }
-        let x = get_matrix(&dims[which .. which + 1]);
+        let x = get_matrix(&dims[which .. which + 1],use_basis);
         trace!("selected x = {}", x);
         let ref mut res = results.iter_mut().find(|ref e| e.0 == x.shape()).unwrap();
         res.1 += 1;
@@ -527,7 +528,7 @@ fn run_reps() { //{@
         // Obtain A, Y matrices, then run.
         let (a, y) = trial(&x, complex);
         let timer = std::time::Instant::now();
-        match single_run(&y) {
+        match single_run(&y,use_basis) {
             Err(e) => println!("single_run critical error = {}", e),
             Ok(ft) => {
                 let uy = ft.state.uy.clone();
@@ -541,7 +542,7 @@ fn run_reps() { //{@
                                 ft.state.u, inv),
                     };
                     println!("UNEXPECTED: return non-ATM");
-                    println!("uy = {}", ft.state.uy);
+                    println!("uy = {:.3}", ft.state.uy);
                     if ft.state.uy.iter().all(|&e|
                             (e.abs() - 1.0).abs() < ft.zthresh) {
                         res.3 += 1; // UY = \pm 1
@@ -567,10 +568,26 @@ fn run_reps() { //{@
 /// Perform a single run using a given +y+ matrix, which contains k symbols each
 /// of length n.
 //@}
-fn single_run(y: &na::DMatrix<f64>) -> Result<FlexTab, FlexTabError> { //{@
+fn single_run(y: &na::DMatrix<f64>, skip_check: bool) -> Result<FlexTab, FlexTabError> { //{@
     let mut attempts = 0;
     const LIMIT: usize = 100; // Max attempts to find enough good cols.
     let mut ft;
+
+    //If true, check that y is not singular
+    if skip_check == false {
+       let (n,_k) = y.shape();
+       let svd = na::SVD::new(y.clone(), false, false);
+       let s = svd.singular_values;
+       println!("Singular values =\n");
+       for ss in s.iter() {
+           println!("{}", ss);
+       }
+       let r = s.iter().filter(|&elt| *elt > 1e-6).count();
+       println!("({})\n",r);
+       if r < n {
+            return Err(FlexTabError::GoodCols);
+       }
+    }
 
     // Loop trying new u_i until we get n linearly independent \pm 1 cols.
     loop {
@@ -740,12 +757,27 @@ fn equal_atm(a: &na::DMatrix<f64>, b: &na::DMatrix<f64>) -> bool { //{@
     }
     true
 } //@}
+
 //{@
 /// Randomly select one (n, k) value from the array of (n, k) pairs given in
 /// +dims+.  Fill the necessary extra columns (if necessary) with random iid
 /// \pm 1 entries.
 //@}
-fn get_matrix(dims: &[(usize, usize)]) -> na::DMatrix<f64> { //{@
+fn get_matrix(dims: &[(usize, usize)],use_basis: bool) -> na::DMatrix<f64> { //{@
+    if use_basis == false {
+        let (n,k) = dims[0];
+        let mut rng = rand::thread_rng();
+        let mut data = vec![1f64; n*k];
+        for i in 0 .. n*k {
+            if rng.gen_range(0,2) == 0 {
+                data[i] = -1.0;
+            }
+        }
+
+        let x = na::DMatrix::from_row_slice(n,k,&data);
+        return x;
+    }
+
     let xmats = vec![
         BaseMatrix { basemtx: na::DMatrix::from_row_slice(2, 2,
                 &vec![  1.,  1.,
@@ -801,7 +833,11 @@ fn get_matrix(dims: &[(usize, usize)]) -> na::DMatrix<f64> { //{@
         for ref bmtx in xmats.iter() {
             if bmtx.basemtx.nrows() == n {
                 let mut bmtx = (*bmtx).clone();
-                bmtx.extra_cols = k - bmtx.basemtx.ncols();
+                if k <= bmtx.basemtx.ncols() {
+                    bmtx.extra_cols = 0;
+                } else {
+                    bmtx.extra_cols = k - bmtx.basemtx.ncols();
+                }
                 eligible.push(bmtx);
             }
         }
