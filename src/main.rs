@@ -165,12 +165,14 @@ fn use_given_matrices() -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
 /// failure for each matrix types.
 //@}
 fn run_reps() { //{@
-    let complex = true;
-    let reps_per = 100;
+    let complex = false;
+    let use_basis = true; 
+    let reps_per = 1000;
     //let dims = vec![(2, 3), (3, 6), (4, 6), (4, 8), (5, 9), (5, 12), (5, 15),
     //    (6, 12), (6, 18), (6, 24), (8, 20), (8, 28), (8, 36)];
-    let dims = vec![(2, 3), (4, 6), (4, 8), (6, 12), (6, 18), (6, 24), (8, 20), 
-        (8, 28), (8, 36)];
+    //let dims = vec![(2, 3), (4, 6), (4, 8), (6, 12), (6, 18), (6, 24), (8, 20), 
+    //    (8, 28), (8, 36)];
+    let dims = vec![(4,6),(4,10),(4,15),(4,20)];
     // DEBUG: use this in addition to splice in get_matrix to use static X.
     //let dims = vec![(4, 6)];
     
@@ -197,7 +199,12 @@ fn run_reps() { //{@
         }
 
         // Select X matrix of one specific set of dimensions (n, k).
-        let x = get_matrix(&dims[which .. which + 1]);
+        let x = if use_basis {
+            get_matrix(&dims[which .. which + 1]) 
+        } else {
+            rand_pm1_matrix(dims[which].0, dims[which].1)
+        };
+
         trace!("selected x = {}", x);
         // Get pointer to relevant results tuple for this dimension.
         let ref mut res = results.iter_mut().find(|ref e| e.0 == x.shape()).unwrap();
@@ -206,7 +213,7 @@ fn run_reps() { //{@
         // Obtain A, Y matrices, then run.
         let (a, y) = trial(&x, complex);
         let timer = std::time::Instant::now();
-        match single_run(&y) {
+        match single_run(&y,use_basis) {
             Err(e) => {
                 match e {
                     FlexTabError::Runout => {
@@ -265,11 +272,28 @@ fn run_reps() { //{@
 /// Perform a single run using a given +y+ matrix, which contains k symbols each
 /// of length n.
 //@}
-fn single_run(y: &na::DMatrix<f64>) -> Result<FlexTab, FlexTabError> { //{@
+fn single_run(y: &na::DMatrix<f64>, skip_check: bool) -> Result<FlexTab, FlexTabError> { //{@
     let mut attempts = 0;
     const LIMIT: usize = 100; // Max attempts to restart with fresh random U_i.
     let mut ft;
     let mut best: Option<FlexTab> = None;
+
+    //If true, check that y is not singular
+    if skip_check == false {
+       let (n,_k) = y.shape();
+       let svd = na::SVD::new(y.clone(), false, false);
+       let s = svd.singular_values;
+       trace!("Singular values =\n");
+       for ss in s.iter() {
+           trace!("{}", ss);
+       }
+       let r = s.iter().filter(|&elt| *elt > 1e-6).count();
+       trace!("({})\n",r);
+       if r < n {
+            return Err(FlexTabError::GoodCols);
+       }
+    }
+
 
     // Loop trying new u_i until we get n linearly independent \pm 1 cols.
     loop {
