@@ -170,11 +170,18 @@ fn run_reps() { //{@
     let reps_per = 1000;
     //let dims = vec![(2, 3), (3, 6), (4, 6), (4, 8), (5, 9), (5, 12), (5, 15),
     //    (6, 12), (6, 18), (6, 24), (8, 20), (8, 28), (8, 36)];
-    //let dims = vec![(2, 3), (4, 6), (4, 8), (6, 12), (6, 18), (6, 24), (8, 20), 
-    //    (8, 28), (8, 36)];
-    let dims = vec![(4,6),(4,10),(4,15),(4,20)];
+
     // DEBUG: use this in addition to splice in get_matrix to use static X.
     //let dims = vec![(4, 6)];
+    
+    let mut dims = Vec::new();
+    for ii in 2 .. 9 {
+        if ii == 7 { continue; }
+        for jj in 0 .. 16 {
+            if 2*jj <= ii { continue; }
+            dims.push( (ii, 2*jj) );
+        }
+    }
     
     // Setup basic results vector: should migrate this to a full structure.
     // { (n, k), attempts, success, fail = \pm1, fail != \pm1, duration }, 
@@ -287,10 +294,10 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool) -> Result<FlexTab, FlexTab
        for ss in s.iter() {
            trace!("{}", ss);
        }
-       let r = s.iter().filter(|&elt| *elt > 1e-6).count();
+       let r = s.iter().filter(|&elt| *elt > ZTHRESH).count();
        trace!("({})\n",r);
        if r < n {
-            return Err(FlexTabError::GoodCols);
+            return Err(FlexTabError::SingularInput);
        }
     }
 
@@ -952,6 +959,7 @@ impl BaseMatrix { //{@
 /// Error type for FlexTab.
 //@}
 enum FlexTabError { //{@
+    SingularInput,
     GoodCols,
     LinIndep,
     NumZeroSlackvars,
@@ -964,6 +972,7 @@ enum FlexTabError { //{@
 impl error::Error for FlexTabError { //{@
     fn description(&self) -> &str {
         match self {
+            &FlexTabError::SingularInput => "Input Y is not full rank",
             &FlexTabError::LinIndep => "Insuffient linearly independent columns",
             &FlexTabError::GoodCols => "Insufficient good columns",
             &FlexTabError::NumZeroSlackvars => "Num zero slackvars != 0",
