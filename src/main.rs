@@ -61,7 +61,9 @@ fn main() { //{@
     //neighbor_det_pattern_all(5);
 
     // Run repetitions of the solver.
-    run_reps();
+    //run_reps();
+    
+    test_awgn();
 } //@}
 
 // Principal functions{@
@@ -159,6 +161,74 @@ fn use_given_matrices() -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
     
     (y, u_i)
 } //@}
+
+#[allow(dead_code)]
+fn near_pm_one( x: f64, tol: f64 ) -> f64 {
+    if ( x - 1f64 ).abs() < tol {
+        return x - 1f64;
+    } else if ( x + 1f64 ).abs() < tol {
+        return x + 1f64;
+    }
+
+    0f64
+}
+
+fn center_y( u: na::DMatrix<f64>, y: na::DMatrix<f64>, tol: f64 ) -> 
+    Option<na::DMatrix<f64>> 
+{
+    //Skip if tolerance is zero (i.e. don't center)
+    if tol == 0f64 {
+        return Some(y);
+    }
+
+    let uy = u.clone() * y.clone();
+
+    //Find epsilon
+    let del = uy.map(|x| near_pm_one(x, tol) );
+
+    //center y, first we need bfs_inv
+    let qr = na::QR::new( u.clone() );
+    let bfs_inv_o = qr.try_inverse();
+    match bfs_inv_o {
+        Some(u_inv) => return Some(y - u_inv * del),
+        None => return None,
+    }
+}
+
+
+#[allow(dead_code)]
+/// Testing AWGN performance
+fn test_awgn() {
+    let reps_per = 10;
+
+    let n = 4; let k = 10;
+    let complex = false;
+    let var = 0.0001; 
+    let tol = 0.03;
+    
+    let dim = vec![(n, k)];
+
+    //Generate trial and add noise
+    let x = get_matrix( &dim[0 .. 1] );
+    let (_a, y_base) = trial(&x, complex);
+
+    for _ in 0 .. reps_per {
+        let e = rand_matrix(n, k);
+        let mut y = y_base.clone() + var*e;
+
+        match single_run(&y,true,tol) {
+            Err(e) => {
+                println!("Some sort of error: {}", e);
+            },
+            Ok(ft) => {
+                println!("Worked!");
+                let ref best_state = ft.best_state;
+                println!("{:.3}", best_state.uy);
+            }
+        };
+    }
+}
+
 #[allow(dead_code)]
 //{@
 /// Run repetitions of multiple different matrix dimensions, recording success /
@@ -220,7 +290,7 @@ fn run_reps() { //{@
         // Obtain A, Y matrices, then run.
         let (a, y) = trial(&x, complex);
         let timer = std::time::Instant::now();
-        match single_run(&y,use_basis) {
+        match single_run(&y,use_basis, 0f64) {
             Err(e) => {
                 match e {
                     FlexTabError::Runout => {
@@ -279,7 +349,7 @@ fn run_reps() { //{@
 /// Perform a single run using a given +y+ matrix, which contains k symbols each
 /// of length n.
 //@}
-fn single_run(y: &na::DMatrix<f64>, skip_check: bool) -> Result<FlexTab, FlexTabError> { //{@
+fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result<FlexTab, FlexTabError> { //{@
     let mut attempts = 0;
     const LIMIT: usize = 100; // Max attempts to restart with fresh random U_i.
     let mut ft;
@@ -316,21 +386,44 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool) -> Result<FlexTab, FlexTab
 
         info!("y = {:.8}Ui = {:.8}", y, u_i);
         let bfs = find_bfs(&u_i, &y); // Find BFS.
-        info!("bfs = {:.3}", bfs);
+        info!("bfs = {:.8}", bfs);
+        info!("uy = {:.8}", bfs.clone() * y.clone() );
 
-        // Create FlexTab.
-        ft = match FlexTab::new(&bfs, &y, ZTHRESH) {
-            Ok(ft) => ft,
-            Err(e) => match e {
-                // Insufficient good cols => retry.
-                FlexTabError::GoodCols => {
-                    debug!("Insufficient good cols, retrying...");
-                    continue;
-                },
-                // Any other error => propogate up.
-                _ => return Err(e),
+        //TODO: This is horrible code and needs to get cleaned up
+        //Center and then create flex tab
+        //couldn't figure out how to change reference...
+        match center_y( bfs.clone(), y.clone(), center_tol ) {
+            Some(y) => {
+                 ft = match FlexTab::new(&bfs, &y, ZTHRESH) {
+                    Ok(ft) => ft,
+                    Err(e) => match e {
+                        // Insufficient good cols => retry.
+                        FlexTabError::GoodCols => {
+                            debug!("Insufficient good cols, retrying...");
+                            continue;
+                        },
+                        // Any other error => propogate up.
+                        _ => return Err(e),
+                    },
+                };
             },
-        };
+            None => {
+                info!("Error centering, dropping attempt");         
+                ft = match FlexTab::new(&bfs, &y, ZTHRESH) {
+                    Ok(ft) => ft,
+                    Err(e) => match e {
+                        // Insufficient good cols => retry.
+                        FlexTabError::GoodCols => {
+                            debug!("Insufficient good cols, retrying...");
+                            continue;
+                        },
+                        // Any other error => propogate up.
+                        _ => return Err(e),
+                    },
+                };
+            },
+        }
+        //TODO: end horrible code
 
         // Now we have at least n good cols, so try to solve.  If error is that
         // we don't have n linearly independent good cols, then try new u_i.
