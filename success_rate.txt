@@ -146,3 +146,9 @@ n = 10, k = 35: success =  133 /  200, (runout =  5, pm1 = 26 err =  0), mean_ti
 n = 10, k = 40: success =  182 /  200, (runout =  2, pm1 =  7 err =  0), mean_time_per = 1.65216e0
 n = 10, k = 45: success =  190 /  200, (runout =  2, pm1 =  3 err =  0), mean_time_per = 1.72317e0
 n = 10, k = 50: success =  195 /  200, (runout =  4, pm1 =  1 err =  0), mean_time_per = 2.43737e0
+
+n = 12, k = 20: success =    0 /   10, (runout = 10, pm1 =  0 err =  0), mean_time_per = 5.06825e1
+n = 12, k = 50: success =    8 /   10, (runout =  0, pm1 =  2 err =  0), mean_time_per = 3.99444e1
+n = 12, k = 60: success =    9 /   10, (runout =  0, pm1 =  1 err =  0), mean_time_per = 4.47035e1
+n = 12, k = 80: success =   10 /   10, (runout =  0, pm1 =  0 err =  0), mean_time_per = 7.68172e0
+n = 12, k = 100: success =   8 /   10, (runout =  1, pm1 =  1 err =  0), mean_time_per = 1.33725e2

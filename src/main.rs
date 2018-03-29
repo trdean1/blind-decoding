@@ -199,34 +199,85 @@ fn center_y( u: na::DMatrix<f64>, y: na::DMatrix<f64>, tol: f64 ) ->
 #[allow(dead_code)]
 /// Testing AWGN performance
 fn test_awgn() {
+    let channels = 10;
     let reps_per = 10;
 
-    let n = 4; let k = 10;
+    let n = 4; let k = 7;
     let complex = false;
-    let var = 0.0001; 
-    let tol = 0.03;
-    
+    let var = 0.001; 
+    let tol = 0.1;
+
     let dim = vec![(n, k)];
 
+    let mut results = (0u64, 0u64, 0u64, 0u64);
+    let mut well_cond_res = (0u64, 0u64, 0u64);
     //Generate trial and add noise
-    let x = get_matrix( &dim[0 .. 1] );
-    let (_a, y_base) = trial(&x, complex);
+    for _ in 0 .. channels {
+        let mut res = (0u64, 0u64, 0u64, 0u64);
+        let x = get_matrix( &dim[0 .. 1] );
+        let (a, y_base) = trial(&x, complex);
+        let svd = na::SVD::new(a, false, false);
+        let s = svd.singular_values;
+        let mut outstr = format!("Singular values: ");
+        let mut min = 1000f64; let mut max = 0f64;
+        for ss in s.iter() {
+            if ss > &max { max = *ss; }
+            if ss < &min { min = *ss; }
+            outstr += &format!("{} ", ss);
+        }
+        println!("{}", outstr);
+        println!("Condition number: {}, sigma_4: {}", max / min, min);
 
-    for _ in 0 .. reps_per {
-        let e = rand_matrix(n, k);
-        let mut y = y_base.clone() + var*e;
+        for _ in 0 .. reps_per {
+            let e = rand_matrix(n, k);
+            let mut y = y_base.clone() + var*e;
+            res.0 += 1;
+            match single_run(&y,true,tol) {
+                Err(e) => {
+                    res.1 += 1;
+                    info!("Error: {}", e);
+                },
+                Ok(ft) => {
+                    let ref best_state = ft.best_state;
+                    let mut uy = best_state.u.clone() * y_base.clone();
+                    uy.apply( |x| x.round() );
+                    //if equal_atm(&best_state.uy, &x) {
+                    if equal_atm(&uy, &x) {
+                        res.2 += 1;
+                        info!("EQUAL ATM");
+                    } else {
+                        res.3 += 1;
+                        // UY did +not+ match X, print some results and also
+                        // determine if UY was even a vertex.
+                        info!("UNEXPECTED: return non-ATM");
+                        trace!("base_state.uy = {:.2}", best_state.uy);
+                        trace!("uy = {:.2}", uy );
+                        trace!("x = {:.2}", x);
+                    }
+                }
+            };
+        }
 
-        match single_run(&y,true,tol) {
-            Err(e) => {
-                println!("Some sort of error: {}", e);
-            },
-            Ok(ft) => {
-                println!("Worked!");
-                let ref best_state = ft.best_state;
-                println!("{:.3}", best_state.uy);
-            }
-        };
+        println!("Trials: {}, success: {}, wrong: {}, runout: {}\n", 
+                 res.0, res.2, res.3, res.1); 
+        results.0 += res.0; results.1 += res.1;
+        results.2 += res.2; results.3 += res.3;
+
+        if min > 0.25 {
+            well_cond_res.0 += res.2;
+            well_cond_res.1 += res.3;
+            well_cond_res.2 += res.1;
+        }
     }
+
+    println!("\nTotals:");
+    println!("Trials: {}, Correct: {} / {}, runout: {}", 
+             results.0, results.2, results.2 + results.3, results.1); 
+    println!("Given sigma_4 > 0.25: ");
+    println!("Correct: {} / {}, runout: {}", 
+             well_cond_res.0, well_cond_res.0+well_cond_res.1,
+             well_cond_res.2);
+
 }
 
 #[allow(dead_code)]
@@ -384,10 +435,10 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
         let u_i = rand_init(&y); // Choose rand init start pt.
         //let (y, u_i) = use_given_matrices(); // Use for debugging only.
 
-        info!("y = {:.8}Ui = {:.8}", y, u_i);
+        trace!("y = {:.8}Ui = {:.8}", y, u_i);
         let bfs = find_bfs(&u_i, &y); // Find BFS.
-        info!("bfs = {:.8}", bfs);
-        info!("uy = {:.8}", bfs.clone() * y.clone() );
+        trace!("bfs = {:.8}", bfs);
+        trace!("uy = {:.8}", bfs.clone() * y.clone() );
 
         //TODO: This is horrible code and needs to get cleaned up
         //Center and then create flex tab
@@ -428,11 +479,20 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
         // Now we have at least n good cols, so try to solve.  If error is that
         // we don't have n linearly independent good cols, then try new u_i.
         // Do same thing if we appear to have been trapped.
-        debug!("num_good_cols = {}, initial ft =\n{}", ft.num_good_cols(), ft);
+        info!("num_good_cols = {}", ft.num_good_cols());
+        debug!("initial ft =\n{}", ft);
         match ft.solve() {
             Ok(_) => break,
             Err(e) => match e {
-                FlexTabError::LinIndep => debug!("LinIndep, retrying..."),
+                FlexTabError::LinIndep 
+                    => { 
+                        info!("LinIndep, retrying...");
+                        info!("UY Good = {:.3}", ft.state.uy);
+                        match ft.state.uybad {
+                            Some(b) => debug!("UY Bad = {}", b),
+                            None => debug!("All Good"),
+                        };
+                    },
                 FlexTabError::StateStackExhausted | FlexTabError::TooManyHops
                     => {
                         best = match best {
@@ -737,7 +797,7 @@ fn random_orthogonal(n: usize) -> na::DMatrix<f64> { //{@
 //{@
 /// Find a random feasible point, which is an n x n U such that all entries of
 /// UY are bounded by 1 in absolute value.
-/// Input:   Y = n x k matrix of received symbols.
+/// Input:   Y = n x k matrix of received sybest_state.mbols.
 /// Output:  U = n x n feasible inverse of the channel gain matrix.
 //@}
 fn rand_init(y: &na::DMatrix<f64>) -> na::DMatrix<f64> { //{@
@@ -1402,7 +1462,7 @@ impl FlexTab { //{@
         // for linear independence during tableau creation.
         if k < n {
             return Err(FlexTabError::GoodCols);
-        }
+        } 
 
         //let mut uy = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
         let mut uy: na::DMatrix<f64>;
@@ -1498,7 +1558,7 @@ impl FlexTab { //{@
     #[allow(dead_code)]
     fn num_good_cols(&self) -> usize { //{@
         match self.ybad {
-            Some(ref ybad) => self.y.ncols() - ybad.ncols(),
+            Some(ref ybad) => self.y.ncols(),// - ybad.ncols(),
             None => self.y.ncols(),
         }
     } //@}
@@ -1709,7 +1769,7 @@ impl FlexTab { //{@
                 if uvars.len() > 0 {
                     if uvars.len() != 2 || uvars[0] >> 1 != uvars[1] >> 1 {
                         // This fails if not enough lin indep cols.
-                        warn!("uvars: row = {}, uvars = {:?}", row, uvars);
+                        trace!("uvars: row = {}, uvars = {:?}", row, uvars);
                         return Err(FlexTabError::LinIndep);
                     }
                     let uvar = uvars[0] >> 1;
@@ -1871,7 +1931,7 @@ impl FlexTab { //{@
                 },
                 Some(idx) => {
                     // Take snapshot, flip idx, mark new vertex visited.
-                    info!("flipping vertex: {}", idx);
+                    trace!("flipping vertex: {}", idx);
                     self.snapshot();
                     if self.verbose & VERBOSE_HOP != 0 {
                         println!("Hop {}", if effect > self.zthresh
@@ -1972,7 +2032,7 @@ impl FlexTab { //{@
                 // Constraint contains set of relevant columns.  We need to pass
                 // in the row.
                 if !c.check(&self.state.x, self.zthresh) {
-                    info!("type 3 check fail: row = {}, cnum = {}", row, cnum);
+                    trace!("type 3 check fail: row = {}, cnum = {}", row, cnum);
                     return false;
                 }
             }
