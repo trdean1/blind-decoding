@@ -512,11 +512,10 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
     }
 
 
-    let ym = y.clone();
     let mut z;
     // Loop trying new u_i until we get n linearly independent \pm 1 cols.
     loop {
-        info!("n={} k={}", ym.shape().0, ym.shape().1);
+        info!("n={} k={}", y.shape().0, y.shape().1);
         attempts += 1;
         if attempts > LIMIT {
             info!("Ran out of attempts");
@@ -525,56 +524,33 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
                 None => return Err(FlexTabError::Runout),
             };
         }
-        let u_i = rand_init(&ym); // Choose rand init start pt.
+        let u_i = rand_init(&y); // Choose rand init start pt.
         //let (y, u_i) = use_given_matrices(); // Use for debugging only.
 
         trace!("y = {:.8}Ui = {:.8}", y, u_i);
-        let bfs = find_bfs(&u_i, &ym); // Find BFS.
+        let bfs = find_bfs(&u_i, &y); // Find BFS.
         trace!("bfs = {:.8}", bfs);
-        trace!("uy = {:.8}", bfs.clone() * ym.clone() );
+        trace!("uy = {:.8}", bfs.clone() * y.clone() );
 
-        //let del; 
-        //TODO: This is horrible code and needs to get cleaned up
-        //Center and then create flex tab
-        //couldn't figure out how to change reference...
-        match center_y( bfs.clone(), ym.clone(), center_tol ) {
-            Some(yy) => {
-                 z = yy.0;
-                 //del = yy.1; 
-                 ft = match FlexTab::new(&bfs, &z, ZTHRESH) {
-                    Ok(ft) => ft,
-                    Err(e) => match e {
-                        // Insufficient good cols => retry.
-                        FlexTabError::GoodCols => {
-                            debug!("Insufficient good cols, retrying...");
-                            continue;
-                        },
-                        // Any other error => propogate up.
-                        _ => return Err(e),
-                    },
-                };
+        //Center y.  If this fails (it never should) then just use
+        //the old value of y and try our luck with FlexTab
+        z = match center_y( bfs.clone(), y.clone(), center_tol ) {
+            Some(yy) => yy.0,
+            None => y.clone(),
+        };
+
+        ft = match FlexTab::new(&bfs, &z, ZTHRESH) {
+            Ok(ft) => ft,
+            Err(e) => match e {
+                 // Insufficient good cols => retry.
+                FlexTabError::GoodCols => {
+                    debug!("Insufficient good cols, retrying...");
+                    continue;
+                },
+                // Any other error => propogate up.
+                _ => return Err(e),
             },
-            None => {
-                info!("Error centering, dropping attempt");         
-                z = ym.clone();
-                ft = match FlexTab::new(&bfs, &ym, ZTHRESH) {
-                    Ok(ft) => ft,
-                    Err(e) => match e {
-                        // Insufficient good cols => retry.
-                        FlexTabError::GoodCols => {
-                            debug!("Insufficient good cols, retrying...");
-                            continue;
-                        },
-                        // Any other error => propogate up.
-                        _ => return Err(e),
-                    },
-                };
-                //del=na::DMatrix::from_row_slice(ym.shape().0,
-                //                            ym.shape().1,
-                //                            &vec![0f64; ym.shape().0*ym.shape().1]);    
-            },
-        }
-        //TODO: end horrible code
+        };
 
         // Now we have at least n good cols, so try to solve.  If error is that
         // we don't have n linearly independent good cols, then try new u_i.
