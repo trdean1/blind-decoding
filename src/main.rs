@@ -62,9 +62,33 @@ fn main() { //{@
 
     // Run repetitions of the solver.
     //run_reps();
-    
     test_awgn();
+    
+    //bfs_test();
 } //@}
+
+#[allow(dead_code)]
+fn bfs_test() {
+    let y = na::DMatrix::from_row_slice( 4,6,
+            &vec![
+            -0.85105277, -0.63492999, 3.41237287, 1.20811145, 0.35892148, 2.41836825,
+            3.96976924, -0.73519243, -1.04010774, 0.12971196, 1.03251896, -2.80775547,
+            3.12355480, 2.95773796, 0.67356399, 0.87056107, 2.94202708, 0.68919778,
+            -2.31709338, 0.66587824, 1.21174544, 2.38172050, -1.41046808, 3.28820386
+            ]);
+
+    let ui = na::DMatrix::from_row_slice( 4,4,
+           &vec![
+            -0.06779237, -0.08776801,  0.03347982, -0.04695821,
+            -0.01830087, -0.05418955, -0.09233134,  0.06187484,
+            0.06205623, -0.02276697, -0.05832655, -0.08862112,
+            0.08272422, -0.06683513,  0.05076455,  0.04168607
+           ]);
+
+    println!("UY={}", ui.clone()*y.clone());
+    let bfs = find_bfs(&ui, &y);
+    println!("UY={:.3}", bfs * y );
+}
 
 // Principal functions{@
 // Runnable functions{@
@@ -520,21 +544,39 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
                 None => return Err(FlexTabError::Runout),
             };
         }
-        let u_i = rand_init(&y); // Choose rand init start pt.
+        let mut u_i = rand_init(&y); // Choose rand init start pt.
         //let (y, u_i) = use_given_matrices(); // Use for debugging only.
 
         z = y.clone();
-        trace!("y = {:.8}Ui = {:.8}", z, u_i);
-        let bfs = find_bfs(&u_i, &z); // Find BFS.
-        trace!("bfs = {:.8}", bfs);
-        trace!("uy = {:.8}", bfs.clone() * y.clone() );
 
-        //Center y.  If this fails (it never should) then just use
-        //the old value of y and try our luck with FlexTab
-        z = match center_y( &bfs, &z, center_tol ) {
-            Some(yy) => yy,
-            None => z,
-        };
+        //Centering loop
+        let mut bfs;
+        let mut center_attempts = 0;
+        loop {
+            trace!("y = {:.8}Ui = {:.8}", z, u_i);
+            bfs = find_bfs(&u_i, &z); // Find BFS.
+            if (bfs.clone() - u_i.clone()).amax() < ZTHRESH {
+                break;
+            } else {
+                u_i = bfs.clone();
+            }
+
+            trace!("bfs = {:.8}", bfs);
+            trace!("uy = {:.8}", bfs.clone() * y.clone() );
+
+            trace!("Before centering: {:.8}", bfs.clone() * z.clone() );
+
+            //Center y.  If this fails (it never should) then just use
+            //the old value of y and try our luck with FlexTab
+            z = match center_y( &bfs, &z, center_tol ) {
+                Some(yy) => yy,
+                None => z,
+            };
+
+            trace!("After centering: {:.12}", bfs.clone() * z.clone() );
+            center_attempts += 1;
+            if center_attempts > z.shape().0 { break; }
+        }
 
         ft = match FlexTab::new(&bfs, &z, ZTHRESH) {
             Ok(ft) => ft,
@@ -564,15 +606,7 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
                         info!("LinIndep, retrying...");
                         info!("U = {:.3}", ft.state.u);
                         info!("UY Good = {:.1}", ft.state.uy);
-                        /*let pairs = find_pairs(&ft.state.uy, 0.01);
-                        let mut output = format!("Redundant Columns: \n");
-                        for x in pairs.iter() {
-                            for y in x { output += &format!("{} ", y); }
-                            output += &format!("\n");
-                        }
-                        info!("{}", output);
-                        */
-                        //ym = delete_col( &ym, bad_col );
+
                         match ft.state.uybad {
                             Some(b) => info!("UY Bad = {}", b),
                             None => info!("All Good"),
@@ -1043,6 +1077,7 @@ fn boundary_dist(u: &na::DMatrix<f64>, v: &na::DMatrix<f64>, //{@
     let dy = v * y;
     let mut t_min = std::f64::MAX;
 
+    debug!("uy={}dy={}",uy,dy);
     // Find the lowest value of t such that U + t * V reaches the boundary.
     for j in 0 .. y.shape().1 {
         for i in 0 .. y.shape().0 {
@@ -1058,7 +1093,7 @@ fn boundary_dist(u: &na::DMatrix<f64>, v: &na::DMatrix<f64>, //{@
                     (1.0 - uy.column(j)[i]) / dy.column(j)[i],
                 std::cmp::Ordering::Equal => std::f64::MAX,
             };
-            if t < t_min { t_min = t; }
+            if t.abs() < t_min.abs() { t_min = t; }
         }
     }
 
@@ -1089,12 +1124,12 @@ fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>) -> na::DMatrix<f64> { 
     let mut p_bool_updates = Vec::with_capacity(k);
     let mut p = na::DMatrix::from_column_slice(0, n*n, &Vec::<f64>::new());
     for _iter in 0 .. (n*n - 1) {
-        if cfg!(build = "debug") {
+        //if cfg!(build = "debug") {
             let mut _uy = na::DMatrix::from_column_slice(n, y.ncols(),
                     &vec![0.0; n * y.ncols()]);
             u.mul_to(&y, &mut _uy);
-            println!("Iteration {}\nuy = {:.3}p = {:.3}", _iter, _uy, p);
-        }
+            trace!("Iteration {}\nuy = {:.3}p = {:.3}", _iter, _uy, p);
+        //}
         get_active_constraints_bool(&u, &y, &mut p_bool_iter);
         p_bool_updates.clear();
         for j in 0 .. k {
@@ -1118,12 +1153,19 @@ fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>) -> na::DMatrix<f64> { 
         };
         gradvec.copy_from_slice(&gradmtx.transpose().as_slice());
         debug!("Iteration {} has {} independent constraints", _iter, p.nrows());
+
         for row_idx in 0 .. p.nrows() {
             let row = p.row(row_idx);
-            let s = gradvec.iter().enumerate().fold(0.0, |sum, (idx, &e)|
-                        sum + e * row[idx]);
-            gradvec.iter_mut().enumerate().for_each(|(j, e)| *e -= s * row[j]);
+            let s = gradvec.iter()
+                           .enumerate()
+                           .fold(0.0, 
+                                 |sum, (idx, &e)|
+                                 sum + e * row[idx]);
+            gradvec.iter_mut()
+                   .enumerate()
+                   .for_each(|(j, e)| *e -= s * row[j]);
         }
+
         debug!("gradvec = {:?}", gradvec);
 
         for j in 0 .. n {
@@ -1134,7 +1176,8 @@ fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>) -> na::DMatrix<f64> { 
             }
         }
 
-        if gradmtx.norm() < 1e-12 {
+        debug!("norm = {}", gradmtx.norm());
+        if gradmtx.norm() < 1e-9 {
             debug!("Iteration {} gradmtx.norm negligible", _iter);
             break
         }
