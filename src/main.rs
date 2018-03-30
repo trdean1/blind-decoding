@@ -246,16 +246,12 @@ fn delete_col( x: &na::DMatrix<f64>, idx: usize ) -> na::DMatrix<f64>
     na::DMatrix::from_column_slice(n, k-1, &data)
 }
 
-fn center_y( u: na::DMatrix<f64>, y: na::DMatrix<f64>, tol: f64 ) -> 
-    Option<(na::DMatrix<f64>,na::DMatrix<f64>)> 
+fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) -> 
+    Option<na::DMatrix<f64>> 
 {
     //Skip if tolerance is zero (i.e. don't center)
     if tol == 0f64 {
-        return Some(
-            (y.clone(),
-             na::DMatrix::from_row_slice(y.shape().0, y.shape().1,
-                                         &vec![0f64; y.shape().0*y.shape().1]) )
-            );
+        return Some( y.clone() );
     }
 
     let uy = u.clone() * y.clone();
@@ -267,7 +263,7 @@ fn center_y( u: na::DMatrix<f64>, y: na::DMatrix<f64>, tol: f64 ) ->
     let qr = na::QR::new( u.clone() );
     let bfs_inv_o = qr.try_inverse();
     match bfs_inv_o {
-        Some(u_inv) => return Some( ( (y - u_inv * del.clone()), del) ),
+        Some(u_inv) => return Some( y - u_inv * del ),
         None => return None,
     }
 }
@@ -527,16 +523,17 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
         let u_i = rand_init(&y); // Choose rand init start pt.
         //let (y, u_i) = use_given_matrices(); // Use for debugging only.
 
-        trace!("y = {:.8}Ui = {:.8}", y, u_i);
-        let bfs = find_bfs(&u_i, &y); // Find BFS.
+        z = y.clone();
+        trace!("y = {:.8}Ui = {:.8}", z, u_i);
+        let bfs = find_bfs(&u_i, &z); // Find BFS.
         trace!("bfs = {:.8}", bfs);
         trace!("uy = {:.8}", bfs.clone() * y.clone() );
 
         //Center y.  If this fails (it never should) then just use
         //the old value of y and try our luck with FlexTab
-        z = match center_y( bfs.clone(), y.clone(), center_tol ) {
-            Some(yy) => yy.0,
-            None => y.clone(),
+        z = match center_y( &bfs, &z, center_tol ) {
+            Some(yy) => yy,
+            None => z,
         };
 
         ft = match FlexTab::new(&bfs, &z, ZTHRESH) {
