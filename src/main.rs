@@ -68,6 +68,8 @@ fn main() { //{@
 } //@}
 
 #[allow(dead_code)]
+/// This just tests the BFS finding with a fixed input.  The BFS solver will return
+/// something infeasible half the time
 fn bfs_test() {
     let y = na::DMatrix::from_row_slice( 4,6,
             &vec![
@@ -187,6 +189,7 @@ fn use_given_matrices() -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
 } //@}
 
 #[allow(dead_code)]
+/// Old centering code
 fn near_pm_one( x: f64, tol: f64 ) -> f64 {
     if ( x - 1f64 ).abs() < tol {
         return x - 1f64;
@@ -198,6 +201,8 @@ fn near_pm_one( x: f64, tol: f64 ) -> f64 {
 }
 
 #[allow(dead_code)]
+/// If x is within tol of {-1,0,1}, then return how far off it is
+/// otherwise return 0
 fn near_pm_one_or_zero( x: f64, tol: f64 ) -> f64 {
     if ( x - 1f64 ).abs() < tol {
         return x - 1f64;
@@ -210,83 +215,29 @@ fn near_pm_one_or_zero( x: f64, tol: f64 ) -> f64 {
     0f64
 }
 
-
 #[allow(dead_code)]
-/// Return columns of x that are equivalent up to negation
-fn find_pairs( x: &na::DMatrix<f64>, thresh: f64 ) -> Vec<Vec<usize>>
-{
-    let mut res = Vec::<Vec<usize>>::new();
-    let mut matched = vec![false; x.shape().1];
-
-    //iterate over pairs all columns of x
-    for i in 0 .. x.shape().1 {
-        let mut equiv = vec![i];
-        for j in 0 .. x.shape().1 {
-            if j <= i { continue; }
-            if matched[j] { continue; }
-            if (x.column(i) - x.column(j)).amax() < thresh
-                    || (x.column(i) + x.column(j)).amax() < thresh {
-                equiv.push(j);
-                matched[j] = true;
-            }
-        }
-        if equiv.len() > 1 { res.push(equiv); }
-    }
-    res
-}
-
-#[allow(dead_code)]
-/// Find the column that has an index in pairs that has the smallest non-zero l_inf
-/// norm in del
-fn pick_worst( pairs: &Vec<Vec<usize>>, del: & na::DMatrix<f64> ) -> usize {
-    let mut idx = 0;
-    let mut worst = 1.0e15;
-
-    for row in pairs {
-        for col in row {
-            let norm = del.column(*col).iter().fold(0f64, |acc, &x| acc + x.abs() );
-            if norm > 0f64 && norm < worst { 
-                idx = *col; 
-                worst = norm;
-            }
-        }
-    }
-
-    idx
-}
-
-#[allow(dead_code)]
-fn delete_col( x: &na::DMatrix<f64>, idx: usize ) -> na::DMatrix<f64>
-{
-    let (n,k) = x.shape();
-    let mut data = Vec::<f64>::with_capacity( n * (k-1) );
-    for i in 0 .. k {
-        if i != idx {
-            let col = x.column(i);
-            for v in col.iter() { data.push( *v ); }
-        }
-    }
-
-    na::DMatrix::from_column_slice(n, k-1, &data)
-}
-
+/// The main centering step.  Returns a new version of y so that the entries
+/// of u*y that are within tol of {-1, 0, 1} are forced to those values
+/// Set tol=0f64 and the function will just return a copy of y
 fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) -> 
     Option<na::DMatrix<f64>> 
 {
+    let n = y.nrows();
+    let k = y.ncols();
+
     //Skip if tolerance is zero (i.e. don't center)
     if tol == 0f64 {
         return Some( y.clone() );
     }
 
-    let uy = u.clone() * y.clone();
+    let mut uy = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
+    u.mul_to( y, &mut uy );
 
     //Find epsilon
-    let del = uy.map(|x| near_pm_one_or_zero(x, tol) );
+    let del = uy.map( |x| near_pm_one_or_zero(x, tol) );
 
     //center y, first we need bfs_inv
-    let qr = na::QR::new( u.clone() );
-    let bfs_inv_o = qr.try_inverse();
-    match bfs_inv_o {
+    match u.clone().try_inverse() {
         Some(u_inv) => return Some( y - u_inv * del ),
         None => return None,
     }
@@ -294,20 +245,21 @@ fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) ->
 
 
 #[allow(dead_code)]
-/// Testing AWGN performance
+/// Crude test code to test AWGN performance
 fn test_awgn() {
     let channels = 100;
     let reps_per = 200;
 
-    let n = 4; let k = 6;
+    let n = 4; let k = 10;
     let complex = false;
-    let var = 0.0001; 
+    let var = 0.001; // Noise tolerance
     let tol = 0.1;
 
     let dim = vec![(n, k)];
 
     let mut results = (0u64, 0u64, 0u64, 0u64,0u64);
     let mut well_cond_res = (0u64, 0u64, 0u64,0u64);
+
     //Generate trial and add noise
     for _ in 0 .. channels {
         let mut res = (0u64, 0u64, 0u64, 0u64,0u64);
@@ -316,6 +268,8 @@ fn test_awgn() {
         info!("A = {:.4}", a);
         info!("Y = {:.4}", y_base);
 
+        //Mostly for debugging purposes, display the singular values of the
+        //channel.  
         let svd = na::SVD::new(a, false, false);
         let s = svd.singular_values;
         let mut outstr = format!("Singular values: ");
@@ -328,10 +282,13 @@ fn test_awgn() {
         println!("{}", outstr);
         println!("Condition number: {}, sigma_4: {}", max / min, min);
 
+        //Main loop
         for _ in 0 .. reps_per {
+            //Generate noise
             let e = rand_matrix(n, k);
             let mut y = y_base.clone() + var*e;
             res.0 += 1;
+
             match single_run(&y,true,tol) {
                 Err(e) => {
                     match e {
@@ -343,6 +300,7 @@ fn test_awgn() {
                         _ => res.1 += 1,
                     };
                 },
+
                 Ok(ft) => {
                     let ref best_state = ft.best_state;
                     let mut uy = best_state.u.clone() * y_base.clone();
@@ -508,13 +466,17 @@ fn run_reps() { //{@
 /// Perform a single run using a given +y+ matrix, which contains k symbols each
 /// of length n.
 //@}
-fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result<FlexTab, FlexTabError> { //{@
+fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) 
+    -> Result<FlexTab, FlexTabError> 
+{ //{@
     let mut attempts = 0;
     const LIMIT: usize = 100; // Max attempts to restart with fresh random U_i.
     let mut ft;
     let mut best: Option<FlexTab> = None;
 
-    //If true, check that y is not singular
+    //If true, check that y is not singular.
+    //Solver should still run if check fails but may be slow and will likely 
+    //return garbage
     if skip_check == false {
        let (n,_k) = y.shape();
        let svd = na::SVD::new(y.clone(), false, false);
@@ -534,7 +496,6 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
     let mut z;
     // Loop trying new u_i until we get n linearly independent \pm 1 cols.
     loop {
-        info!("n={} k={}", y.shape().0, y.shape().1);
         attempts += 1;
         if attempts > LIMIT {
             info!("Ran out of attempts");
@@ -570,10 +531,8 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
                 u_i = bfs.clone();
             }
 
-            trace!("bfs = {:.8}", bfs);
-            trace!("uy = {:.8}", bfs.clone() * y.clone() );
-
-            trace!("Before centering: {:.8}", bfs.clone() * z.clone() );
+            trace!("bfs = {:.5}", bfs);
+            trace!("uy = {:.5}", bfs.clone() * z.clone() );
 
             //Center y.  If this fails (it never should) then just use
             //the old value of y and try our luck with FlexTab
@@ -582,11 +541,14 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
                 None => z,
             };
 
-            trace!("After centering: {:.12}", bfs.clone() * z.clone() );
+            trace!("After centering: {:.5}", bfs.clone() * z.clone() );
             center_attempts += 1;
             if center_attempts >= z.shape().0 { break; }
         }
 
+        //If U was singular (can happen if A is ill-conditioned and we are 
+        //at the mercy of numerical stability) then true again with new 
+        //starting point. Surprisingly we can often recover from this
         if bfs_fail { continue; }
 
         ft = match FlexTab::new(&bfs, &z, ZTHRESH) {
@@ -606,7 +568,6 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
         // we don't have n linearly independent good cols, then try new u_i.
         // Do same thing if we appear to have been trapped.
         info!("num_good_cols = {}", ft.num_good_cols());
-        //info!("After centering = {:.5}", bfs.clone() * z.clone() );
         debug!("initial ft =\n{}", ft);
 
         match ft.solve() {
@@ -615,23 +576,9 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
                 FlexTabError::LinIndep 
                     => { 
                         info!("LinIndep, retrying...");
-                        info!("U = {:.3}", ft.state.u);
-                        info!("UY Good = {:.1}", ft.state.uy);
-
-                        match ft.state.uybad {
-                            Some(b) => info!("UY Bad = {}", b),
-                            None => info!("All Good"),
-                        };
                     },
                 FlexTabError::StateStackExhausted | FlexTabError::TooManyHops
                     => {
-                        info!("Trap, UY Good = {:.1}", ft.state.uy);
-                        match ft.state.uybad.clone() {
-                            Some(bb) => info!("UY Bad = {}", bb),
-                            None => info!("All Good"),
-                        };
-                        info!("U = {:.3}", ft.state.u);
-
                         best = match best {
                             Some(b) => if ft.state.obj > b.state.obj
                                 { Some(ft) } else { Some(b) },
@@ -1097,14 +1044,19 @@ fn boundary_dist(u: &na::DMatrix<f64>, v: &na::DMatrix<f64>, //{@
             }
 
             // Determine value of t s.t. [i, j] constr reaches boundary.
-            let t = match dy.column(j)[i].partial_cmp(&0.0).unwrap() {
-                std::cmp::Ordering::Less =>
-                    (-1.0 - uy.column(j)[i]) / dy.column(j)[i],
-                std::cmp::Ordering::Greater =>
-                    (1.0 - uy.column(j)[i]) / dy.column(j)[i],
-                std::cmp::Ordering::Equal => std::f64::MAX,
-            };
-            if t.abs() < t_min.abs() { t_min = t; }
+            match dy.column(j)[i].partial_cmp(&0.0) {
+                Some(v) => {
+                    let t = match v {
+                        std::cmp::Ordering::Less =>
+                            (-1.0 - uy.column(j)[i]) / dy.column(j)[i],
+                        std::cmp::Ordering::Greater =>
+                            (1.0 - uy.column(j)[i]) / dy.column(j)[i],
+                        std::cmp::Ordering::Equal => std::f64::MAX,
+                    };
+                    if t.abs() < t_min.abs() { t_min = t; }
+                },
+                None => continue,
+            }
         }
     }
 
