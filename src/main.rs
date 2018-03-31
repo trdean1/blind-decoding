@@ -86,7 +86,7 @@ fn bfs_test() {
            ]);
 
     println!("UY={}", ui.clone()*y.clone());
-    let bfs = find_bfs(&ui, &y);
+    let bfs = find_bfs(&ui, &y).unwrap();
     println!("UY={:.3}", bfs * y );
 }
 
@@ -139,7 +139,7 @@ fn many_bfs(reps: usize) { //{@
         let (a, y) = trial(&x, false);
         let u_i = rand_init(&y);
         //println!("a = {}\ny = {}\nUi = {}", a, y, u_i);
-        let bfs = find_bfs(&u_i, &y);
+        let bfs = find_bfs(&u_i, &y).unwrap();
         let res = verify_bfs(&bfs, &y, ZTHRESH);
         if res == BFSType::Wrong {
             let uy = bfs.clone() * y.clone();
@@ -313,7 +313,6 @@ fn test_awgn() {
         let mut res = (0u64, 0u64, 0u64, 0u64,0u64);
         let x = get_matrix( &dim[0 .. 1] );
         let (a, y_base) = trial(&x, complex);
-
         info!("A = {:.4}", a);
         info!("Y = {:.4}", y_base);
 
@@ -552,9 +551,19 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
         //Centering loop
         let mut bfs;
         let mut center_attempts = 0;
+        let mut bfs_fail = false;
         loop {
             trace!("y = {:.8}Ui = {:.8}", z, u_i);
-            bfs = find_bfs(&u_i, &z); // Find BFS.
+            match find_bfs(&u_i, &z) {
+                Some(b) => bfs = b,
+                None => {
+                    info!("Singular starting point, retrying");
+                    bfs_fail = true;
+                    bfs = u_i;
+                    break;
+                },
+            }
+
             if (bfs.clone() - u_i.clone()).amax() < ZTHRESH {
                 break;
             } else {
@@ -575,8 +584,10 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) -> Result
 
             trace!("After centering: {:.12}", bfs.clone() * z.clone() );
             center_attempts += 1;
-            if center_attempts > z.shape().0 { break; }
+            if center_attempts >= z.shape().0 { break; }
         }
+
+        if bfs_fail { continue; }
 
         ft = match FlexTab::new(&bfs, &z, ZTHRESH) {
             Ok(ft) => ft,
@@ -915,7 +926,7 @@ fn objgrad(x: &mut na::DMatrix<f64>) -> Option<na::DMatrix<f64>> { //{@
     }
 } //@}
 //{@
-/// Generate a random orthogonal n x n matrix.
+/// Generate a random orthogonal n x n matrix
 //@}
 fn random_orthogonal(n: usize) -> na::DMatrix<f64> { //{@
     na::QR::new(rand_matrix(n, n)).q()
@@ -1108,11 +1119,18 @@ fn boundary_dist(u: &na::DMatrix<f64>, v: &na::DMatrix<f64>, //{@
 ///          y = n x k matrix of received symbols
 /// Output:  u = estimated inverse channel gain matrix that forms a BFS
 //@}
-fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>) -> na::DMatrix<f64> { //{@
+fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>) 
+    -> Option<na::DMatrix<f64>> 
+{ //{@
     let mut u = u_i.clone();
     let mut gradmtx = u.clone();
     let (n, k) = y.shape();
-    let mut v = objgrad(&mut gradmtx).unwrap();
+    let mut v; 
+    match objgrad(&mut gradmtx) {
+        Some(r) => v = r,
+        None => return None,
+    }
+
     let mut t = boundary_dist(&u, &v, &y, None);
     v *= t;
     u += v;
@@ -1194,7 +1212,7 @@ fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>) -> na::DMatrix<f64> { 
             }
         }
     }
-    u
+    Some(u)
 } //@}
 //{@
 /// Verify that every entry of |uy| == 1.
