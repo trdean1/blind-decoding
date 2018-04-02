@@ -248,7 +248,7 @@ fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) ->
 /// Crude test code to test AWGN performance
 fn test_awgn() {
     let channels = 10;
-    let reps_per = 20;
+    let reps_per = 50;
 
     let n = 4; let k = 10;
     let complex = false;
@@ -818,68 +818,49 @@ fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     p_hat.apply( |e| e.round() );
     
     //Check that p_hat is an ATM
-    //If not we will try to recover it from scratch
     if is_atm( &p_hat ) == false {
-        println!("P_hat is not ATM = {}", p_hat);
-        //p_hat = na::DMatrix::<f64>::identity(n, n);
-        p_hat = find_nearest_atm( &p_hat );
+        println!("P_hat is not ATM");
+        return recover_from_non_atm( &x_hat, &x, &p_hat );
+    } else { 
+        return recover_from_atm( &x_hat, &x, &p_hat );
     }
-    
-    println!("Initial guess: {}", p_hat);
+}
+
+#[allow(dead_code)]
+fn recover_from_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
+                     p_hat: &na::DMatrix<f64>) 
+    -> na::DMatrix<f64>
+{
+    let (n, k) = x.shape();
+    let half = k / 2;
+    let third = k / 3;
+
+    let mut p_hat = p_hat.clone();
+
 
     let mut x_tilde = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
     p_hat.mul_to(&x_hat, &mut x_tilde);
 
     //Get new error vector with permuted rows
-    let mut row_err_vec = Vec::with_capacity(n); 
+    //let mut rows_to_flip = Vec::<usize>::new();
     for i in 0..n {
-        row_err_vec.push( row_errors( &x_tilde, &x, i ) );
+        //Flip sign if bit error rate is over half
+        if row_errors( &x_tilde, &x, i) > half {
+            let mut row_iter = p_hat.row_mut(i);
+            row_iter *= -1f64;
+        }
     }
-
+    
     p_hat
-}
+} 
 
 #[allow(dead_code)]
-fn find_nearest_atm( a: &na::DMatrix<f64> ) -> na::DMatrix<f64> {
-    let n = a.shape().0;
-
-    let mut b = na::DMatrix::<f64>::identity(n, n);
-
-    let mut set_rows = vec![false; n];
-    let mut set_cols = vec![false; n];
-
-    for i in 0..n {
-        let row_iter = a.row(i);
-        //Find l_1 norm of row
-        let row_occ = row_iter.iter()
-                              .fold(0,|acc, &e| acc + e.abs() as usize);
-        if row_occ == 1 { 
-            set_rows[i] == true;
-            b.set_row(i, &row_iter);
-
-            let jj = row_iter.iter()
-                             .enumerate()
-                             .filter(|&(_,e)| e.abs() == 1.0)
-                             .fold(0,|acc,(idx,_)| acc + idx);
-            set_cols[jj] = true;
-        }
-    }
-
-    for i in 0 .. n {
-        if set_rows[i] == false {
-            for j in 0 .. n {
-                if set_cols[i] == false {
-                    set_rows[i] = true;
-                    set_cols[j] = true;
-                    (b.row_mut(i))[i] = 0.0;
-                    (b.row_mut(i))[j] = 1.0;
-                    break;
-                }
-            }
-        }
-    }   
-
-    b
+fn recover_from_non_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
+                         p_hat: &na::DMatrix<f64>) 
+    -> na::DMatrix<f64>
+{
+    let n = x.shape().0;
+    na::DMatrix::<f64>::identity(n,n)
 }
 
 
