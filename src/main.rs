@@ -247,16 +247,17 @@ fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) ->
 #[allow(dead_code)]
 /// Crude test code to test AWGN performance
 fn test_awgn() {
-    let channels = 100;
-    let reps_per = 200;
+    let channels = 10;
+    let reps_per = 20;
 
     let n = 4; let k = 10;
     let complex = false;
-    let var = 0.001; // Noise tolerance
+    let var = 0.01; // Noise tolerance
     let tol = 0.1;
 
     let dim = vec![(n, k)];
 
+    let mut sym_errors = 0usize;
     let mut results = (0u64, 0u64, 0u64, 0u64,0u64);
     let mut well_cond_res = (0u64, 0u64, 0u64,0u64);
 
@@ -317,6 +318,7 @@ fn test_awgn() {
                         trace!("base_state.uy = {:.2}", best_state.uy);
                         trace!("uy = {:.2}", uy );
                         trace!("x = {:.2}", x);
+                        sym_errors += compute_symbol_errors( &uy, &x, None, None );
                     }
                 }
             };
@@ -343,6 +345,7 @@ fn test_awgn() {
     println!("Correct: {} / {}, runout: {}, error: {}", 
              well_cond_res.0, well_cond_res.0+well_cond_res.1,
              well_cond_res.2, well_cond_res.3);
+    println!("Symbol Errors: {}", sym_errors);
 
 }
 
@@ -730,6 +733,30 @@ fn equal_atm(a: &na::DMatrix<f64>, b: &na::DMatrix<f64>) -> bool { //{@
     }
     true
 } //@}
+
+#[allow(dead_code)]
+///Find the number of symbol errors in x_hat.  If u, h are provided, then try to 
+///recover an ATM.  Otherwise, directly compare x and x_hat
+fn compute_symbol_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
+                        _u: Option<&na::DMatrix<f64>>, _h: Option<&na::DMatrix<f64>> )
+    -> usize 
+{
+    let (n, _k) = x.shape();
+    let mut row_errors = vec![0;n];
+    let mut del = x_hat.clone();
+    del -= x;
+    del.apply( | e | e.round() );
+
+    for i in 0..n {
+        let row_iter = del.row(i);
+        row_errors[i] = row_iter.iter()
+                                 .fold( 0, |acc, &e| acc + if e != 0.0 { 1 } 
+                                                     else { 0 } );
+    }
+
+    row_errors.iter().fold( 0, |acc, &e| acc + e )
+}
+
 //{@
 /// Randomly select one (n, k) value from the array of (n, k) pairs given in
 /// +dims+.  Fill the necessary extra columns (if necessary) with random iid
