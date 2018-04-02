@@ -252,7 +252,7 @@ fn test_awgn() {
 
     let n = 4; let k = 10;
     let complex = false;
-    let var = 0.01; // Noise tolerance
+    let var = 0.02; // Noise tolerance
     let tol = 0.1;
 
     let dim = vec![(n, k)];
@@ -271,7 +271,7 @@ fn test_awgn() {
 
         //Mostly for debugging purposes, display the singular values of the
         //channel.  
-        let svd = na::SVD::new(a, false, false);
+        let svd = na::SVD::new(a.clone(), false, false);
         let s = svd.singular_values;
         let mut outstr = format!("Singular values: ");
         let mut min = 1000f64; let mut max = 0f64;
@@ -318,7 +318,9 @@ fn test_awgn() {
                         trace!("base_state.uy = {:.2}", best_state.uy);
                         trace!("uy = {:.2}", uy );
                         trace!("x = {:.2}", x);
-                        sym_errors += compute_symbol_errors( &uy, &x, None, None );
+                        sym_errors += compute_symbol_errors( &uy, &x, 
+                                                             Some(&best_state.u), 
+                                                             Some(&a) );
                     }
                 }
             };
@@ -345,7 +347,7 @@ fn test_awgn() {
     println!("Correct: {} / {}, runout: {}, error: {}", 
              well_cond_res.0, well_cond_res.0+well_cond_res.1,
              well_cond_res.2, well_cond_res.3);
-    println!("Symbol Errors: {}", sym_errors);
+    println!("Symbol Errors: {} / {}", sym_errors, n*k*channels*reps_per);
 
 }
 
@@ -521,7 +523,7 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
             match find_bfs(&u_i, &z) {
                 Some(b) => bfs = b,
                 None => {
-                    info!("Singular starting point, retrying");
+                    trace!("Singular starting point, retrying");
                     bfs_fail = true;
                     bfs = u_i;
                     break;
@@ -570,7 +572,7 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
         // Now we have at least n good cols, so try to solve.  If error is that
         // we don't have n linearly independent good cols, then try new u_i.
         // Do same thing if we appear to have been trapped.
-        info!("num_good_cols = {}", ft.num_good_cols());
+        trace!("num_good_cols = {}", ft.num_good_cols());
         debug!("initial ft =\n{}", ft);
 
         match ft.solve() {
@@ -578,7 +580,7 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
             Err(e) => match e {
                 FlexTabError::LinIndep 
                     => { 
-                        info!("LinIndep, retrying...");
+                        trace!("LinIndep, retrying...");
                     },
                 FlexTabError::StateStackExhausted | FlexTabError::TooManyHops
                     => {
@@ -734,28 +736,152 @@ fn equal_atm(a: &na::DMatrix<f64>, b: &na::DMatrix<f64>) -> bool { //{@
     true
 } //@}
 
+
+/// Return true if a is an ATM matrix
+/// a is rounded to nearest int so necessary and sufficient condition
+/// for a to be an ATM is that each row and column have an l_1 norm of 1
+#[allow(dead_code)]
+fn is_atm( a: &na::DMatrix<f64> ) -> bool {
+    let n = a.shape().0;
+
+    for i in 0 .. n {
+        let r = a.row(i).iter()
+                        .fold(0, |acc,&e| acc + e.abs() as usize);
+        let c = a.column(i).iter()
+                           .fold(0, |acc,&e| acc + e.abs() as usize);
+
+        if r != 1 || c != 1 {
+            return false;
+        }
+    }
+
+    true
+}
+
 #[allow(dead_code)]
 ///Find the number of symbol errors in x_hat.  If u, h are provided, then try to 
 ///recover an ATM.  Otherwise, directly compare x and x_hat
 fn compute_symbol_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
-                        _u: Option<&na::DMatrix<f64>>, _h: Option<&na::DMatrix<f64>> )
+                          u: Option<&na::DMatrix<f64>>, h: Option<&na::DMatrix<f64>> )
     -> usize 
 {
-    let (n, _k) = x.shape();
-    let mut row_errors = vec![0;n];
-    let mut del = x_hat.clone();
-    del -= x;
-    del.apply( | e | e.round() );
-
+    //Find the error rate of each row
+    let (n,_k) = x.shape();
+    let mut row_err_vec = vec![0;n];
     for i in 0..n {
-        let row_iter = del.row(i);
-        row_errors[i] = row_iter.iter()
-                                 .fold( 0, |acc, &e| acc + if e != 0.0 { 1 } 
-                                                     else { 0 } );
+        row_err_vec[i] = row_errors( &x_hat, &x, i );
     }
 
-    row_errors.iter().fold( 0, |acc, &e| acc + e )
+    //If we don't have u and h just return raw error rate
+    if u == None || h == None {
+        println!("Row errors: {:?}", row_err_vec);
+        return row_err_vec.iter().fold(0,|acc,&e| acc + e);
+    }
+
+    //Otherwise, attempt to recover ATM
+    let p_hat = estimate_permutation( x_hat, x, u.unwrap(), h.unwrap() );
+
+    let x_hat2 = p_hat * x_hat.clone();
+
+    //Now get raw rate with ATM
+    compute_symbol_errors( &x_hat2, x, None, None )
 }
+
+#[allow(dead_code)]
+//Return the number of positons in the ith row where x_hat and x differ by more 
+//than 0.5
+fn row_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>, i: usize ) -> usize
+{
+    let x_iter = x.row(i);
+    let x_hat_iter = x_hat.row(i);
+
+    //compute raw error rate for this row, error if elements differ by more than 0.5 
+    x_iter.iter()
+          .enumerate()
+          .fold( 0, 
+                 |acc, (idx, &e)| 
+                 acc + if (e - x_hat_iter[idx]).round() != 0.0 { 1 } else { 0 } 
+                )
+}
+
+
+#[allow(dead_code)]
+fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
+                         u: &na::DMatrix<f64>, h: &na::DMatrix<f64> )
+    -> na::DMatrix<f64>
+{
+    let (n,k) = x.shape();
+
+    //Initial guess at permutation
+    let mut p_hat = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
+    u.mul_to(&h, &mut p_hat);
+    p_hat.apply( |e| e.round() );
+    
+    //Check that p_hat is an ATM
+    //If not we will try to recover it from scratch
+    if is_atm( &p_hat ) == false {
+        println!("P_hat is not ATM = {}", p_hat);
+        //p_hat = na::DMatrix::<f64>::identity(n, n);
+        p_hat = find_nearest_atm( &p_hat );
+    }
+    
+    println!("Initial guess: {}", p_hat);
+
+    let mut x_tilde = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
+    p_hat.mul_to(&x_hat, &mut x_tilde);
+
+    //Get new error vector with permuted rows
+    let mut row_err_vec = Vec::with_capacity(n); 
+    for i in 0..n {
+        row_err_vec.push( row_errors( &x_tilde, &x, i ) );
+    }
+
+    p_hat
+}
+
+#[allow(dead_code)]
+fn find_nearest_atm( a: &na::DMatrix<f64> ) -> na::DMatrix<f64> {
+    let n = a.shape().0;
+
+    let mut b = na::DMatrix::<f64>::identity(n, n);
+
+    let mut set_rows = vec![false; n];
+    let mut set_cols = vec![false; n];
+
+    for i in 0..n {
+        let row_iter = a.row(i);
+        //Find l_1 norm of row
+        let row_occ = row_iter.iter()
+                              .fold(0,|acc, &e| acc + e.abs() as usize);
+        if row_occ == 1 { 
+            set_rows[i] == true;
+            b.set_row(i, &row_iter);
+
+            let jj = row_iter.iter()
+                             .enumerate()
+                             .filter(|&(_,e)| e.abs() == 1.0)
+                             .fold(0,|acc,(idx,_)| acc + idx);
+            set_cols[jj] = true;
+        }
+    }
+
+    for i in 0 .. n {
+        if set_rows[i] == false {
+            for j in 0 .. n {
+                if set_cols[i] == false {
+                    set_rows[i] = true;
+                    set_cols[j] = true;
+                    (b.row_mut(i))[i] = 0.0;
+                    (b.row_mut(i))[j] = 1.0;
+                    break;
+                }
+            }
+        }
+    }   
+
+    b
+}
+
 
 //{@
 /// Randomly select one (n, k) value from the array of (n, k) pairs given in
