@@ -247,17 +247,18 @@ fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) ->
 #[allow(dead_code)]
 /// Crude test code to test AWGN performance
 fn test_awgn() {
-    let channels = 10;
-    let reps_per = 50;
+    let channels = 100;
+    let reps_per = 200;
 
-    let n = 4; let k = 10;
+    let n = 4; let k = 30;
     let complex = false;
-    let var = 0.02; // Noise tolerance
+    let var = 0.001; // Noise tolerance
     let tol = 0.1;
 
     let dim = vec![(n, k)];
 
     let mut sym_errors = 0usize;
+    let mut sym_wc_errors = 0usize;
     let mut results = (0u64, 0u64, 0u64, 0u64,0u64);
     let mut well_cond_res = (0u64, 0u64, 0u64,0u64);
 
@@ -305,7 +306,7 @@ fn test_awgn() {
                 Ok(ft) => {
                     let ref best_state = ft.best_state;
                     let mut uy = best_state.u.clone() * y_base.clone();
-                    uy.apply( |x| x.round() );
+                    uy.apply( |x| x.signum() );
                     //if equal_atm(&best_state.uy, &x) {
                     if equal_atm(&uy, &x) {
                         res.2 += 1;
@@ -318,9 +319,13 @@ fn test_awgn() {
                         trace!("base_state.uy = {:.2}", best_state.uy);
                         trace!("uy = {:.2}", uy );
                         trace!("x = {:.2}", x);
-                        sym_errors += compute_symbol_errors( &uy, &x, 
-                                                             Some(&best_state.u), 
-                                                             Some(&a) );
+                        let ser = compute_symbol_errors( &uy, &x, 
+                                                         Some(&best_state.u), 
+                                                         Some(&a) );
+                        sym_errors += ser;
+                        if min > 0.1 {
+                            sym_wc_errors += ser;
+                        }
                     }
                 }
             };
@@ -332,7 +337,7 @@ fn test_awgn() {
         results.2 += res.2; results.3 += res.3;
         results.4 += res.4;
 
-        if min > 0.25 {
+        if min > 0.1 {
             well_cond_res.0 += res.2;
             well_cond_res.1 += res.3;
             well_cond_res.2 += res.1;
@@ -343,11 +348,16 @@ fn test_awgn() {
     println!("\nTotals:");
     println!("Trials: {}, Correct: {} / {}, runout: {}, error: {}", 
              results.0, results.2, results.2 + results.3, results.1, results.4); 
-    println!("Given sigma_4 > 0.25: ");
+    println!("Symbol Errors: {} / {} ({:e})", 
+             sym_errors, n*k*channels*reps_per,
+             sym_errors as f64 / ((n*k*channels*reps_per) as f64));
+    println!("Given sigma_4 > 0.1: ");
     println!("Correct: {} / {}, runout: {}, error: {}", 
              well_cond_res.0, well_cond_res.0+well_cond_res.1,
              well_cond_res.2, well_cond_res.3);
-    println!("Symbol Errors: {} / {}", sym_errors, n*k*channels*reps_per);
+    println!("Symbol Errors: {} / {} ({:e})", 
+             sym_wc_errors, n*k*(well_cond_res.0+well_cond_res.1) as usize,
+             sym_wc_errors as f64 / ((n*k*(well_cond_res.0+well_cond_res.1) as usize) as f64));
 
 }
 
@@ -774,7 +784,7 @@ fn compute_symbol_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
 
     //If we don't have u and h just return raw error rate
     if u == None || h == None {
-        println!("Row errors: {:?}", row_err_vec);
+        info!("Row errors: {:?}", row_err_vec);
         return row_err_vec.iter().fold(0,|acc,&e| acc + e);
     }
 
@@ -810,7 +820,7 @@ fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
                          u: &na::DMatrix<f64>, h: &na::DMatrix<f64> )
     -> na::DMatrix<f64>
 {
-    let (n,k) = x.shape();
+    let (n,_k) = x.shape();
 
     //Initial guess at permutation
     let mut p_hat = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
@@ -819,7 +829,7 @@ fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     
     //Check that p_hat is an ATM
     if is_atm( &p_hat ) == false {
-        println!("P_hat is not ATM");
+        info!("P_hat is not ATM");
         return recover_from_non_atm( &x_hat, &x, &p_hat );
     } else { 
         return recover_from_atm( &x_hat, &x, &p_hat );
@@ -833,7 +843,7 @@ fn recover_from_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
 {
     let (n, k) = x.shape();
     let half = k / 2;
-    let third = k / 3;
+    //let third = k / 3;
 
     let mut p_hat = p_hat.clone();
 
@@ -860,7 +870,10 @@ fn recover_from_non_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     -> na::DMatrix<f64>
 {
     let n = x.shape().0;
-    na::DMatrix::<f64>::identity(n,n)
+    let p_hat = na::DMatrix::<f64>::identity(n,n);
+
+    //TODO: Should add code to try permutations
+    recover_from_atm( &x_hat, &x, &p_hat)
 }
 
 
