@@ -250,98 +250,135 @@ fn test_awgn() {
     let channels = 100;
     let reps_per = 200;
 
-    let n = 4; let k = 10;
+    let n = 4; let k = 30;
     let complex = false;
-    let var = 0.001; // Noise tolerance
+    let var = vec![0.001,0.002,0.004,0.008,0.01,0.02,0.04,0.08,0.1]; // Noise variance
     let tol = 0.1;
 
     let dim = vec![(n, k)];
 
-    let mut results = TrialResults::new();
-    let mut well_cond_results = TrialResults::new();
+    let mut r1_vec = Vec::new();
+    let mut r2_vec = Vec::new();
+    let mut r3_vec = Vec::new();
 
-    //Generate trial and add noise
-    for _ in 0 .. channels {
-        let mut res = TrialResults::new();
-        let x = get_matrix( &dim[0 .. 1] );
-        let (a, y_base) = trial(&x, complex);
-        info!("A = {:.4}", a);
-        info!("Y = {:.4}", y_base);
+    for v in 0 .. var.len() {
+        eprintln!("Noise variance: {}", var[v]);
+        let mut results = TrialResults::new(n,k,var[v]);
+        let mut results_test = TrialResults::new(n,k,var[v]);
+        let mut well_cond_results = TrialResults::new(n,k,var[v]);
 
-        //Mostly for debugging purposes, display the singular values of the
-        //channel.  
-        let svd = na::SVD::new(a.clone(), false, false);
-        let s = svd.singular_values;
-        let mut outstr = format!("Singular values: ");
-        let mut min = 1000f64; let mut max = 0f64;
-        for ss in s.iter() {
-            if ss > &max { max = *ss; }
-            if ss < &min { min = *ss; }
-            outstr += &format!("{} ", ss);
-        }
-        println!("{}", outstr);
-        println!("Condition number: {}, sigma_4: {}", max / min, min);
+        //Generate trial and add noise
+        for ii in 0 .. channels {
+            if ii % 10 == 0 { eprint!("#"); }
 
-        //Main loop
-        for _ in 0 .. reps_per {
-            //Generate noise
-            let e = rand_matrix(n, k);
-            let mut y = y_base.clone() + var*e;
-            res.trials += 1;
+            let mut res = TrialResults::new(n,k,var[v]);
+            let x = get_matrix( &dim[0 .. 1] );
+            let (a, y_base) = trial(&x, complex);
+            info!("A = {:.4}", a);
+            info!("Y = {:.4}", y_base);
 
-            match single_run(&y,true,tol) {
-                Err(e) => {
-                    match e {
-                        FlexTabError::Runout => {
-                            res.runout += 1;
-                        },
-                        
-                        _ => res.error += 1,
-                    };
-                },
+            //Mostly for debugging purposes, display the singular values of the
+            //channel.  
+            let svd = na::SVD::new(a.clone(), false, false);
+            let s = svd.singular_values;
+            let mut outstr = format!("Singular values: ");
+            let mut min = 1000f64; let mut max = 0f64;
+            for ss in s.iter() {
+                if ss > &max { max = *ss; }
+                if ss < &min { min = *ss; }
+                outstr += &format!("{} ", ss);
+            }
+            info!("{}", outstr);
+            info!("Condition number: {}, sigma_4: {}", max / min, min);
 
-                Ok(ft) => {
-                    res.complete += 1;
-                    res.total_bits += n*k;
-                    let ref best_state = ft.best_state;
-                    let mut uy = best_state.u.clone() * y_base.clone();
-                    uy.apply( |x| x.signum() );
-                    //if equal_atm(&best_state.uy, &x) {
-                    if equal_atm(&uy, &x) {
-                        res.success += 1;
-                        info!("EQUAL ATM");
-                    } else {
-                        res.not_atm += 1;
-                        // UY did +not+ match X, print some results and also
-                        // determine if UY was even a vertex.
-                        info!("UNEXPECTED: return non-ATM");
-                        trace!("base_state.uy = {:.2}", best_state.uy);
-                        trace!("uy = {:.2}", uy );
-                        trace!("x = {:.2}", x);
-                        let ser = compute_symbol_errors( &uy, &x, 
-                                                         Some(&best_state.u), 
-                                                         Some(&a) );
-                        res.bit_errors += ser;
+            //Main loop
+            for _ in 0 .. reps_per {
+                //Generate noise
+                let e = rand_matrix(n, k);
+                let mut y = y_base.clone() + var[v]*e;
+                res.trials += 1;
+
+                match single_run(&y,true,tol) {
+                    Err(e) => {
+                        match e {
+                            FlexTabError::Runout => {
+                                res.runout += 1;
+                            },
+                            
+                            _ => res.error += 1,
+                        };
+                    },
+
+                    Ok(ft) => {
+                        res.complete += 1;
+                        res.total_bits += n*k;
+                        let ref best_state = ft.best_state;
+                        let mut uy = best_state.u.clone() * y_base.clone();
+                        uy.apply( |x| x.signum() );
+                        //if equal_atm(&best_state.uy, &x) {
+                        if equal_atm(&uy, &x) {
+                            res.success += 1;
+                            results_test.success += 1;
+                            results_test.trials += 1;
+                            results_test.total_bits += n*k;
+                            info!("EQUAL ATM");
+                        } else {
+                            res.not_atm += 1;
+                            // UY did +not+ match X, print some results and also
+                            // determine if UY was even a vertex.
+                            info!("UNEXPECTED: return non-ATM");
+                            trace!("base_state.uy = {:.2}", best_state.uy);
+                            trace!("uy = {:.2}", uy );
+                            trace!("x = {:.2}", x);
+                            let ser = compute_symbol_errors( &uy, &x, 
+                                                             Some(&best_state.u), 
+                                                             Some(&a) );
+
+                            match ser {
+                                Some(s) => {
+                                    res.bit_errors += s;
+                                    results_test.bit_errors += s;
+                                    results_test.total_bits += n*k;
+                                    results_test.trials += 1;
+                                },
+                                None => {
+                                    res.bit_errors += 
+                                        force_estimate( &uy, &x );
+                                }
+                            }
+                        }
                     }
-                }
-            };
+                };
+            }
+            info!("{}\n", res); 
+            
+            if min > 0.1 {
+                well_cond_results += res.clone();
+            }
+
+            results += res;
         }
 
-        println!("{}\n", res); 
-        
-        if min > 0.1 {
-            well_cond_results += res.clone();
-        }
+        println!("\n{}\n", results);
 
-        results += res;
+        r1_vec.push( results );
+        r2_vec.push( results_test );
+        r3_vec.push( well_cond_results );
+
     }
 
-    println!("\nTotals:");
-    println!("{}", results);
+    for i in 0 .. var.len() {
+        println!("\n-----------------------------------");
+        println!("Noise variance: {}", var[i]);
+        println!("\nTotals:");
+        println!("{}\n", r1_vec[i]);
 
-    println!("Given sigma_4 > 0.1: ");
-    println!("{}",well_cond_results);
+        println!("Given sigma_4 > 0.1: ");
+        println!("{}\n",r2_vec[i]);
 
+        println!("Given ATM EST: ");
+        println!("{}",r3_vec[i]);
+    }
 }
 
 #[allow(dead_code)]
@@ -755,8 +792,8 @@ fn is_atm( a: &na::DMatrix<f64> ) -> bool {
 ///Find the number of symbol errors in x_hat.  If u, h are provided, then try to 
 ///recover an ATM.  Otherwise, directly compare x and x_hat
 fn compute_symbol_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
-                          u: Option<&na::DMatrix<f64>>, h: Option<&na::DMatrix<f64>> )
-    -> usize 
+                         u: Option<&na::DMatrix<f64>>, h: Option<&na::DMatrix<f64>> )
+    -> Option<usize>
 {
     //Find the error rate of each row
     let (n,_k) = x.shape();
@@ -768,7 +805,7 @@ fn compute_symbol_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     //If we don't have u and h just return raw error rate
     if u == None || h == None {
         info!("Row errors: {:?}", row_err_vec);
-        return row_err_vec.iter().fold(0,|acc,&e| acc + e);
+        return Some( row_err_vec.iter().fold(0,|acc,&e| acc + e) );
     }
 
     //Otherwise, attempt to recover ATM
@@ -779,7 +816,8 @@ fn compute_symbol_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
             //Now get raw rate with ATM
             compute_symbol_errors( &x_hat2, x, None, None )      
         },
-        None => row_err_vec.iter().fold(0,|acc,&e| acc + e),
+        None => None,
+        //None => Some( row_err_vec.iter().fold(0,|acc,&e| acc + e) ),
     }
 }
 
@@ -818,7 +856,8 @@ fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
         info!("P_hat is not ATM");
         return recover_from_non_atm( &x_hat, &x, &p_hat );
     } else { 
-        return recover_from_atm( &x_hat, &x, &p_hat );
+        return None;
+        //return recover_from_atm( &x_hat, &x, &p_hat );
     }
 }
 
@@ -862,6 +901,17 @@ fn recover_from_non_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     recover_from_atm( &x_hat, &x, &p_hat)
 }
 
+///Temp code until I implement the above function
+fn force_estimate( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64> )
+    -> usize 
+{
+    let n = x.shape().0;
+    let mut p_hat = na::DMatrix::<f64>::identity(n,n);
+    p_hat = recover_from_atm( &x_hat, &x, &p_hat ).unwrap();
+
+    let x_hat2 = p_hat * x_hat.clone();
+    compute_symbol_errors( &x_hat2, &x, None, None ).unwrap() 
+}
 
 //{@
 /// Randomly select one (n, k) value from the array of (n, k) pairs given in
@@ -1383,6 +1433,8 @@ impl fmt::Display for FlexTabError { //{@
 
 #[derive(Clone)]
 struct TrialResults {
+    dims: (usize,usize),
+    var: f64,
     trials: usize,
     success: usize,
     not_atm: usize,
@@ -1396,6 +1448,8 @@ struct TrialResults {
 impl Default for TrialResults {
     fn default() -> TrialResults {
         TrialResults {
+            dims: (0,0),
+            var: 0f64,
             trials: 0,
             success: 0,
             not_atm: 0,
@@ -1409,8 +1463,12 @@ impl Default for TrialResults {
 }
 
 impl TrialResults {
-    fn new() -> TrialResults { 
-        TrialResults { ..Default::default() }
+    fn new( n: usize, k: usize, v: f64 ) -> TrialResults { 
+        TrialResults {
+            dims: (n, k),
+            var: v,
+            ..Default::default() 
+        }
     }
 }
 
@@ -1434,6 +1492,8 @@ impl fmt::Display for TrialResults {
 impl std::ops::AddAssign for TrialResults {
     fn add_assign(&mut self, other: TrialResults) {
         *self = TrialResults {
+            dims: self.dims,
+            var: self.var,
             trials: self.trials + other.trials,
             success: self.success + other.success,
             not_atm: self.not_atm + other.not_atm,
@@ -1988,7 +2048,7 @@ impl FlexTab { //{@
                 let highzero = self.state.x[num_x_from_u + 2 * eq_pair + 1].abs()
                     < self.zthresh;
                 if !(lowzero ^ highzero) {
-                    println!("num zero slackvars in pair {} != 1", eq_pair);
+                    info!("num zero slackvars in pair {} != 1", eq_pair);
                     return Err(FlexTabError::NumZeroSlackvars);
                 }
                 let zeroslack = if lowzero { 2 * eq_pair } else { 2 * eq_pair + 1 };
