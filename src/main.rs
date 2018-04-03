@@ -257,14 +257,12 @@ fn test_awgn() {
 
     let dim = vec![(n, k)];
 
-    let mut r1_vec = Vec::new();
-    let mut r2_vec = Vec::new();
-    let mut r3_vec = Vec::new();
+    let mut res_vec = Vec::new();
+    let mut res_wc_vec = Vec::new();
 
     for v in 0 .. var.len() {
         eprintln!("Noise variance: {}", var[v]);
         let mut results = TrialResults::new(n,k,var[v]);
-        let mut results_test = TrialResults::new(n,k,var[v]);
         let mut well_cond_results = TrialResults::new(n,k,var[v]);
 
         //Generate trial and add noise
@@ -274,6 +272,7 @@ fn test_awgn() {
             let mut res = TrialResults::new(n,k,var[v]);
             let x = get_matrix( &dim[0 .. 1] );
             let (a, y_base) = trial(&x, complex);
+
             info!("A = {:.4}", a);
             info!("Y = {:.4}", y_base);
 
@@ -318,9 +317,6 @@ fn test_awgn() {
                         //if equal_atm(&best_state.uy, &x) {
                         if equal_atm(&uy, &x) {
                             res.success += 1;
-                            results_test.success += 1;
-                            results_test.trials += 1;
-                            results_test.total_bits += n*k;
                             info!("EQUAL ATM");
                         } else {
                             res.not_atm += 1;
@@ -337,10 +333,8 @@ fn test_awgn() {
                             match ser {
                                 Some(s) => {
                                     res.bit_errors += s;
-                                    results_test.bit_errors += s;
-                                    results_test.total_bits += n*k;
-                                    results_test.trials += 1;
                                 },
+                                //Temporary code until I write better ATM recover
                                 None => {
                                     res.bit_errors += 
                                         force_estimate( &uy, &x );
@@ -361,23 +355,19 @@ fn test_awgn() {
 
         println!("\n{}\n", results);
 
-        r1_vec.push( results );
-        r2_vec.push( results_test );
-        r3_vec.push( well_cond_results );
+        res_vec.push( results );
+        res_wc_vec.push( well_cond_results );
 
     }
 
-    for i in 0 .. var.len() {
+    for i in 0 .. res_vec.len() {
         println!("\n-----------------------------------");
-        println!("Noise variance: {}", var[i]);
+        println!("Noise variance: {}", res_vec[i].var);
         println!("\nTotals:");
-        println!("{}\n", r1_vec[i]);
+        println!("{}\n", res_vec[i]);
 
         println!("Given sigma_4 > 0.1: ");
-        println!("{}\n",r2_vec[i]);
-
-        println!("Given ATM EST: ");
-        println!("{}",r3_vec[i]);
+        println!("{}\n",res_wc_vec[i]);
     }
 }
 
