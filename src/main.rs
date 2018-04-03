@@ -250,21 +250,19 @@ fn test_awgn() {
     let channels = 100;
     let reps_per = 200;
 
-    let n = 4; let k = 30;
+    let n = 4; let k = 10;
     let complex = false;
     let var = 0.001; // Noise tolerance
     let tol = 0.1;
 
     let dim = vec![(n, k)];
 
-    let mut sym_errors = 0usize;
-    let mut sym_wc_errors = 0usize;
-    let mut results = (0u64, 0u64, 0u64, 0u64,0u64);
-    let mut well_cond_res = (0u64, 0u64, 0u64,0u64);
+    let mut results = TrialResults::new();
+    let mut well_cond_results = TrialResults::new();
 
     //Generate trial and add noise
     for _ in 0 .. channels {
-        let mut res = (0u64, 0u64, 0u64, 0u64,0u64);
+        let mut res = TrialResults::new();
         let x = get_matrix( &dim[0 .. 1] );
         let (a, y_base) = trial(&x, complex);
         info!("A = {:.4}", a);
@@ -289,30 +287,31 @@ fn test_awgn() {
             //Generate noise
             let e = rand_matrix(n, k);
             let mut y = y_base.clone() + var*e;
-            res.0 += 1;
+            res.trials += 1;
 
             match single_run(&y,true,tol) {
                 Err(e) => {
                     match e {
-                        FlexTabError::GoodCols => {
-                            info!("Weird Bug: {}", e);
-                            res.4 += 1;
+                        FlexTabError::Runout => {
+                            res.runout += 1;
                         },
                         
-                        _ => res.1 += 1,
+                        _ => res.error += 1,
                     };
                 },
 
                 Ok(ft) => {
+                    res.complete += 1;
+                    res.total_bits += n*k;
                     let ref best_state = ft.best_state;
                     let mut uy = best_state.u.clone() * y_base.clone();
                     uy.apply( |x| x.signum() );
                     //if equal_atm(&best_state.uy, &x) {
                     if equal_atm(&uy, &x) {
-                        res.2 += 1;
+                        res.success += 1;
                         info!("EQUAL ATM");
                     } else {
-                        res.3 += 1;
+                        res.not_atm += 1;
                         // UY did +not+ match X, print some results and also
                         // determine if UY was even a vertex.
                         info!("UNEXPECTED: return non-ATM");
@@ -322,42 +321,26 @@ fn test_awgn() {
                         let ser = compute_symbol_errors( &uy, &x, 
                                                          Some(&best_state.u), 
                                                          Some(&a) );
-                        sym_errors += ser;
-                        if min > 0.1 {
-                            sym_wc_errors += ser;
-                        }
+                        res.bit_errors += ser;
                     }
                 }
             };
         }
 
-        println!("Trials: {}, success: {}, wrong: {}, runout: {}, error: {}\n", 
-                 res.0, res.2, res.3, res.1, res.4); 
-        results.0 += res.0; results.1 += res.1;
-        results.2 += res.2; results.3 += res.3;
-        results.4 += res.4;
-
+        println!("{}\n", res); 
+        
         if min > 0.1 {
-            well_cond_res.0 += res.2;
-            well_cond_res.1 += res.3;
-            well_cond_res.2 += res.1;
-            well_cond_res.3 += res.4;
+            well_cond_results += res.clone();
         }
+
+        results += res;
     }
 
     println!("\nTotals:");
-    println!("Trials: {}, Correct: {} / {}, runout: {}, error: {}", 
-             results.0, results.2, results.2 + results.3, results.1, results.4); 
-    println!("Symbol Errors: {} / {} ({:e})", 
-             sym_errors, n*k*channels*reps_per,
-             sym_errors as f64 / ((n*k*channels*reps_per) as f64));
+    println!("{}", results);
+
     println!("Given sigma_4 > 0.1: ");
-    println!("Correct: {} / {}, runout: {}, error: {}", 
-             well_cond_res.0, well_cond_res.0+well_cond_res.1,
-             well_cond_res.2, well_cond_res.3);
-    println!("Symbol Errors: {} / {} ({:e})", 
-             sym_wc_errors, n*k*(well_cond_res.0+well_cond_res.1) as usize,
-             sym_wc_errors as f64 / ((n*k*(well_cond_res.0+well_cond_res.1) as usize) as f64));
+    println!("{}",well_cond_results);
 
 }
 
@@ -789,12 +772,15 @@ fn compute_symbol_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     }
 
     //Otherwise, attempt to recover ATM
-    let p_hat = estimate_permutation( x_hat, x, u.unwrap(), h.unwrap() );
+    match estimate_permutation( x_hat, x, u.unwrap(), h.unwrap() ) {
+        Some(p) => {
+            let x_hat2 = p * x_hat.clone();
 
-    let x_hat2 = p_hat * x_hat.clone();
-
-    //Now get raw rate with ATM
-    compute_symbol_errors( &x_hat2, x, None, None )
+            //Now get raw rate with ATM
+            compute_symbol_errors( &x_hat2, x, None, None )      
+        },
+        None => row_err_vec.iter().fold(0,|acc,&e| acc + e),
+    }
 }
 
 #[allow(dead_code)]
@@ -818,7 +804,7 @@ fn row_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>, i: usize ) -> usi
 #[allow(dead_code)]
 fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
                          u: &na::DMatrix<f64>, h: &na::DMatrix<f64> )
-    -> na::DMatrix<f64>
+    -> Option<na::DMatrix<f64>>
 {
     let (n,_k) = x.shape();
 
@@ -839,7 +825,7 @@ fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
 #[allow(dead_code)]
 fn recover_from_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
                      p_hat: &na::DMatrix<f64>) 
-    -> na::DMatrix<f64>
+    -> Option<na::DMatrix<f64>>
 {
     let (n, k) = x.shape();
     let half = k / 2;
@@ -861,13 +847,13 @@ fn recover_from_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
         }
     }
     
-    p_hat
+    Some(p_hat)
 } 
 
-#[allow(dead_code)]
+#[allow(dead_code,unused_variables)]
 fn recover_from_non_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
                          p_hat: &na::DMatrix<f64>) 
-    -> na::DMatrix<f64>
+    -> Option<na::DMatrix<f64>>
 {
     let n = x.shape().0;
     let p_hat = na::DMatrix::<f64>::identity(n,n);
@@ -1394,6 +1380,71 @@ impl fmt::Display for FlexTabError { //{@
         write!(f, "{}", self.description())
     }
 } //@}
+
+#[derive(Clone)]
+struct TrialResults {
+    trials: usize,
+    success: usize,
+    not_atm: usize,
+    complete: usize,
+    runout: usize,
+    error: usize,
+    bit_errors: usize,
+    total_bits: usize
+}
+
+impl Default for TrialResults {
+    fn default() -> TrialResults {
+        TrialResults {
+            trials: 0,
+            success: 0,
+            not_atm: 0,
+            complete: 0,
+            runout: 0,
+            error: 0,
+            bit_errors: 0,
+            total_bits: 0, 
+        }
+    }
+}
+
+impl TrialResults {
+    fn new() -> TrialResults { 
+        TrialResults { ..Default::default() }
+    }
+}
+
+impl fmt::Display for TrialResults {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut s = String::new();
+
+        s += &format!(
+                "Trials: {}, Equal ATM: {}, Completed: {}, Runout: {}, Error:{}\n",
+                self.trials,self.success, self.complete, self.runout, self.error
+            );
+
+        s += &format!("Bit Errors: {} / {} ({:.3e})",
+                self.bit_errors, self.total_bits,
+                (self.bit_errors as f64) / (self.total_bits as f64) );
+
+        write!(f, "{}", s)
+    }
+}
+
+impl std::ops::AddAssign for TrialResults {
+    fn add_assign(&mut self, other: TrialResults) {
+        *self = TrialResults {
+            trials: self.trials + other.trials,
+            success: self.success + other.success,
+            not_atm: self.not_atm + other.not_atm,
+            complete: self.complete + other.complete,
+            runout: self.runout + other.runout,
+            error: self.error + other.error,
+            bit_errors: self.bit_errors + other.bit_errors,
+            total_bits: self.total_bits + other.total_bits, 
+        };
+    }
+}
 
 #[derive(Clone)] //{@
 /// Structure to maintain state during vertex hopping to support backtracking.
