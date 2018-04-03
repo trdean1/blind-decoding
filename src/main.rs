@@ -61,8 +61,8 @@ fn main() { //{@
     //neighbor_det_pattern_all(5);
 
     // Run repetitions of the solver.
-    //run_reps();
-    test_awgn();
+    run_reps();
+    //test_awgn();
     
     //bfs_test();
 } //@}
@@ -379,7 +379,7 @@ fn test_awgn() {
 fn run_reps() { //{@
     let complex = false;
     let use_basis = true; 
-    let reps_per = 1000;
+    let reps_per = 100;
     //let dims = vec![(2, 3), (3, 6), (4, 6), (4, 8), (5, 9), (5, 12), (5, 15),
     //    (6, 12), (6, 18), (6, 24), (8, 20), (8, 28), (8, 36)];
 
@@ -397,8 +397,13 @@ fn run_reps() { //{@
     
     // Setup basic results vector: should migrate this to a full structure.
     // { (n, k), attempts, success, fail = \pm1, fail != \pm1, duration }, 
-    let mut results: Vec<((usize, usize), u64, u64, u64, u64, u64, f64)> = dims.iter()
-        .map(|&d| (d, 0, 0, 0, 0, 0, 0.0))
+    //let mut results: Vec<((usize, usize), u64, u64, u64, u64, u64, f64)> = 
+    //dims.iter()
+    //    .map(|&d| (d, 0, 0, 0, 0, 0, 0.0))
+    //    .collect::<Vec<_>>();
+
+    let mut results: Vec<TrialResults> = dims.iter()
+        .map(|&d| TrialResults::new(d.0,d.1,0f64))
         .collect::<Vec<_>>();
 
     for _iter in 0 .. reps_per * dims.len() {
@@ -426,8 +431,8 @@ fn run_reps() { //{@
 
         trace!("selected x = {}", x);
         // Get pointer to relevant results tuple for this dimension.
-        let ref mut res = results.iter_mut().find(|ref e| e.0 == x.shape()).unwrap();
-        res.1 += 1;
+        let ref mut res = results.iter_mut().find(|ref e| e.dims == x.shape()).unwrap();
+        res.trials += 1;
 
         // Obtain A, Y matrices, then run.
         let (a, y) = trial(&x, complex);
@@ -436,11 +441,11 @@ fn run_reps() { //{@
             Err(e) => {
                 match e {
                     FlexTabError::Runout => {
-                        res.5 += 1; // ran out
+                        res.runout += 1; // ran out
                         debug!("ran out of attempts");
                     },
                     _ => {
-                        res.4 += 1; // something else -- problem
+                        res.error += 1; // something else -- problem
                         println!("critical error = {}", e);
                     },
                 };
@@ -450,7 +455,7 @@ fn run_reps() { //{@
                 let ref best_state = ft.best_state;
                 if equal_atm(&best_state.uy, &x) {
                     debug!("EQUAL ATM");
-                    res.2 += 1;
+                    res.success += 1;
                 } else {
                     // UY did +not+ match X, print some results and also
                     // determine if UY was even a vertex.
@@ -463,9 +468,9 @@ fn run_reps() { //{@
                     debug!("uy = {:.3}", best_state.uy);
                     if best_state.uy.iter().all(|&e|
                             (e.abs() - 1.0).abs() < ft.zthresh) {
-                        res.3 += 1; // UY = \pm 1
+                        res.not_atm += 1; // UY = \pm 1
                     } else {
-                        res.4 += 1; // UY != \pm 1 -- problem
+                        res.error += 1; // UY != \pm 1 -- problem
                         println!("critical error: uy = {:.3}", best_state.uy);
                     }
                 }
@@ -473,17 +478,19 @@ fn run_reps() { //{@
         };
         // Charge elapsed time for this run to its (n, k) dimension.
         let elapsed = timer.elapsed();
-        res.6 += elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 * 1e-9;
+        res.time_elapsed += elapsed.as_secs() as f64 + 
+                            elapsed.subsec_nanos() as f64 * 1e-9;
     }
 
     // Print overall results.
     for ref res in results.iter() {
         let mut output = 
             format!("n = {}, k = {:2}: success = {:4} / {:4}, ",
-                    (res.0).0, (res.0).1, res.2, res.1);
+                    (res.dims).0, (res.dims).1, res.success, res.trials);
         output += &format!("(runout = {:2}, pm1 = {:2} err = {:2}), ",
-                res.5, res.3, res.4);
-        output += &format!("mean_time_per = {:.5e}", res.6 / res.1 as f64);
+                res.runout, res.not_atm, res.error);
+        output += &format!("mean_time_per = {:.5e}", 
+                           res.time_elapsed / res.trials as f64);
         println!("{}", output);
     }
 } //@}
@@ -1432,7 +1439,8 @@ struct TrialResults {
     runout: usize,
     error: usize,
     bit_errors: usize,
-    total_bits: usize
+    total_bits: usize,
+    time_elapsed: f64
 }
 
 impl Default for TrialResults {
@@ -1447,7 +1455,8 @@ impl Default for TrialResults {
             runout: 0,
             error: 0,
             bit_errors: 0,
-            total_bits: 0, 
+            total_bits: 0,
+            time_elapsed: 0f64
         }
     }
 }
@@ -1491,7 +1500,8 @@ impl std::ops::AddAssign for TrialResults {
             runout: self.runout + other.runout,
             error: self.error + other.error,
             bit_errors: self.bit_errors + other.bit_errors,
-            total_bits: self.total_bits + other.total_bits, 
+            total_bits: self.total_bits + other.total_bits,
+            time_elapsed: self.time_elapsed + other.time_elapsed
         };
     }
 }
