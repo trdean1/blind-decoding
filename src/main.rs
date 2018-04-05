@@ -61,8 +61,8 @@ fn main() { //{@
     //neighbor_det_pattern_all(5);
 
     // Run repetitions of the solver.
-    run_reps();
-    //test_awgn();
+    //run_reps();
+    test_awgn();
     
     //bfs_test();
 } //@}
@@ -161,6 +161,7 @@ fn many_bfs(reps: usize) { //{@
             count);
     }
 } //@}
+
 #[allow(dead_code)]
 //{@
 /// Return set matrices: (y, u_i) used for debugging purposes.
@@ -247,23 +248,23 @@ fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) ->
 #[allow(dead_code)]
 /// Crude test code to test AWGN performance
 fn test_awgn() {
-    let channels = 100;
-    let reps_per = 200;
+    let channels = 50;
+    let reps_per = 100;
 
     let n = 4; let k = 30;
     let complex = false;
-    let var = vec![0.001,0.002,0.004,0.008,0.01,0.02,0.04,0.08,0.1]; // Noise variance
+    let var = vec![0.001,0.005,0.01,0.05,0.1]; // Noise variance
     let tol = 0.1;
 
     let dim = vec![(n, k)];
 
     let mut res_vec = Vec::new();
-    let mut res_wc_vec = Vec::new();
+    //let mut res_wc_vec = Vec::new();
 
     for v in 0 .. var.len() {
         eprintln!("Noise variance: {}", var[v]);
         let mut results = TrialResults::new(n,k,var[v]);
-        let mut well_cond_results = TrialResults::new(n,k,var[v]);
+        //let mut well_cond_results = TrialResults::new(n,k,var[v]);
 
         //Generate trial and add noise
         for ii in 0 .. channels {
@@ -278,17 +279,19 @@ fn test_awgn() {
 
             //Mostly for debugging purposes, display the singular values of the
             //channel.  
-            let svd = na::SVD::new(a.clone(), false, false);
-            let s = svd.singular_values;
-            let mut outstr = format!("Singular values: ");
-            let mut min = 1000f64; let mut max = 0f64;
-            for ss in s.iter() {
-                if ss > &max { max = *ss; }
-                if ss < &min { min = *ss; }
-                outstr += &format!("{} ", ss);
+            if cfg!(build = "debug") {
+                let svd = na::SVD::new(a.clone(), false, false);
+                let s = svd.singular_values;
+                let mut outstr = format!("Singular values: ");
+                let mut min = 1000f64; let mut max = 0f64;
+                for ss in s.iter() {
+                    if ss > &max { max = *ss; }
+                    if ss < &min { min = *ss; }
+                    outstr += &format!("{} ", ss);
+                }
+                trace!("{}", outstr);
+                trace!("Condition number: {}, sigma_4: {}", max / min, min);
             }
-            info!("{}", outstr);
-            info!("Condition number: {}, sigma_4: {}", max / min, min);
 
             //Main loop
             for _ in 0 .. reps_per {
@@ -314,7 +317,6 @@ fn test_awgn() {
                         let ref best_state = ft.best_state;
                         let mut uy = best_state.u.clone() * y_base.clone();
                         uy.apply( |x| x.signum() );
-                        //if equal_atm(&best_state.uy, &x) {
                         if equal_atm(&uy, &x) {
                             res.success += 1;
                             info!("EQUAL ATM");
@@ -322,7 +324,7 @@ fn test_awgn() {
                             res.not_atm += 1;
                             // UY did +not+ match X, print some results and also
                             // determine if UY was even a vertex.
-                            info!("UNEXPECTED: return non-ATM");
+                            info!("Non-ATM");
                             trace!("base_state.uy = {:.2}", best_state.uy);
                             trace!("uy = {:.2}", uy );
                             trace!("x = {:.2}", x);
@@ -346,17 +348,18 @@ fn test_awgn() {
             }
             info!("{}\n", res); 
             
-            if min > 0.1 {
-                well_cond_results += res.clone();
-            }
+            //if min > 0.1 {
+            //    well_cond_results += res.clone();
+            //}
 
             results += res;
         }
 
         println!("\n{}\n", results);
+        //println!("For sigma_4 > 0.1:\n{}\n", well_cond_results);
 
         res_vec.push( results );
-        res_wc_vec.push( well_cond_results );
+        //res_wc_vec.push( well_cond_results );
 
     }
 
@@ -365,10 +368,16 @@ fn test_awgn() {
         println!("Noise variance: {}", res_vec[i].var);
         println!("\nTotals:");
         println!("{}\n", res_vec[i]);
-
-        println!("Given sigma_4 > 0.1: ");
-        println!("{}\n",res_wc_vec[i]);
     }
+
+
+    //println!("\n-----------------------------------");
+    //println!("Given sigma_4 > 0.1: ");
+    //for i in 0 .. res_wc_vec.len() {
+    //    println!("\n-----------------------------------");
+    //    println!("Noise variance: {}", res_wc_vec[i].var);
+    //    println!("{}\n",res_wc_vec[i]);
+    //}
 }
 
 #[allow(dead_code)]
@@ -525,7 +534,7 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
     }
 
 
-    let mut z;
+    let mut z; //Holds centered version of y
     // Loop trying new u_i until we get n linearly independent \pm 1 cols.
     loop {
         attempts += 1;
@@ -550,6 +559,9 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
             match find_bfs(&u_i, &z) {
                 Some(b) => bfs = b,
                 None => {
+                    //This shouldn't really ever happen but does if the input
+                    //is poorly conditioned and we run into numerical stability 
+                    //issues
                     trace!("Singular starting point, retrying");
                     bfs_fail = true;
                     bfs = u_i;
@@ -579,7 +591,7 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
         }
 
         //If U was singular (can happen if A is ill-conditioned and we are 
-        //at the mercy of numerical stability) then true again with new 
+        //at the mercy of numerical stability) then try again with new 
         //starting point. Surprisingly we can often recover from this
         if bfs_fail { continue; }
 
@@ -774,6 +786,7 @@ fn is_atm( a: &na::DMatrix<f64> ) -> bool {
     for i in 0 .. n {
         let r = a.row(i).iter()
                         .fold(0, |acc,&e| acc + e.abs() as usize);
+
         let c = a.column(i).iter()
                            .fold(0, |acc,&e| acc + e.abs() as usize);
 
@@ -837,6 +850,10 @@ fn row_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>, i: usize ) -> usi
 
 
 #[allow(dead_code)]
+/// Attempt to recover an ATM from U and H.  This is not the most intelligent
+/// code but just a starting point.  Often, round(U*H) is all we need to do.
+/// If this returns an ATM then we just check if we can flip signs and then
+/// stop
 fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
                          u: &na::DMatrix<f64>, h: &na::DMatrix<f64> )
     -> Option<na::DMatrix<f64>>
@@ -859,6 +876,8 @@ fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
 }
 
 #[allow(dead_code)]
+/// This code just checks whether or not we can improve the BER by
+/// fliping signs of each row.
 fn recover_from_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
                      p_hat: &na::DMatrix<f64>) 
     -> Option<na::DMatrix<f64>>
@@ -874,7 +893,6 @@ fn recover_from_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     p_hat.mul_to(&x_hat, &mut x_tilde);
 
     //Get new error vector with permuted rows
-    //let mut rows_to_flip = Vec::<usize>::new();
     for i in 0..n {
         //Flip sign if bit error rate is over half
         if row_errors( &x_tilde, &x, i) > half {
@@ -887,6 +905,11 @@ fn recover_from_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
 } 
 
 #[allow(dead_code,unused_variables)]
+/// This function needs to get written.  In the MATLAB version of the code,
+/// if a row has a large error rate, I see if I can do better by permuting rows.
+/// For now all this does is start with the identity and flip signs to see if we can
+/// do better.  This function doesn't get called too much so fixing this isn't a high
+/// priority.
 fn recover_from_non_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
                          p_hat: &na::DMatrix<f64>) 
     -> Option<na::DMatrix<f64>>
@@ -898,7 +921,8 @@ fn recover_from_non_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     recover_from_atm( &x_hat, &x, &p_hat)
 }
 
-///Temp code until I implement the above function
+/// Temp code until I implement the above function.  If estimate_permutation
+/// fails, then get a very crude estimate that is at least less than half
 fn force_estimate( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64> )
     -> usize 
 {
@@ -1274,12 +1298,12 @@ fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
     let mut p_bool_updates = Vec::with_capacity(k);
     let mut p = na::DMatrix::from_column_slice(0, n*n, &Vec::<f64>::new());
     for _iter in 0 .. (n*n - 1) {
-        //if cfg!(build = "debug") {
+        if cfg!(build = "debug") {
             let mut _uy = na::DMatrix::from_column_slice(n, y.ncols(),
                     &vec![0.0; n * y.ncols()]);
             u.mul_to(&y, &mut _uy);
             trace!("Iteration {}\nuy = {:.3}p = {:.3}", _iter, _uy, p);
-        //}
+        }
         get_active_constraints_bool(&u, &y, &mut p_bool_iter);
         p_bool_updates.clear();
         for j in 0 .. k {
@@ -1443,6 +1467,7 @@ struct TrialResults {
     time_elapsed: f64
 }
 
+/// Not sure if this is needed?
 impl Default for TrialResults {
     fn default() -> TrialResults {
         TrialResults {
@@ -1475,9 +1500,11 @@ impl fmt::Display for TrialResults {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
 
-        s += &format!(
-                "Trials: {}, Equal ATM: {}, Completed: {}, Runout: {}, Error:{}\n",
-                self.trials,self.success, self.complete, self.runout, self.error
+        s += &format!( "Trials: {}, Equal ATM: {} ({:e}), Completed: {} ({:e}), Runout: {} ({:e}), Error:{} ({:e})\n",
+                self.trials,self.success, self.success as f64/self.trials as f64,
+                self.complete, self.complete as f64 / self.trials as f64,
+                self.runout, self.runout as f64 / self.trials as f64,
+                self.error, self.error as f64 / self.trials as f64
             );
 
         s += &format!("Bit Errors: {} / {} ({:.3e})",
