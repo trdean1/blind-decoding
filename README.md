@@ -5,6 +5,8 @@ Some notes on the contents of this repository
 #### src
 Contains the main rust source code.  JP is in the process of refactoring this code and we have a number of optimizations yet to be implmented. Feel free to modify and reorganize as you see fit.
 
+You may need to install the nalgebra crate to get this to compile (should be as simple as 'cargo install nalgebra')
+
 #### python
 This contains my implementation of the "dynamic" step (Algorithm 1 in the Asilomar paper).  This does not implement the block optimization discussed in the references.  JP has the full solver implemented in Python.  Ask if you want a copy.
 
