@@ -1,3 +1,13 @@
+/*
+ * This code is proprietary information and property of Stanford University.
+ * Do not share without permission of the authors.  This code may only be
+ * used for educational purposes.  
+ *
+ * Authors: Jonathan Perlstein (jrperl@cs.stanford.edu)
+ *          Thomas Dean (trdean@stanford.edu)
+ *
+ */
+
 // imports{@
 #![allow(unused_imports)]
 extern crate nalgebra as na;
@@ -61,8 +71,8 @@ fn main() { //{@
     //neighbor_det_pattern_all(5);
 
     // Run repetitions of the solver.
-    //run_reps();
-    test_awgn();
+    run_reps(); //Tests without noise
+    //test_awgn(); //Tests with AWGN
     
     //bfs_test();
 } //@}
@@ -253,8 +263,14 @@ fn test_awgn() {
 
     let n = 4; let k = 30;
     let complex = false;
-    let var = vec![0.001,0.005,0.01,0.05,0.1]; // Noise variance
-    let tol = 0.1;
+    
+    //This code does a parameter sweep over the following two variables
+    let var = vec![0.001, 0.005, 0.01, 0.05, 0.1]; // Noise variance
+    let tol = [0.1];
+
+    //let var = vec![0.008,0.004,0.002,0.001]; // Noise variance
+    //let tol = [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.11,0.12]; //Centering tolerance
+
 
     let dim = vec![(n, k)];
 
@@ -262,122 +278,120 @@ fn test_awgn() {
     //let mut res_wc_vec = Vec::new();
 
     for v in 0 .. var.len() {
-        eprintln!("Noise variance: {}", var[v]);
-        let mut results = TrialResults::new(n,k,var[v]);
-        //let mut well_cond_results = TrialResults::new(n,k,var[v]);
+        for t in 0 .. tol.len() {
+        println!("Tolerance: {}", tol[t]);
+            eprintln!("Noise variance: {}", var[v]);
+            let mut results = TrialResults::new(n,k,var[v]);
+            results.tol = tol[t];
+            //let mut well_cond_results = TrialResults::new(n,k,var[v]);
 
-        //Generate trial and add noise
-        for ii in 0 .. channels {
-            if ii % 10 == 0 { eprint!("#"); }
+            //Generate trial and add noise
+            for ii in 0 .. channels {
+                if ii % 10 == 0 { eprint!("#"); }
 
-            let mut res = TrialResults::new(n,k,var[v]);
-            let x = get_matrix( &dim[0 .. 1] );
-            let (a, y_base) = trial(&x, complex);
+                let mut res = TrialResults::new(n,k,var[v]);
+                let x = get_matrix( &dim[0 .. 1] );
+                let (a, y_base) = trial(&x, complex);
 
-            info!("A = {:.4}", a);
-            info!("Y = {:.4}", y_base);
+                info!("A = {:.4}", a);
+                info!("Y = {:.4}", y_base);
 
-            //Mostly for debugging purposes, display the singular values of the
-            //channel.  
-            if cfg!(build = "debug") {
-                let svd = na::SVD::new(a.clone(), false, false);
-                let s = svd.singular_values;
-                let mut outstr = format!("Singular values: ");
-                let mut min = 1000f64; let mut max = 0f64;
-                for ss in s.iter() {
-                    if ss > &max { max = *ss; }
-                    if ss < &min { min = *ss; }
-                    outstr += &format!("{} ", ss);
+                //Mostly for debugging purposes, display the singular values of the
+                //channel.  
+                if cfg!(build = "debug") {
+                    let svd = na::SVD::new(a.clone(), false, false);
+                    let s = svd.singular_values;
+                    let mut outstr = format!("Singular values: ");
+                    let mut min = 1000f64; let mut max = 0f64;
+                    for ss in s.iter() {
+                        if ss > &max { max = *ss; }
+                        if ss < &min { min = *ss; }
+                        outstr += &format!("{} ", ss);
+                    }
+                    trace!("{}", outstr);
+                    trace!("Condition number: {}, sigma_4: {}", max / min, min);
                 }
-                trace!("{}", outstr);
-                trace!("Condition number: {}, sigma_4: {}", max / min, min);
-            }
 
-            //Main loop
-            for _ in 0 .. reps_per {
-                //Generate noise
-                let e = rand_matrix(n, k);
-                let mut y = y_base.clone() + var[v]*e;
-                res.trials += 1;
+                //Main loop
+                for _ in 0 .. reps_per {
+                    //Generate noise
+                    let e = rand_matrix(n, k);
+                    let mut y = y_base.clone() + var[v]*e;
+                    res.trials += 1;
 
-                match single_run(&y,true,tol) {
-                    Err(e) => {
-                        match e {
-                            FlexTabError::Runout => {
-                                res.runout += 1;
-                            },
-                            
-                            _ => res.error += 1,
-                        };
-                    },
-
-                    Ok(ft) => {
-                        res.complete += 1;
-                        res.total_bits += n*k;
-                        let ref best_state = ft.best_state;
-                        let mut uy = best_state.u.clone() * y_base.clone();
-                        uy.apply( |x| x.signum() );
-                        if equal_atm(&uy, &x) {
-                            res.success += 1;
-                            info!("EQUAL ATM");
-                        } else {
-                            res.not_atm += 1;
-                            // UY did +not+ match X, print some results and also
-                            // determine if UY was even a vertex.
-                            info!("Non-ATM");
-                            trace!("base_state.uy = {:.2}", best_state.uy);
-                            trace!("uy = {:.2}", uy );
-                            trace!("x = {:.2}", x);
-                            let ser = compute_symbol_errors( &uy, &x, 
-                                                             Some(&best_state.u), 
-                                                             Some(&a) );
-
-                            match ser {
-                                Some(s) => {
-                                    res.bit_errors += s;
+                    match single_run(&y,true,tol[t]) {
+                        Err(e) => {
+                            match e {
+                                FlexTabError::Runout => {
+                                    res.runout += 1;
                                 },
-                                //Temporary code until I write better ATM recover
-                                None => {
-                                    res.bit_errors += 
-                                        force_estimate( &uy, &x );
+                                
+                                _ => res.error += 1,
+                            };
+                        },
+
+                        Ok(ft) => {
+                            res.complete += 1;
+                            res.total_bits += n*k;
+                            let ref best_state = ft.best_state;
+                            let mut uy = best_state.u.clone() * y_base.clone();
+                            uy.apply( |x| x.signum() );
+                            if equal_atm(&uy, &x) {
+                                res.success += 1;
+                                info!("EQUAL ATM");
+                            } else {
+                                res.not_atm += 1;
+                                // UY did +not+ match X, print some results and also
+                                // determine if UY was even a vertex.
+                                info!("Non-ATM");
+                                trace!("base_state.uy = {:.2}", best_state.uy);
+                                trace!("uy = {:.2}", uy );
+                                trace!("x = {:.2}", x);
+                                let ser = compute_symbol_errors( &uy, &x, 
+                                                                 Some(&best_state.u), 
+                                                                 Some(&a) );
+
+                                match ser {
+                                    Some(s) => {
+                                        res.bit_errors += s;
+                                    },
+                                    //Temporary code until I write better ATM recovery:
+                                    None => {
+                                        res.bit_errors += 
+                                            force_estimate( &uy, &x );
+                                    }
                                 }
                             }
                         }
-                    }
-                };
-            }
-            info!("{}\n", res); 
-            
-            //if min > 0.1 {
-            //    well_cond_results += res.clone();
-            //}
+                    };
+                }
+                info!("{}\n", res); 
+                
+                //if min > 0.1 {
+                //    well_cond_results += res.clone();
+                //}
 
-            results += res;
+                results += res;
+            }
+
+            println!("\n{}\n", results);
+            //println!("For sigma_4 > 0.1:\n{}\n", well_cond_results);
+
+            res_vec.push( results );
+            //res_wc_vec.push( well_cond_results );
+
         }
 
-        println!("\n{}\n", results);
-        //println!("For sigma_4 > 0.1:\n{}\n", well_cond_results);
-
-        res_vec.push( results );
-        //res_wc_vec.push( well_cond_results );
-
-    }
-
-    for i in 0 .. res_vec.len() {
         println!("\n-----------------------------------");
-        println!("Noise variance: {}", res_vec[i].var);
-        println!("\nTotals:");
-        println!("{}\n", res_vec[i]);
     }
 
-
-    //println!("\n-----------------------------------");
-    //println!("Given sigma_4 > 0.1: ");
-    //for i in 0 .. res_wc_vec.len() {
-    //    println!("\n-----------------------------------");
-    //    println!("Noise variance: {}", res_wc_vec[i].var);
-    //    println!("{}\n",res_wc_vec[i]);
-    //}
+    println!("SNR\t delta\t Complete\t BER");
+    for i in 0 .. res_vec.len() {
+        let n = 1.0 / res_vec[i].var;
+        println!("{:.0},\t {:.2},\t {:.2e},\t {:.2e}", 10.0*n.log10(), res_vec[i].tol,
+                 res_vec[i].complete as f64 / res_vec[i].trials as f64,
+                 res_vec[i].bit_errors as f64 / res_vec[i].total_bits as f64 );
+    }
 }
 
 #[allow(dead_code)]
@@ -395,6 +409,8 @@ fn run_reps() { //{@
     // DEBUG: use this in addition to splice in get_matrix to use static X.
     //let dims = vec![(4, 6)];
     
+    //Sweep from n=2 to n=8, skipping n=7 (works but is slow since we don't have an is_done
+    //function)
     let mut dims = Vec::new();
     for ii in 2 .. 9 {
         if ii == 7 { continue; }
@@ -1456,6 +1472,7 @@ impl fmt::Display for FlexTabError { //{@
 struct TrialResults {
     dims: (usize,usize),
     var: f64,
+    tol: f64,
     trials: usize,
     success: usize,
     not_atm: usize,
@@ -1473,6 +1490,7 @@ impl Default for TrialResults {
         TrialResults {
             dims: (0,0),
             var: 0f64,
+            tol: 0f64,
             trials: 0,
             success: 0,
             not_atm: 0,
@@ -1520,6 +1538,7 @@ impl std::ops::AddAssign for TrialResults {
         *self = TrialResults {
             dims: self.dims,
             var: self.var,
+            tol: self.tol,
             trials: self.trials + other.trials,
             success: self.success + other.success,
             not_atm: self.not_atm + other.not_atm,
