@@ -2,3 +2,6 @@
 /target/
 **/*.rs.bk
 *.swp
+
+# OSX / *nix default autosave extension
+*.m~
