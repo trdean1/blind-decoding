@@ -6,8 +6,6 @@ from scipy import linalg,matrix
 import math
 import sys
 
-n=4
-
 #Proper sets of samples of X so that we are guaranteed to recover A^-1 up to an ATM
 bases = { 2 : np.matrix([[1,1],[1,-1]]),\
         3 : np.matrix([[1,1,1],[1,-1,1],[-1,1,1]]),\
@@ -404,7 +402,7 @@ def orthogonalize_p(p,tol=1e-9):
             if not (j in zero):
                 zero.append(j)
         else:
-            p[j,:] = vv
+            p[j,:] = vv / np.linalg.norm(vv)
 
     zero.sort()
     #print "Redundant contraints: %s" % zero
@@ -413,8 +411,10 @@ def orthogonalize_p(p,tol=1e-9):
     #A = p * p.T
     #A = np.round(100*A)/100.0
     #print "p * p.T =\n%s" % A
+    return p
 
 def dynamic_solve(U,Y):
+    (n,k) = Y.shape
     V = objgrad(U)
     #diff = abs((1-abs(U*Y))/(V*Y))
     t = binary_search(U,V,Y)
@@ -543,40 +543,6 @@ def load_bad_instances(bad_instance_file):
         unpickler = pickle.Unpickler(fp)
         bad_instances = unpickler.load()
         examine_instances(bad_instances)
-
-n = 4
-tol = 1e-3
-
-
-for k in range(5, 20, 2):
-    good = 0.0
-    zero = 0.0
-    other = 0.0
-    total = 0.0
-
-    print( "n=%d, k=%d" % (n,k) )
-    for i in range(1):
-        if i % 100 == 0 and i != 0:
-            sys.stdout.write('#')
-            sys.stdout.flush()
-
-        try:
-            UY = trial(n,k)
-        except:
-            continue
-
-        gg = np.asscalar( sum(sum( abs((abs(UY) - 1.0)) < tol ).transpose() ) )
-        good += gg
-
-        zz = np.asscalar( sum(sum( abs(UY) < tol ).transpose() ) )
-        zero += zz
-
-        other += n*k - (gg + zz)
-        total += n*k
-
-    sys.stdout.write('\n')
-    print("pm 1: %f,\t0: %e\tother: %e\n" % (good/total, zero/total, other/total) )
-
 
 ######################################################################
 # Ignore these functions, they were from another idea I previously had
