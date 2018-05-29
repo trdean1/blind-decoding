@@ -2,7 +2,7 @@
 
 ## Disclaimer about using this repository
 Many documents in this repository are propriatary so please do not share them without first speaking to Tom.  We are in the process of securing a provisional patent which will primarily protect the material discussed in the "asilomar_final.pdf" paper.  This include the core algorithmic components of the rust code.
-We should have this filed by mid-May.  Having it filed will make it easy for you present whatever results of your project you wish and will clearly differentiate your contributions to the project.
+We should have this filed by mid-May.  Having it filed will make it easy for you present whatever results of your project you wish and will clearly differentiate your contributions to the project from our prior work.
 
 #### src
 Contains the main rust source code.  JP is in the process of refactoring this code and we have a number of optimizations yet to be implmented. Feel free to modify and reorganize as you see fit.
