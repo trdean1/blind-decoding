@@ -183,6 +183,12 @@ def rand_init(n,Y):
 
 def row_to_vertex( u, Y ):
     '''
+    This function is highly redundant.  We just need to pull a specific 
+    entry of p out and then pick a random direction in the null space of 
+    of the result.  There isn't a good way to do this so we just make
+    p from scratch and call SVD
+
+
     u*Y should have some good and some bad entries
     will move u until u*Y has all 'good' entries
     may still be zeros but shouldn't matter in end
@@ -301,11 +307,14 @@ def check_zero_one(A,eps=1e-6):
     return is_one_zero
 
 
-def find_vertex_on_face(U, Y):
+def find_vertex_on_face(U, Y, UY = [], p = []):
     '''
     U must be on a face of the polytope that bounds feasible region.
     This face must have constant slope.  Then this function will move to a
     vertex of that face. UY may still have zero entries if k > n
+
+    Pass in precomputed UY to avoid recomputing
+    Pass in p to avoid calling SVD to find nullspace
     '''
 
     # Assuming U is a matrix, then n is number of rows
@@ -313,7 +322,9 @@ def find_vertex_on_face(U, Y):
     
     #go row by row
     for i in range(n):
-        UY = U*Y
+        if UY == []:
+            UY = U*Y
+
         is_zero_one = check_zero_one( UY )
 
         #Bail if all entries are already in {-1,0,1}
@@ -324,7 +335,11 @@ def find_vertex_on_face(U, Y):
         if (is_zero_one[i,:]).all():
             continue
 
-        U[i,:] = row_to_vertex( U[i,:], Y )
+        #if p == []:
+        #TODO: need to take advantage of p being precomputed.
+
+        U[i,:] = row_to_vertex(U[i,:], Y)
+        
 
     return U
 
@@ -439,6 +454,9 @@ def dynamic_solve(U,Y):
 
         if np.linalg.norm(v_vec) < 1e-12:
             print "Gradient is orthogonal to null space at step %s" % i
+            if not check_zero_one( Xt ).all():
+                print "Need to call find_vertex_on face"
+                U = find_vertex_on_face(U,Y, Xt)
             #print "UY = %s\n" % (U*Y)
             break 
 
@@ -453,14 +471,14 @@ def dynamic_solve(U,Y):
 
     print "U * Y = %s" % (U*Y)
 
-    if not check_zero_one( U*Y ).all():
-        try:
-            print '%s' % ('-'*40)
-            U = find_vertex_on_face(U, Y)
-            print "U * Y = %s" % (U*Y)
-        except RuntimeError:
-            print "Warning: Weird RuntimeError"
-            pass
+    #if not check_zero_one( U*Y ).all():
+    #    try:
+    #        print '%s' % ('-'*40)
+    #        U = find_vertex_on_face_new(U, Y)
+    #        print "U * Y = %s" % (U*Y)
+    #    except RuntimeError:
+    #        print "Warning: Weird RuntimeError"
+    #        pass
 
     return U
 
