@@ -4,13 +4,15 @@ import itertools
 import pickle
 from scipy import linalg,matrix
 import math
+import sys
 
 n=4
 
 #Proper sets of samples of X so that we are guaranteed to recover A^-1 up to an ATM
 bases = { 2 : np.matrix([[1,1],[1,-1]]),\
         3 : np.matrix([[1,1,1],[1,-1,1],[-1,1,1]]),\
-        4 : np.matrix([[1,1,1,1,1],[1,1,-1,-1,1],[1,-1,1,-1,1],[1,-1,-1,1,-1]])}
+        4 : np.matrix([[1,1,1,1,1],[1,1,-1,-1,1],[1,-1,1,-1,1],[1,-1,-1,1,-1]]),\
+        5 : np.matrix([[-1,-1,-1,-1,-1,-1],[-1,-1,-1,1,1,-1],[-1,-1,1,-1,1,1],[-1,1,-1,-1,1,1],[-1,1,1,1,-1,-1]])}
 
 def objfunc(x):
     '''
@@ -113,7 +115,7 @@ def project_to_null(v,A):
     #These elements of A are all zeros
     zeros = (np.sum(A,1) == 0)*1
     if np.sum( zeros ) == 0:
-        print "Using SVD to find nullspace"
+        #print "Using SVD to find nullspace"
         #If we have no rows of A that are all zero, find nullspace through SVD
         null = nullspace(A.transpose())
         null = np.matrix(null).transpose()
@@ -122,7 +124,7 @@ def project_to_null(v,A):
         for row in range(rows):
             r += (null[row] * v).item() * null[row].transpose()
     else:
-        print "Simple zero projection"
+        #print "Simple zero projection"
         r = np.multiply( v, zeros )
 
 
@@ -133,14 +135,14 @@ def find_infeasible_point(U,V,Y,mask=[]):
     #finds a (non-optimal) value of t so that U+t*V is infeasible
     if not is_feasible(U,Y,1e-12,mask):
         p = U*Y
-        print "U*Y=%s\n" % p
+        #print "U*Y=%s\n" % p
         raise ValueError("Starting point not feasible")
     t = 1
     try: 
         while is_feasible(U+t*V,Y,1e-12,mask):
             t *= 2
     except OverflowError:
-        print "t = %d\n" % t
+        #print "t = %d\n" % t
         raise OverflowError
 
     return t
@@ -186,6 +188,7 @@ def row_to_vertex( u, Y ):
     may still be zeros but shouldn't matter in end
     '''
     print "Starting uY = %s\n" % (u*Y)
+    print "Y = %s\n" % Y
     n = Y.shape[0]
     is_zero_one = check_zero_one( u*Y )
     is_zero_one_list = is_zero_one.tolist()[0] 
@@ -204,9 +207,8 @@ def row_to_vertex( u, Y ):
                #'Target' entry is just last bad value we come across
                #y = Y[:,i]
 
-        print "Y_space = %s" % Y_space
-        print "y = %s" % Y[:,bad_index[0]]
-        Y_perp = nullspace(Y_space.transpose())
+        #print "y = %s" % Y[:,bad_index[0]]
+        #Y_perp = nullspace(Y_space.transpose())
         while True:
             #Check if this has a left null space
             Y_perp = nullspace(Y_space.transpose())
@@ -228,12 +230,15 @@ def row_to_vertex( u, Y ):
             else:
                 break
 
-        print "Y_perp = %s\n" % Y_perp
+        print "Y_space = %s" % Y_space
+        print "Y_perp = %s" % Y_perp
+
+        #print "Y_perp = %s\n" % Y_perp
         i = 0
         bad = 0
         while i < Y_perp.shape[1]:
             y = Y[:,bad_index[bad]]
-            v = Y_perp[:,i]
+            v = Y_perp[:,i] #This is an arbitrary direction in the null space
             #move zig
             if np.dot( v,y ) == 0:
                 #This should never happen since v \in y^\perp
@@ -247,10 +252,13 @@ def row_to_vertex( u, Y ):
                 continue
 
             else:
-                print "u = %s\nt = %s\nv = %s" % (u, t, v)
+                print "uy_good = %s" % (u*Y_space)
+                print "uy_bad = %s" % (u*y) 
+                print "t = %s\nv = %s" % (t, v)
                 print "(u+t*v)Y = %s" % ((u+t*v)*Y)
                 u_new = u + t*v
                 if not is_feasible(u_new,Y,tol=1e-5):
+                    print "Infeasible, trying -1"
                     t = (-1 - np.dot( u, y ) ) / np.dot(v,y)
                     u_new = u + t*v 
                     print "u = %s\nt = %s\nv = %s" % (u, t, v)
@@ -265,8 +273,8 @@ def row_to_vertex( u, Y ):
                             #something is very infeasible or wrong here!
                             raise ValueError
 
-                print "u = %s\nt = %s\nv = %s" % (u, t, v)
-                print "(u+t*v)Y = %s" % ((u+t*v)*Y)
+                #print "u = %s\nt = %s\nv = %s" % (u, t, v)
+                #print "(u+t*v)Y = %s" % ((u+t*v)*Y)
 
                 u = u_new
                 is_zero_one = check_zero_one( u*Y )
@@ -275,8 +283,9 @@ def row_to_vertex( u, Y ):
                 bad_index = [i for i, j in enumerate(is_zero_one_list) if not j ]
                 break
 
-        if i == Y_perp.shape[1]:
-            raise RuntimeError
+        #Not sure if we need to do something here...we should be close to \pm 1
+        #if i == Y_perp.shape[1]:
+        #    raise RuntimeError
 
     return u
 
@@ -307,7 +316,7 @@ def find_vertex_on_face(U, Y):
         UY = U*Y
         is_zero_one = check_zero_one( UY )
 
-        #Bail if all entries are already in {-1,0,1}, this might be redundant
+        #Bail if all entries are already in {-1,0,1}
         if is_zero_one.all():
             break
 
@@ -362,7 +371,7 @@ def orthogonalize_p(p,tol=1e-9):
                 if not ( j in bad ):
                     bad.append(j)
 
-    print "Non-orthogonal vectors: %s" % bad
+    #print "Non-orthogonal vectors: %s" % bad
 
     zero = []
     #Most of the time, not all vectors overlap all other vectors
@@ -383,7 +392,7 @@ def orthogonalize_p(p,tol=1e-9):
             p[j,:] = vv
 
     zero.sort()
-    print "Redundant contraints: %s" % zero
+    #print "Redundant contraints: %s" % zero
     p = np.delete(p,zero,0)
 
     #A = p * p.T
@@ -430,7 +439,7 @@ def dynamic_solve(U,Y):
 
         if np.linalg.norm(v_vec) < 1e-12:
             print "Gradient is orthogonal to null space at step %s" % i
-            print "UY = %s\n" % (U*Y)
+            #print "UY = %s\n" % (U*Y)
             break 
 
         V = np.reshape(v_vec, [n,n])
@@ -440,34 +449,56 @@ def dynamic_solve(U,Y):
         #diff = abs((1-abs(U*Y) + mask)/(V*Y + mask)) + mask
         #t = diff.min()
         U = U+t*V
-        #print '%s' % ('-'*40)
+        print '%s' % ('-'*40)
+
+    print "U * Y = %s" % (U*Y)
 
     if not check_zero_one( U*Y ).all():
-        U = find_vertex_on_face(U, Y)
+        try:
+            print '%s' % ('-'*40)
+            U = find_vertex_on_face(U, Y)
+            print "U * Y = %s" % (U*Y)
+        except RuntimeError:
+            print "Warning: Weird RuntimeError"
+            pass
 
     return U
 
-def trial(n):
+def rand_zero_one( n, k, use_basis=True ):
+    if use_basis:
+        X = bases[n]
+        (nn,kk) = X.shape
+        if kk < k:
+            XX = np.matrix( 2*np.random.randint( 0, 2, size=(n,k-kk) ) - 1 )
+            X = np.concatenate( (X, XX), axis=1 )
+        return X
+    else:
+        return np.matrix( 2*np.random.randint( 0, 2, size=(n,k) ) - 1 )
+
+def trial(n,k):
     #Generate channel and observed samples
     A = np.random.randn(n,n)
-    X = bases[n]
+    #X = bases[n]
+    X = rand_zero_one( n, k )
     Y = A*X
     k = Y.shape[1]
 
     Ui = rand_init(n,Y)
     U = dynamic_solve(Ui,Y)
 
-    if np.min(abs(U*Y)) > 0.99:
-        print("Solved")
-    else:
-        print("Not quite")
-        print("U:")
-        print(U)
-        print("Y:")
-        print(Y)
+    #if np.min(abs(U*Y)) > 0.99:
+    #    print("Solved")
+    #else:
+        #print("Not quite")
+        #print("U:")
+        #print(U)
+        #print("Y:")
+        #print(Y)
         #U = dynamic_solve(U,Y)
 
     return U*Y
+
+
 
 def examine_instances(instances): 
     for i, instance in enumerate(instances):
@@ -494,6 +525,40 @@ def load_bad_instances(bad_instance_file):
         unpickler = pickle.Unpickler(fp)
         bad_instances = unpickler.load()
         examine_instances(bad_instances)
+
+n = 4
+tol = 1e-3
+
+
+for k in range(5, 20, 2):
+    good = 0.0
+    zero = 0.0
+    other = 0.0
+    total = 0.0
+
+    print( "n=%d, k=%d" % (n,k) )
+    for i in range(1):
+        if i % 100 == 0 and i != 0:
+            sys.stdout.write('#')
+            sys.stdout.flush()
+
+        try:
+            UY = trial(n,k)
+        except:
+            continue
+
+        gg = np.asscalar( sum(sum( abs((abs(UY) - 1.0)) < tol ).transpose() ) )
+        good += gg
+
+        zz = np.asscalar( sum(sum( abs(UY) < tol ).transpose() ) )
+        zero += zz
+
+        other += n*k - (gg + zz)
+        total += n*k
+
+    sys.stdout.write('\n')
+    print("pm 1: %f,\t0: %e\tother: %e\n" % (good/total, zero/total, other/total) )
+
 
 ######################################################################
 # Ignore these functions, they were from another idea I previously had
@@ -550,7 +615,7 @@ def conjugate_rotation(A,c,s,i,j):
     A[i,j] = a12*(c**2 - s**2) + s*c*(a11 - a22)
     A[j,i] = A[i,j]
 
-print( trial(n) )
+
 
 #load_bad_instances('bad_instances')
 
