@@ -71,10 +71,10 @@ fn main() { //{@
     //neighbor_det_pattern_all(5);
 
     // Run repetitions of the solver.
-    run_reps(); //Tests without noise
+    //run_reps(); //Tests without noise
     //test_awgn(); //Tests with AWGN
     
-    //bfs_test();
+    many_bfs(1000);
 } //@}
 
 #[allow(dead_code)]
@@ -104,6 +104,7 @@ fn bfs_test() {
 
 // Principal functions{@
 // Runnable functions{@
+#[allow(dead_code)]
 #[derive(Hash, Eq, PartialEq)]
 enum BFSType { //{@
     PM1,
@@ -114,6 +115,7 @@ enum BFSType { //{@
 /// Run the BFS finder multiple times over multiple different base matrices.
 //@}
 fn many_bfs(reps: usize) { //{@
+    /*
     let xmats = vec![
         BaseMatrix { basemtx: na::DMatrix::from_row_slice(2, 2,
                 &vec![  1.,  1.,
@@ -143,32 +145,52 @@ fn many_bfs(reps: usize) { //{@
                 ]), extra_cols: 8,
         },
     ];
-    let mut rng = rand::thread_rng();
-    let mut results = HashMap::new();
-    for _ in 0 .. reps {
-        let basemtx = rng.choose(&xmats).unwrap();
-        let x = basemtx.fill();
-        let (a, y) = trial(&x, false);
-        let u_i = rand_init(&y);
-        //println!("a = {}\ny = {}\nUi = {}", a, y, u_i);
-        let bfs = find_bfs(&u_i, &y).unwrap();
-        let res = verify_bfs(&bfs, &y, ZTHRESH);
-        if res == BFSType::Wrong {
-            let uy = bfs.clone() * y.clone();
-            println!("BFS Fail: a = {:.6}y = {:.6}u_i = {:.6}u = {:.6}\nuy = {:.6}",
-                    a, y, u_i, bfs, uy);
-        }
-        let count = results.entry(res).or_insert(0);
-        *count += 1;
-    }
+    */
 
-    for (res, count) in &results {
-        println!("{:-10}{}", match res {
-            &BFSType::PM1 => "+-1",
-            &BFSType::PM10 => "+-1/0",
-            &BFSType::Wrong => "WRONG",
-            },
-            count);
+    let dims = vec![(4,7),(4,9)];
+
+    //let mut rng = rand::thread_rng();
+    //let mut results = HashMap::new();
+    for i in 0 .. dims.len() {
+        let mut good = 0;
+        let mut zero = 0;
+        let mut other = 0;
+
+        for _ in 0 .. reps {
+            //let basemtx = rng.choose(&xmats).unwrap();
+            let x = get_matrix(&dims[i .. i+1]);
+            //let x = basemtx.fill();
+            let (_a, y) = trial(&x, false);
+            let u_i = rand_init(&y);
+            //println!("a = {}\ny = {}\nUi = {}", a, y, u_i);
+            let bfs = find_bfs(&u_i, &y).unwrap();
+            //let uy = bfs.clone() * y.clone();
+            //println!("UY = {}\n", uy);
+
+            let (g,z,o) = count_bfs_entry(&bfs, &y, 1e-3);
+            good += g; zero += z; other += o;
+
+            if o > 0 {
+                println!( "UY = {:.13}", bfs.clone() * y.clone() );
+                println!( "Y = {:.13}", y.clone() );
+                println!( "U_i = {:.13}", u_i.clone() );
+            }
+
+            //let res = verify_bfs(&bfs, &y, ZTHRESH);
+            //if res == BFSType::Wrong {
+            //    let uy = bfs.clone() * y.clone();
+            //    println!("BFS Fail: a = {:.6}y = {:.6}u_i = {:.6}u = {:.6}\nuy = {:.6}",
+            //            a, y, u_i, bfs, uy);
+            //}
+            //let count = results.entry(res).or_insert(0);
+            //*count += 1;
+        }
+        let total = reps * dims[i].0 * dims[i].1;
+
+        println!("({},{})", dims[i].0, dims[i].1);
+        println!("Good = {}, Zero = {}, Other = {}", (good as f64) / (total as f64), 
+                 (zero as f64) / (total as f64), 
+                 (other as f64) / (total as f64) );
     }
 } //@}
 
@@ -1389,6 +1411,7 @@ fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
 //{@
 /// Verify that every entry of |uy| == 1.
 //@}
+#[allow(dead_code)]
 fn verify_bfs(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) //{@
         -> BFSType {
     if u.determinant().abs() < zthresh * 10e4 {
@@ -1404,6 +1427,22 @@ fn verify_bfs(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) //{@
     BFSType::Wrong
 } //@}
 // end BFS finder.@}
+
+fn count_bfs_entry(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) 
+    -> (u64,u64,u64) {
+
+    let prod = u*y;
+    let pm1 = prod.into_iter().map( |&elt| (elt.abs() - 1.0).abs() < zthresh );
+    let zeros = prod.into_iter().map( |&elt| elt.abs() < zthresh );
+    let other = prod.into_iter().map( |&elt| ( elt.abs() > zthresh ) 
+                                      && ((elt.abs() - 1.0).abs() > zthresh) );
+
+    let sum_pm1 = pm1.into_iter().fold(0, |acc, x| acc + (x as u64));
+    let sum_zeros = zeros.into_iter().fold(0, |acc, x| acc + (x as u64));
+    let sum_other = other.into_iter().fold(0, |acc, x| acc + (x as u64));
+
+    return (sum_pm1, sum_zeros, sum_other);
+}
 
 #[derive(Clone)]
 struct BaseMatrix { //{@
