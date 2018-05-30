@@ -21,7 +21,7 @@ def parse_matrix(text):
 
     return np.matrix(float_list)
 
-class trap_case:
+class TrapCase:
     def __init__(self, text):
         self.U = ''
         self.Ainv = ''
