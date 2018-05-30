@@ -99,7 +99,8 @@ class FeasibleRegion:
 
     def reject_vec( self, v, row ):
         for i in range(len(self.col_map[row])):
-            s =  (self.p[row][i,:] * v) / ( self.p[row][i,:] * self.p[row][i,:].T)
+            #s =  (self.p[row][i,:] * v) / ( self.p[row][i,:] * self.p[row][i,:].T)
+            s = self.p[row][i,:] * v
             s = s*self.p[row][i,:]
             v = v - s.T
 

@@ -1,4 +1,7 @@
 import numpy as np
+import sys
+
+sys.path.insert(0,'..')
 import dynamic
 from FeasibleRegion import FeasibleRegion
 
