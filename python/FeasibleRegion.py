@@ -13,7 +13,7 @@ class FeasibleRegion:
     self.col_map holds mapping of columns of UY <-> rows of b
     '''
     def __init__(self, Y, tol=1e-9):
-        self.Y = Y
+        self.Y = np.matrix(np.copy(Y))
         (self.n, self.k) = Y.shape
         self.b = [np.matrix(np.zeros( (0,self.n) )) for i in range(self.n)]
         self.p = [np.matrix(np.zeros( (0,self.n) )) for i in range(self.n)]
@@ -36,31 +36,52 @@ class FeasibleRegion:
         
         return ret
 
-    def insert_by_mtx( self, update ):
-        for i in range(self.n):
-            for j in range(self.k):
+    def insert_mtx( self, update ):
+        (nn,kk) = update.shape
+        for i in range(nn):
+            for j in range(kk):
                 if update[i,j] == True:
                     self.insert( i, j )
 
-    def remove_by_mtx( self, update ):
-        for i in range(self.n):
-            for j in range(self.k):
+    def remove_mtx( self, update ):
+        (nn,kk) = update.shape
+        for i in range(nn):
+            for j in range(kk):
                 if update[i,j] == True:
                     self.remove( i, j, False )
 
         self.__recompute_p()
 
     def insert( self, row, column ):
+        '''
+        Call when a constraint becomes active.  If UY_{i,j} becomes \pm 1
+        then call this: insert( i, j )
+
+        This grabs the appropriate column of Y and sticks it in the appropriate
+        matrix B.  Then P is updated according the our optimized gram-schmidt
+        process.
+        '''
+        #If this is true the entry is already in the data structure
+        #Could consider raising an exception
         if column in self.col_map[row]:
             return
 
-        new_row = self.Y[:,column].T
+        new_row = np.matrix(np.copy(self.Y[:,column].T))
         self.b[row] = np.concatenate( (self.b[row], new_row) )
         self.p[row] = np.concatenate( (self.p[row], new_row) )
         self.col_map[row].append( column )
         self.__reorthonormalize_p(row)
 
     def remove( self, row, column, update_p = True ):
+        '''
+        Opposite of above function - the appropriate entry is removed
+        If update_p is true, then p is recomputed from scratch.  Expensive, but
+        we typically remove an arbitrary constraint so it's hard to have a more
+        general optimal way to do this.  
+
+        If update_p is false, p is not updated, this is useful if you have to
+        remove several entries at once
+        '''
         col_idx = self.col_map[row].index(column) # will raise ValueError if bad
         self.b[row] = np.delete( self.b[row], col_idx, 0 )
         self.col_map[row].remove(column)
@@ -68,22 +89,21 @@ class FeasibleRegion:
         if update_p:
             self.__recompute_p( row )
 
-    def get_p_block( self, row ):
-        return self.p[row]
-
     def reject_mtx( self, V ):
+        res = np.matrix(np.zeros((0,self.n)))
         for i in range(self.n):
-            V[i,:] = reject_vec( V[i,:], i )
+            v = self.reject_vec( V[i,:].T, i )
+            res = np.concatenate( (res, v) ) 
 
-        return V
+        return res
 
     def reject_vec( self, v, row ):
         for i in range(len(self.col_map[row])):
             s =  (self.p[row][i,:] * v) / ( self.p[row][i,:] * self.p[row][i,:].T)
-            s = s*p[row][i,:]
+            s = s*self.p[row][i,:]
             v = v - s.T
 
-        return v
+        return v.T
 
     def __reorthonormalize_p( self, row ):
         '''
@@ -126,17 +146,24 @@ class FeasibleRegion:
             for i in range(self.n):
                 self.__recompute_p( i )
 
-        pp = self.p[row]
-        A = pp * pp.T
+        pp = np.matrix(np.copy(self.b[row]))
 
-        #Find non-zero entires in A, should be easier using a sparse
-        #implementation
+        A = pp * pp.T
+        (nn,_) = A.shape
+
+        #This means the corresponding entry of b is empty
+        if nn == 0:
+            self.p[row] = np.matrix(np.zeros( (0,self.n) ))
+            return
+
+        pp[0,:] /= np.linalg.norm(pp[0,:])
+
         bad = []
-        for i in range(self.n):
-            for j in range(self.n):
+        for i in range(nn):
+            for j in range(nn):
                 if j <= i:
                     continue
-                if abs(A[i,j]) > tol:
+                if abs(A[i,j]) > self.tol:
                     if not ( i in bad ):
                         bad.append(i)
                     if not ( j in bad ):
@@ -145,10 +172,6 @@ class FeasibleRegion:
         #print "Non-orthogonal vectors: %s" % bad
 
         zero = []
-        #Most of the time, not all vectors overlap all other vectors
-        #so there might be some optimization by not iterating over all pairs 
-        #However, worst case we will have k elements in bad and k(k-1) pairs.
-        #Most commonly we have 2 elements in bad so it doesn't matter
         for (i,j) in itertools.combinations(bad,2):
             if (i in zero) or (j in zero):
                 continue
@@ -156,11 +179,12 @@ class FeasibleRegion:
             u = pp[i,:]
             v = pp[j,:]
             vv = v - ((u*v.T)/(u*u.T))*u
-            if np.linalg.norm(vv) < tol:
+            norm = np.linalg.norm(vv)
+            if norm < self.tol:
                 if not (j in zero):
                     zero.append(j)
             else:
-                pp[j,:] = vv
+                pp[j,:] = vv / norm
 
         zero.sort()
         #print "Redundant contraints: %s" % zero

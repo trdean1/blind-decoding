@@ -38,18 +38,62 @@ fs.insert( 0, 1 )
 fs.insert( 0, 2 )
 fs.insert( 0, 3 )
 
-print 'Anything else should be redundant'
+print 'Adding redundant constraint'
 fs.insert( 0, 5 )
 
-print '-'*60
-print 'New method:'
-print fs.p[0]
-
-p = dynamic.orthogonalize_p( Y.T )
+p = dynamic.orthogonalize_p( np.matrix( np.copy( Y.T ) ) )
 for i in range(p.shape[0]):
     p[i,:] /= np.linalg.norm(p[i,:])
 
-print 'Old method:'
-print p
+print 'Difference from old method: %e' % np.linalg.norm(fs.p[0] - p)
+print '-'*60
 
-print 'Difference: %e' % np.linalg.norm(fs.p[0] - p)
+print 'Removing row 5'
+print 'Change in p: %f\n' % np.linalg.norm(fs.p[0] - p)
+ 
+print 'Removing row 3'
+fs.remove( 0, 3 )
+print 'Difference with old method: %f\n' % np.linalg.norm(fs.p[0] - p[0:3,:])
+
+print 'Removing row 1'
+fs.remove( 0, 1 )
+
+Y2 = np.concatenate( (Y[:,0].T, Y[:,2].T, Y[:,5].T) )
+p2 = dynamic.orthogonalize_p( Y2 )
+for i in range(p2.shape[0]):
+    p2[i,:] /= np.linalg.norm(p2[i,:])
+
+print 'Difference with old method: %f' % np.linalg.norm(fs.p[0] - p2)
+
+print '-'*60
+
+###################################
+# Clear and perform rejection
+###################################
+
+print 'Clearing with remove_mtx'
+
+cl = np.matrix([[True, False, True, False, False, True],[False, False,
+    False, False, False, False]])
+
+fs.remove_mtx( cl )
+
+print 'Updating with insert_mtx'
+
+up = np.matrix([[True, True, True, False],
+[True, True, False, True],
+[True, False, True, True],
+[False, True, True, True]])
+
+fs.insert_mtx( up )
+
+print '\nPerforming matrix rejection'
+V = np.matrix([[1, 1, 1, 1],[1, 1, -1, -1],[1, -1, -1, 1],[1, -1, 1, -1]])
+
+V2 = fs.reject_mtx( V )
+
+print 'Residual inner products:'
+print V2[0,:] * fs.p[0].T
+print V2[1,:] * fs.p[1].T
+print V2[2,:] * fs.p[2].T
+print V2[3,:] * fs.p[3].T
