@@ -5,13 +5,8 @@ import pickle
 from scipy import linalg,matrix
 import math
 import sys
+import Xmats
 from FeasibleRegion import FeasibleRegion
-
-#Proper sets of samples of X so that we are guaranteed to recover A^-1 up to an ATM
-bases = { 2 : np.matrix([[1,1],[1,-1]]),\
-        3 : np.matrix([[1,1,1],[1,-1,1],[-1,1,1]]),\
-        4 : np.matrix([[1,1,1,1,1],[1,1,-1,-1,1],[1,-1,1,-1,1],[1,-1,-1,1,-1]]),\
-        5 : np.matrix([[-1,-1,-1,-1,-1,-1],[-1,-1,-1,1,1,-1],[-1,-1,1,-1,1,1],[-1,1,-1,-1,1,1],[-1,1,1,1,-1,-1]])}
 
 def objfunc(x):
     '''
@@ -218,7 +213,7 @@ def row_to_vertex( U, feasible_region, row, UY = [], verbose=False ):
         bad = 0
         while i < n:
             y = np.matrix( np.copy( Y[:,bad_index[bad]] ) )
-            v = np.matrix(np.zeros( (4,1) ) )
+            v = np.matrix(np.zeros( (n,1) ) )
             v = v.T
 
             # Pick a random vector in the nullspace
@@ -226,7 +221,9 @@ def row_to_vertex( U, feasible_region, row, UY = [], verbose=False ):
             while abs(v*y) < 1e-9:
                 tries -= 1
                 if tries == 0:
-                    print "Warning: Failed to find vector in nullsapce"
+                    if verbose:
+                        print "Warning: Failed to find vector in nullsapce"
+                        print u*Y
                     return u
                     #raise ValueError("Failed to find vector in nullspace")
 
@@ -262,9 +259,10 @@ def row_to_vertex( U, feasible_region, row, UY = [], verbose=False ):
                         if bad == len(bad_index):
                             #something went wrong, problem could be singular                 
                             #raise ValueError('Failed to find a vertex')
-                            print "Warning: Failed to find a vertex"
-                            print "Row = %d, i = %d" % (row, i)
-                            print uY
+                            if verbose:
+                                print "Warning: Failed to find a vertex"
+                                print "Row = %d, i = %d" % (row, i)
+                                print uY
                             return u
                         else:
                             continue
@@ -395,24 +393,10 @@ def dynamic_solve(U,Y, verbose=False):
 
     return U
 
-
-def rand_zero_one( n, k, use_basis=True ):
-    if use_basis:
-        X = bases[n]
-        (nn,kk) = X.shape
-        if kk < k:
-            XX = np.matrix( 2*np.random.randint( 0, 2, size=(n,k-kk) ) - 1 )
-            X = np.concatenate( (X, XX), axis=1 )
-        return X
-    else:
-        return np.matrix( 2*np.random.randint( 0, 2, size=(n,k) ) - 1 )
-
-
 def trial(n,k):
     #Generate channel and observed samples
     A = np.random.randn(n,n)
-    #X = bases[n]
-    X = rand_zero_one( n, k )
+    X = Xmats.X_guarantee(n, k)
     Y = A*X
     k = Y.shape[1]
 

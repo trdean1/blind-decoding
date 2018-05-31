@@ -108,7 +108,7 @@ def gen_trial(X, verbose = False): #{{{
 # end function set}}}
 
 # single specific trial functions{{{
-def single_run(n, k, verbose = False, errfile = None, trap = False): # {{{
+def single_run(n, k, Xtype='guarantee', verbose = False, errfile = None, trap = False): # {{{
     '''
     Run a single trial, selecting one matrix from Xmats at random, filling in
     the specified number of extra columns with iid \pm 1 entries.
@@ -119,7 +119,12 @@ def single_run(n, k, verbose = False, errfile = None, trap = False): # {{{
         base matrix, which will be iid \pm 1
     '''
     while True:
-        X = Xmats.X_guarantee(n, k)
+        if Xtype == 'guarantee':
+            X = Xmats.X_guarantee(n, k)
+        elif Xtype == 'MSP':
+            X = Xmats.X_MSP(n, k)
+        else:
+            X = Xmats.X_random(n, k)
 
         UY, U, Y, A, Ui = gen_trial(X)
         t = FlexTab.FlexTab(U, Y, verbose)
@@ -129,8 +134,9 @@ def single_run(n, k, verbose = False, errfile = None, trap = False): # {{{
         try:
             t.solve()
         except Exception as e:
-            if type(e) == ValueError and t.num_indep_cols() < t.n:
-                print "EXCEPTION: %s: %s" %(e.message, e)
+            if verbose:
+                if type(e) == ValueError and t.num_indep_cols() < t.n:
+                    print "EXCEPTION: %s: %s" %(e.message, e)
             continue
 
         # XXX: Deal specifically with trap instances.
@@ -148,25 +154,31 @@ def single_run(n, k, verbose = False, errfile = None, trap = False): # {{{
     #        num_bad_cols, t.num_indep_cols())
     
     if equal_atm(t.U, np.linalg.inv(A)):
-        print "EQUAL ATM"
+        if verbose:
+            print "EQUAL ATM"
         return 'EQATM'
     else:
-        print "UNEQUAL"
-        print "U =\n%s\nA^-1 =\n%s\n" %(t.U, np.linalg.inv(A))
-        print "Y =\n%s" %(t.Y)
-        print "U * Y = \n%s\n" %(np.round(t.U * Y))
+        if verbose:
+            print "UNEQUAL"
+            print "U =\n%s\nA^-1 =\n%s\n" %(t.U, np.linalg.inv(A))
+            print "Y =\n%s" %(t.Y)
+            print "U * Y = \n%s\n" %(np.round(t.U * Y))
         if np.max(np.abs(np.abs(t.U * Y) - 1)) < 1e-9:
-            print "UYPM1"
+            if verbose:
+                print "UYPM1"
             return 'UYPM1'
         if t.is_certain_max_5():
-            print "UMAX"
+            if verbose:
+                print "UMAX"
             return 'UMAX'
         if t.is_trapped():
-            print "TRAPPED"
+            if verbose:
+                print "TRAPPED"
             return 'TRAPPED'
         
         # This is an error, print some basics, save if specified.
-        print "U = \n%s\nY = \n%s\nUi = \n%s\n" %(U, Y, Ui)
+        if verbose:
+            print "U = \n%s\nY = \n%s\nUi = \n%s\n" %(U, Y, Ui)
         if errfile is not None:
             with open(errfile, "w") as fp:
                 pickler = pickle.Pickler(fp)
