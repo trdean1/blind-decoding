@@ -20,11 +20,11 @@ for k in range(5, 20, 2):
             sys.stdout.write('#')
             sys.stdout.flush()
 
-        try:
-            UY = dynamic.trial(n,k)
-        except:
-            print "Runtime Error"
-            continue
+        #try:
+        UY = dynamic.trial(n,k)
+        #except:
+        #    print "Runtime Error"
+        #    continue
 
         gg = np.asscalar( sum(sum( abs((abs(UY) - 1.0)) < tol ).transpose() ) )
         good += gg

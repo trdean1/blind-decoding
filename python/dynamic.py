@@ -5,6 +5,7 @@ import pickle
 from scipy import linalg,matrix
 import math
 import sys
+from FeasibleRegion import FeasibleRegion
 
 #Proper sets of samples of X so that we are guaranteed to recover A^-1 up to an ATM
 bases = { 2 : np.matrix([[1,1],[1,-1]]),\
@@ -93,6 +94,10 @@ def random_orthogonal(n):
 
     return v.compress(mask,axis=0)
 
+def random_unit(n):
+    v = np.matrix(np.random.rand( n,1 ) )
+    return v / np.linalg.norm(v)
+
 def nullspace(A,eps=1e-12):
     '''
     Returns a basis of the null space of the matrix A, with a tolerance given by
@@ -167,6 +172,41 @@ def binary_search(U,V,Y,t_start=0.0,t_stop=[],steps=64,mask=[]):
 
     return t
 
+def boundary_dist(U, V, Y, uy = [], mask = []): #{{{
+    '''
+    Calculate the distance to the problem boundary along a given vector.
+    Input:  U = current feasible solution
+            V = vector along which to travel
+            Y = received set of symbols
+            mask = points to consider when calculating feasibility, by default
+                all points are considered
+    Output: t = maximum distance such that U + t * V remains feasible
+    '''
+    # Calculate U * Y and V * Y once.
+    if uy == []:
+        uy = U * Y
+
+    dy = V * Y
+
+    # Find the lowest value of t such that U + t * V reaches the boundary.
+    t_min = None
+    for i in range(Y.shape[0]):
+        for j in range(Y.shape[1]):
+            if not mask == [] and not mask[i, j]:
+                continue
+            # Determine the value of t such that the [i, j] constraint reaches
+            # the boundary.
+            if dy[i, j] < 0:
+                t = (-1 - uy[i, j]) / dy[i, j]
+            elif dy[i, j] > 0:
+                t = (1 - uy[i, j]) / dy[i, j]
+            else:
+                t = None
+
+            if not t is None and (t_min is None or t < t_min):
+                t_min = t
+
+    return t_min
 
 def rand_init(n,Y):
     #Generate initial value
@@ -179,7 +219,7 @@ def rand_init(n,Y):
 
     return U
 
-def row_to_vertex( u, Y ):
+def row_to_vertex( U, feasible_region, row, UY = [] ):
     '''
     This function is highly redundant.  We just need to pull a specific 
     entry of p out and then pick a random direction in the null space of 
@@ -191,82 +231,97 @@ def row_to_vertex( u, Y ):
     will move u until u*Y has all 'good' entries
     may still be zeros but shouldn't matter in end
     '''
-    print "Starting uY = %s\n" % (u*Y)
-    print "Y = %s\n" % Y
-    n = Y.shape[0]
-    is_zero_one = check_zero_one( u*Y )
-    is_zero_one_list = is_zero_one.tolist()[0] 
 
-    #indices of all the bad entries
+    #Check if we got a precomputed UY
+    uY = None
+    if UY == []:
+        uY = u * feasible_region.Y
+    else:
+        uY = UY[row,:]
+
+    u = U[row,:]
+    Y = feasible_region.Y
+    n = feasible_region.n
+
+    #Get indices of all entries not in {-1,0,1}
+    is_zero_one = check_zero_one( uY )
+    is_zero_one_list = is_zero_one.tolist()[0] 
     bad_index = [i for i, j in enumerate(is_zero_one_list) if not j ]
 
     while not is_zero_one.all():
-        #Pull out the 'good' columns of Y
-        Y_space = Y
-        dropped = 0
-        for i,col in enumerate(is_zero_one_list):
-            if not col:
-               Y_space = np.delete(Y_space,i-dropped,axis=1)
-               dropped += 1
-               #'Target' entry is just last bad value we come across
-               #y = Y[:,i]
 
-        #print "y = %s" % Y[:,bad_index[0]]
-        #Y_perp = nullspace(Y_space.transpose())
-        while True:
-            #Check if this has a left null space
-            Y_perp = nullspace(Y_space.transpose())
-            if Y_perp.shape == (1,0):
-                #if no nullspace, drop a column with a zero
-                is_zero = abs(uY) <= 1e-12
-                deleted = False
-                for i,bb in enumerate(is_zero):
-                    if bb:
-                        Y_space = np.delete(Y_space, i, axis=1)
-                        deleted = True
-                        break
+        ###############################################################
+        #TODO: Triple check that this loop below will never do anything
+        # row_to_vertex can only get called if the gradient is
+        # in the nullspace of the active constraints, so p will
+        # never be full rank unless something went wrong...
+        #
+        #while True:
+        #    #Check if this has a left null space
+        #    #I actually don't think this code can ever be called
+        #    #
+        #
+        #    # Check if feasbile region has a left nullspace
+        #    if feasible_region.p[row].shape[0] == n:
+        #        #if no nullspace, drop a column with a zero
+        #        is_zero = abs(uY) <= 1e-12
+        #        deleted = False
+        #        for i,bb in enumerate(is_zero):
+        #            if bb:
+        #                #Y_space = np.delete(Y_space, i, axis=1)
+        #                feasible_region.remove( row, i )
+        #                deleted = True
+        #                break
+        #
+        #        if not deleted: 
+        #            #If we have no columns to delete, bail
+        #            raise ValueError
+        #
+        #    #Found a nullspace so we can use it
+        #    else:
+        #        break
+        ################################################################
 
-                if not deleted: 
-                    #If we have no columns to delete, bail
-                    raise ValueError
+        Y_space = feasible_region.b[row].T
+        Y_rank = feasible_region.p[row].shape[0]
 
-            #Found a nullspace so we can use it
-            else:
-                break
-
-        print "Y_space = %s" % Y_space
-        print "Y_perp = %s" % Y_perp
-
-        #print "Y_perp = %s\n" % Y_perp
         i = 0
         bad = 0
-        while i < Y_perp.shape[1]:
-            y = Y[:,bad_index[bad]]
-            v = Y_perp[:,i] #This is an arbitrary direction in the null space
-            #move zig
-            if np.dot( v,y ) == 0:
-                #This should never happen since v \in y^\perp
-                raise ValueError
+        #while i < Y_perp.shape[1]:
+        while i < n - Y_rank:
+            y = np.matrix( np.copy( Y[:,bad_index[bad]] ) )
+            v = np.matrix(np.zeros( (4,1) ) )
+            v = v.T
 
+            # Pick a random vector in the nullspace
+            tries = 10
+            while v*y < 1e-9:
+                v = random_unit(n)
+                v = feasible_region.reject_vec( v, row )
+                norm = np.linalg.norm(v)
+                if norm < 1e-13:
+                    tries -= 1
+                    if tries == 0:
+                        raise ValueError('Constraints appear full rank')
+                    continue
+
+                v = v / np.linalg.norm(v)
+                
             t = (1 - np.dot( u, y ) ) / np.dot(v,y)
+
             #this condition implies that we are already at an edge in this
-            #direction
+            #direction.  Continue to the next subspace if needed
             if abs(t) < 1e-6:
                 i += 1
                 continue
 
             else:
-                print "uy_good = %s" % (u*Y_space)
-                print "uy_bad = %s" % (u*y) 
-                print "t = %s\nv = %s" % (t, v)
-                print "(u+t*v)Y = %s" % ((u+t*v)*Y)
                 u_new = u + t*v
+
+                #If u_new is not feasible, try forcing to -1 instead of +1
                 if not is_feasible(u_new,Y,tol=1e-5):
-                    print "Infeasible, trying -1"
                     t = (-1 - np.dot( u, y ) ) / np.dot(v,y)
                     u_new = u + t*v 
-                    print "u = %s\nt = %s\nv = %s" % (u, t, v)
-                    print "(u+t*v)Y = %s" % ((u+t*v)*Y)
                     if not is_feasible(u_new,Y,tol=1e-5):
                         #try picking a different target in this row, this face
                         #might be infeasible
@@ -274,17 +329,20 @@ def row_to_vertex( u, Y ):
                             bad += 1
                             continue
                         else:
-                            #something is very infeasible or wrong here!
-                            raise ValueError
+                            #something went wrong, problem could be singular                 
+                            raise ValueError('Failed to find a vertex')
 
-                #print "u = %s\nt = %s\nv = %s" % (u, t, v)
-                #print "(u+t*v)Y = %s" % ((u+t*v)*Y)
-
+                #We activated another constraint, save values and leave
                 u = u_new
-                is_zero_one = check_zero_one( u*Y )
+
+                #TODO: This code seems to have no function?
+                uY = u * Y
+                is_zero_one = check_zero_one( uY )
                 is_zero_one_list = is_zero_one.tolist()[0] 
                 #indices of all the bad entries
                 bad_index = [i for i, j in enumerate(is_zero_one_list) if not j ]
+
+                #TODO: Is break the right call here?
                 break
 
         #Not sure if we need to do something here...we should be close to \pm 1
@@ -305,7 +363,7 @@ def check_zero_one(A,eps=1e-6):
     return is_one_zero
 
 
-def find_vertex_on_face(U, Y, UY = [], p = []):
+def find_vertex_on_face(U, Y, feasible_region, UY = []):
     '''
     U must be on a face of the polytope that bounds feasible region.
     This face must have constant slope.  Then this function will move to a
@@ -320,7 +378,7 @@ def find_vertex_on_face(U, Y, UY = [], p = []):
     
     #go row by row
     for i in range(n):
-        if UY == []:
+        if UY == [] or i != 0:
             UY = U*Y
 
         is_zero_one = check_zero_one( UY )
@@ -333,10 +391,7 @@ def find_vertex_on_face(U, Y, UY = [], p = []):
         if (is_zero_one[i,:]).all():
             continue
 
-        #if p == []:
-        #TODO: need to take advantage of p being precomputed.
-
-        U[i,:] = row_to_vertex(U[i,:], Y)
+        U[i,:] = row_to_vertex(U, feasible_region, i, UY)
         
 
     return U
@@ -422,6 +477,7 @@ def dynamic_solve(U,Y):
     U = U+t*V
 
     p_bool = np.matrix(np.zeros(Y.shape)) == 1
+    fr = FeasibleRegion( Y )
     p = []
 
     for i in range(n**2 - 1):
@@ -433,52 +489,27 @@ def dynamic_solve(U,Y):
         p_bool_new = get_active_constraints_bool(U,Y)
         p_update = p_bool_new ^ p_bool
         p_bool = p_bool_new
-        #print "Update = %s" % p_update
-        p = update_p(p, p_update, Y)
-        orthogonalize_p(p)
 
-        #p = get_active_constraints_basis(U,Y)
-        #p = p / np.linalg.norm(p)
+        fr.insert_mtx( p_bool )
+        
         V = objgrad(U)
-        v_vec = np.reshape(V,[n**2,1])
-        #v_vec = project_to_null(v_vec,p.transpose())
+        V = fr.reject_mtx( V )
 
-        n_constraints = p.shape[0]
-        print "Iteration %d has %d independent constraints" % (i,n_constraints)
-        Xt = U*Y
-
-        for i in range(n_constraints):
-            s = (np.dot(p[i,:],v_vec)/np.dot(p[i,:],p[i,:].transpose()))
-            v_vec = v_vec.transpose() - s*p[i,:]
-            v_vec = v_vec.transpose()
-
-        if np.linalg.norm(v_vec) < 1e-12:
+        if np.linalg.norm(V) < 1e-12:
             print "Gradient is orthogonal to null space at step %s" % i
-            if not check_zero_one( Xt ).all():
+            if not check_zero_one( XX ).all():
                 print "Need to call find_vertex_on face"
-                U = find_vertex_on_face(U,Y, Xt)
-            #print "UY = %s\n" % (U*Y)
+                U = find_vertex_on_face(U,Y, fr, XX)
+
             break 
 
-        V = np.reshape(v_vec, [n,n])
         mask = np.logical_not(get_active_constraints_bool(U,Y))*1
-        t = binary_search(U,V,Y,mask=mask)
-        #mask = get_active_constraints_bool(U,Y)*100
-        #diff = abs((1-abs(U*Y) + mask)/(V*Y + mask)) + mask
-        #t = diff.min()
+        #t = binary_search(U,V,Y,mask=mask)
+        t = boundary_dist(U, V, Y, XX, mask)
         U = U+t*V
         print '%s' % ('-'*40)
 
     print "U * Y = %s" % (U*Y)
-
-    #if not check_zero_one( U*Y ).all():
-    #    try:
-    #        print '%s' % ('-'*40)
-    #        U = find_vertex_on_face_new(U, Y)
-    #        print "U * Y = %s" % (U*Y)
-    #    except RuntimeError:
-    #        print "Warning: Weird RuntimeError"
-    #        pass
 
     return U
 

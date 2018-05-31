@@ -98,9 +98,14 @@ class FeasibleRegion:
         return res
 
     def reject_vec( self, v, row ):
-        for i in range(len(self.col_map[row])):
-            #s =  (self.p[row][i,:] * v) / ( self.p[row][i,:] * self.p[row][i,:].T)
-            s = self.p[row][i,:] * v
+        for i in range(self.p[row].shape[0]):
+            try:
+                s = self.p[row][i,:] * v
+            except IndexError:
+                print "i = %d, row = %d" % (i, row)
+                print self
+                raise IndexError
+
             s = s*self.p[row][i,:]
             v = v - s.T
 
