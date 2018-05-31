@@ -248,8 +248,12 @@ def row_to_vertex( U, feasible_region, row, UY = [] ):
     is_zero_one_list = is_zero_one.tolist()[0] 
     bad_index = [i for i, j in enumerate(is_zero_one_list) if not j ]
 
-    while not is_zero_one.all():
+    #print UY
+    #print "Trying to fix row %d" % row
+    #print "Bad indices: %s" % bad_index
 
+    i = 0
+    while not is_zero_one.all():
         ###############################################################
         #TODO: Triple check that this loop below will never do anything
         # row_to_vertex can only get called if the gradient is
@@ -283,19 +287,31 @@ def row_to_vertex( U, feasible_region, row, UY = [] ):
         ################################################################
 
         Y_space = feasible_region.b[row].T
-        Y_rank = feasible_region.p[row].shape[0]
+        if i >= n:
+            print "\n\nFailed with i=%d, bad=%d" %(i, bad)
+            print bad_index
+            print feasible_region
+            print u*Y
+            raise RuntimeError("This again")
 
-        i = 0
         bad = 0
-        #while i < Y_perp.shape[1]:
-        while i < n - Y_rank:
-            y = np.matrix( np.copy( Y[:,bad_index[bad]] ) )
+        while i < n:
+            #print "Bad entries: %s" % bad_index
+            #print "i = %d Target %d" % (i, bad_index[bad])
+            try:
+                y = np.matrix( np.copy( Y[:,bad_index[bad]] ) )
+            except IndexError:
+                print "Badness here:"
+                print "Y = %s" % Y
+                print "Bad indices: %s" % bad_index
+                print "Index: %d" % bad
+                raise IndexError
             v = np.matrix(np.zeros( (4,1) ) )
             v = v.T
 
             # Pick a random vector in the nullspace
             tries = 10
-            while v*y < 1e-9:
+            while abs(v*y) < 1e-9:
                 v = random_unit(n)
                 v = feasible_region.reject_vec( v, row )
                 norm = np.linalg.norm(v)
@@ -306,13 +322,14 @@ def row_to_vertex( U, feasible_region, row, UY = [] ):
                     continue
 
                 v = v / np.linalg.norm(v)
-                
+
             t = (1 - np.dot( u, y ) ) / np.dot(v,y)
 
             #this condition implies that we are already at an edge in this
             #direction.  Continue to the next subspace if needed
             if abs(t) < 1e-6:
                 i += 1
+                #print "Already edge in this direction"
                 continue
 
             else:
@@ -320,34 +337,52 @@ def row_to_vertex( U, feasible_region, row, UY = [] ):
 
                 #If u_new is not feasible, try forcing to -1 instead of +1
                 if not is_feasible(u_new,Y,tol=1e-5):
+                    #print "Trying -1"
                     t = (-1 - np.dot( u, y ) ) / np.dot(v,y)
                     u_new = u + t*v 
                     if not is_feasible(u_new,Y,tol=1e-5):
                         #try picking a different target in this row, this face
                         #might be infeasible
-                        if bad < len(bad_index):
-                            bad += 1
-                            continue
-                        else:
+                        bad += 1
+                        if bad == len(bad_index):
                             #something went wrong, problem could be singular                 
-                            raise ValueError('Failed to find a vertex')
+                            #raise ValueError('Failed to find a vertex')
+                            print "Warning: Failed to find a vertex"
+                            print "Row = %d, i = %d" % (row, i)
+                            print uY
+                            return
+                        else:
+                            continue
 
                 #We activated another constraint, save values and leave
                 u = u_new
-
+                i = i + 1
+                #print "Found vertex"
                 #TODO: This code seems to have no function?
                 uY = u * Y
+                #print uY                
                 is_zero_one = check_zero_one( uY )
                 is_zero_one_list = is_zero_one.tolist()[0] 
+                for ii,v in enumerate(is_zero_one_list):
+                    if v:
+                        feasible_region.insert(row, ii)
                 #indices of all the bad entries
-                bad_index = [i for i, j in enumerate(is_zero_one_list) if not j ]
+                bad_index = [ii for ii, j in enumerate(is_zero_one_list) if not j ]
+                #print is_zero_one_list
 
                 #TODO: Is break the right call here?
                 break
 
         #Not sure if we need to do something here...we should be close to \pm 1
-        #if i == Y_perp.shape[1]:
-        #    raise RuntimeError
+        #if i == n:
+        #   print uY
+        #    print abs(uY) - 1
+        #    raise RuntimeError("This didn't work?")
+
+        if not is_feasible(u, Y,tol=1e-5):
+            print u * Y
+            print feasible_region
+            raise RuntimeError 
 
     return u
 
@@ -481,10 +516,10 @@ def dynamic_solve(U,Y):
     p = []
 
     for i in range(n**2 - 1):
-        print '\n%s' % ('-'*40)
-        print "Iteration %d" % i
+        #print '\n%s' % ('-'*40)
+        #print "Iteration %d" % i
         XX = U*Y
-        print "U*Y = %s" % XX
+        #print "U*Y = %s" % XX
 
         p_bool_new = get_active_constraints_bool(U,Y)
         p_update = p_bool_new ^ p_bool
@@ -496,20 +531,20 @@ def dynamic_solve(U,Y):
         V = fr.reject_mtx( V )
 
         if np.linalg.norm(V) < 1e-12:
-            print "Gradient is orthogonal to null space at step %s" % i
+            #print "Gradient is orthogonal to null space at step %s" % i
             if not check_zero_one( XX ).all():
-                print "Need to call find_vertex_on face"
+                #print "Need to call find_vertex_on_face"
                 U = find_vertex_on_face(U,Y, fr, XX)
 
             break 
 
         mask = np.logical_not(get_active_constraints_bool(U,Y))*1
-        #t = binary_search(U,V,Y,mask=mask)
-        t = boundary_dist(U, V, Y, XX, mask)
+        t = binary_search(U,V,Y,mask=mask)
+        #t = boundary_dist(U, V, Y, XX, mask)
         U = U+t*V
-        print '%s' % ('-'*40)
+        #print '%s' % ('-'*40)
 
-    print "U * Y = %s" % (U*Y)
+    #print "U * Y = %s" % (U*Y)
 
     return U
 
@@ -546,91 +581,3 @@ def trial(n,k):
         #U = dynamic_solve(U,Y)
 
     return U*Y
-
-
-
-def examine_instances(instances): 
-    for i, instance in enumerate(instances):
-        if i == 1:
-            continue
-        print "\n***BEGIN INSTANCE %d***\n%s\n" %(i, '-' * 40)
-        print "X = \n%s\n" %(instance['X'])
-        print "A = \n%s\n" %(instance['A'])
-        print "Ui = \n%s\n" %(instance['Ui'])
-        print "U = \n%s\n" %(instance['U'])
-        print "Y = \n%s\n" %(instance['Y'])
-        print "UY = \n%s\n" %(instance['UY'])
-        print "\n***END INSTANCE %d***\n%s\n" %(i, '-' * 40)
-        U = dynamic_solve(instance['Ui'],instance['Y'])
-        UY = U * instance['Y']
-        print "U = \n%s\n" %(U)
-        print "UY = \n%s\n" %(UY)
-        print "UA = \n%s\n" % (U*instance['A'])
-        print "det UA = %s\n" % (np.linalg.det(U*instance['A']))
-
-
-def load_bad_instances(bad_instance_file): 
-    with open(bad_instance_file, 'r') as fp:
-        unpickler = pickle.Unpickler(fp)
-        bad_instances = unpickler.load()
-        examine_instances(bad_instances)
-
-######################################################################
-# Ignore these functions, they were from another idea I previously had
-######################################################################
-
-def givens_rotation_full(i,j,theta,n):
-    if j < i:
-        tmp = i
-        i = j
-        j = tmp
-
-    G = np.matrix(np.eye(n))
-    c = math.cos(theta)
-    s = math.sin(theta)
-    G[i,i] = c
-    G[j,j] = c
-    G[i,j] = s
-    G[j,i] = -1*s
-
-    return G
-
-def givens_rotation_part(s11,s22,s12):
-    #Should be able to simplify this if needed
-    theta = math.pi/4
-    if abs(s11-s22) > 1e-6:
-        at = 2*s12/(s22-s11)
-        theta = math.atan(at)/2
-    c = math.cos(theta)
-    s = math.sin(theta)
-    r = math.hypot(s11,s12) #Not sure we actually need to return this
-    return (c, s, r)
-
-def apply_rotation(R,c,s,i,j):
-    '''
-    Should be able to save more from this because R is sparse
-    '''
-    (n,m) = R.shape
-
-    for k in range(m):
-        rik = c*R[i,k]-s*R[j,k]
-        rjk = c*R[j,k]+s*R[i,k]
-        R[i,k] = rik
-        R[j,k] = rjk
-
-def conjugate_rotation(A,c,s,i,j):
-    '''
-    Assumes A is symmetric
-    '''
-    a11 = A[i,i]
-    a22 = A[j,j]
-    a12 = A[i,j]
-    A[i,i] = (c**2)*a11-2*c*s*a12+(s**2)*a22
-    A[j,j] = (s**2)*a11+2*c*s*a12+(c**2)*a22
-    A[i,j] = a12*(c**2 - s**2) + s*c*(a11 - a22)
-    A[j,i] = A[i,j]
-
-
-
-#load_bad_instances('bad_instances')
-

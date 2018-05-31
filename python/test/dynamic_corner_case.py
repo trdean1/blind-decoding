@@ -32,5 +32,5 @@ fs = FeasibleRegion( Y )
 
 U = dynamic.dynamic_solve( U_i, Y )
 
-print "U = "
-print U
+print "UY = "
+print U*Y
