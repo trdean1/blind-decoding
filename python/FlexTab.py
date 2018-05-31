@@ -255,17 +255,19 @@ class FlexTab(object): # {{{
 
     def solve(self): # {{{
         if not self.to_simplex_form():
-            print "Unable to convert orig tab to simplex form:\n%s\n" %(self)
+            if verbose:
+                print "Unable to convert orig tab to simplex form:\n%s\n" %(self)
             return False
         if self.verbose:
             print "%s" %(self)
             print "%s" %(self.extra_constr)
         success = self.hop()
         if not success:
-            if self.reduced:
-                print "Unable to find initial BFS"
-            else:
-                print "From initial BFS unable to find optimum"
+            if verbose:
+                if self.reduced:
+                    print "Unable to find initial BFS"
+                else:
+                    print "From initial BFS unable to find optimum"
             return False
         # end if
 
@@ -514,10 +516,12 @@ class FlexTab(object): # {{{
             flip_idx, effect, num_nonnegative_unvisited = self.search_neighbors()
 
             if flip_idx is None or effect < -self.zthresh:
-                print "Nowhere nonnegative to go, attempting backtrack"
+                if self.verbose:
+                    print "Nowhere nonnegative to go, attempting backtrack"
                 if not self.restore(pop = True):
                     #raise ValueError, "Empty state stack"
-                    print "Empty state stack"
+                    if verbose:
+                        print "Empty state stack"
                     return False
                 continue
 

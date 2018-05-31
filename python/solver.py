@@ -126,9 +126,17 @@ def single_run(n, k, Xtype='guarantee', verbose = False, errfile = None, trap = 
         else:
             X = Xmats.X_random(n, k)
 
-        UY, U, Y, A, Ui = gen_trial(X)
+        UY, U, Y, A, Ui = gen_trial(X, verbose)
+        if verbose:
+            print "X = "
+            print X
+            print "Starting at:"
+            print U*Y
+
         t = FlexTab.FlexTab(U, Y, verbose)
         if t.num_good_cols() < X.shape[0] + 1:
+            if verbose:
+                print "Not enough good columns"
             continue
 
         try:

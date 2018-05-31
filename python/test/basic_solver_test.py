@@ -3,8 +3,9 @@ import sys
 sys.path.insert(0,'..')
 import solver
 
-dims = [(4,5),(4,6),(4,10),(4,14),(4,20),(4,30)]
-trials_per = 300
+dims = [(2,3),(2,4),(3,4),(3,6),(4,5),(4,10),
+        (5,6),(5,10),(6,12),(8,20)]
+trials_per = 100
 
 results = [{} for i in range(len(dims))]
 
@@ -17,9 +18,11 @@ for ii, dim in enumerate(dims):
     n = dim[0]
     k = dim[1]
     print "\nn=%d, k=%d" % (n, k)
+    if n == 8:
+        trials_per = 20
 
     for jj in range(trials_per):
-        if jj != 0 and jj % 100 == 0:
+        if jj != 0 and jj % 10 == 0:
             sys.stdout.write('#')
             sys.stdout.flush()
 
