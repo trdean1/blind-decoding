@@ -179,7 +179,7 @@ def rand_init(n,Y):
     return U
 
 
-def row_to_vertex( U, feasible_region, row, UY = [] ):
+def row_to_vertex( U, feasible_region, row, UY = [], verbose=False ):
     '''
     This function is highly redundant.  We just need to pull a specific 
     entry of p out and then pick a random direction in the null space of 
@@ -208,6 +208,11 @@ def row_to_vertex( U, feasible_region, row, UY = [] ):
     is_zero_one_list = is_zero_one.tolist()[0] 
     bad_index = [i for i, j in enumerate(is_zero_one_list) if not j ]
 
+    
+    if verbose:
+        print "Attempting row %d" % row
+        print "Bad indices: %s" % bad_index
+
     i = 0
     while not is_zero_one.all():
         bad = 0
@@ -217,15 +222,19 @@ def row_to_vertex( U, feasible_region, row, UY = [] ):
             v = v.T
 
             # Pick a random vector in the nullspace
-            tries = 10
+            tries = n
             while abs(v*y) < 1e-9:
+                tries -= 1
+                if tries == 0:
+                    print "Warning: Failed to find vector in nullsapce"
+                    return u
+                    #raise ValueError("Failed to find vector in nullspace")
+
                 v = random_unit(n)
                 v = feasible_region.reject_vec( v, row )
                 norm = np.linalg.norm(v)
+
                 if norm < 1e-13:
-                    tries -= 1
-                    if tries == 0:
-                        raise ValueError('Constraints appear full rank')
                     continue
 
                 v = v / np.linalg.norm(v)
@@ -256,7 +265,7 @@ def row_to_vertex( U, feasible_region, row, UY = [] ):
                             print "Warning: Failed to find a vertex"
                             print "Row = %d, i = %d" % (row, i)
                             print uY
-                            return
+                            return u
                         else:
                             continue
 
@@ -293,7 +302,7 @@ def check_zero_one(A,eps=1e-6):
     return is_one_zero
 
 
-def find_vertex_on_face(U, Y, feasible_region, UY = []):
+def find_vertex_on_face(U, Y, feasible_region, UY = [], verbose=False):
     '''
     U must be on a face of the polytope that bounds feasible region.
     This face must have constant slope.  Then this function will move to a
@@ -321,7 +330,7 @@ def find_vertex_on_face(U, Y, feasible_region, UY = []):
         if (is_zero_one[i,:]).all():
             continue
 
-        U[i,:] = row_to_vertex(U, feasible_region, i, UY)
+        U[i,:] = row_to_vertex(U, feasible_region, i, UY, verbose)
         
 
     return U
@@ -367,7 +376,7 @@ def dynamic_solve(U,Y, verbose=False):
             if not check_zero_one( XX ).all():
                 if verbose:
                     print "Calling find_vertex_on_face"
-                U = find_vertex_on_face(U,Y, fr, XX)
+                U = find_vertex_on_face(U,Y, fr, XX, verbose)
 
             break 
 

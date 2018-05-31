@@ -21,8 +21,11 @@ for k in range(5, 20, 2):
 
         try:
             UY = dynamic.trial(n,k)
-        except:
-            print "Warning skipping exception"
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            print "Warning skipping exception:"
+            print e
             continue
 
         gg = np.asscalar( sum(sum( abs((abs(UY) - 1.0)) < tol ).transpose() ) )
