@@ -381,8 +381,8 @@ def dynamic_solve(U,Y, verbose=False):
             break 
 
         mask = np.logical_not(get_active_constraints_bool(U,Y,tol=1e-8))*1
-        t = binary_search(U,V,Y,mask=mask)
-        #t = boundary_dist(U, V, Y, XX, mask)
+        #t = binary_search(U,V,Y,mask=mask)
+        t = boundary_dist(U, V, Y, XX, mask)
         U = U+t*V
         if verbose:
             print 'V = %s' % V

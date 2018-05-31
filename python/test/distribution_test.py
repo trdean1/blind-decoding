@@ -14,7 +14,7 @@ for k in range(5, 20, 2):
     total = 0.0
 
     print( "n=%d, k=%d" % (n,k) )
-    for i in range(400):
+    for i in range(2000):
         if i % 100 == 0 and i != 0:
             sys.stdout.write('#')
             sys.stdout.flush()
@@ -36,9 +36,6 @@ for k in range(5, 20, 2):
 
         other += n*k - (gg + zz)
         total += n*k
-
-        if (n*k - (gg + zz)) > 0:
-            print UY
 
     sys.stdout.write('\n')
     print("pm 1: %f,\t0: %e\tother: %e\n" % (good/total, zero/total, other/total) )
