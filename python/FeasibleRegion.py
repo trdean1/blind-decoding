@@ -89,24 +89,31 @@ class FeasibleRegion:
         if update_p:
             self.__recompute_p( row )
 
-    def reject_mtx( self, V ):
+    def reject_mtx( self, V, t1=1e-12 ):
         res = np.matrix(np.zeros((0,self.n)))
         for i in range(self.n):
             v = self.reject_vec( V[i,:].T, i )
-            res = np.concatenate( (res, v) ) 
+            norm = np.linalg.norm(v)
 
+            if norm < t1:
+                #If norm is below t1, set to zero
+                v = np.matrix(np.zeros( (1, self.n) ) )
+
+            res = np.concatenate( (res, v) ) 
+            
         return res
 
     def reject_vec( self, v, row ):
         for i in range(self.p[row].shape[0]):
+            p = self.p[row][i,:]
             try:
-                s = self.p[row][i,:] * v
+                s = (p * v)/(p * p.T)
             except IndexError:
                 print "i = %d, row = %d" % (i, row)
                 print self
                 raise IndexError
 
-            s = s*self.p[row][i,:]
+            s = s * p
             v = v - s.T
 
         return v.T
@@ -126,10 +133,10 @@ class FeasibleRegion:
         new_row = pp[-1,:]
 
         for i in range(l-1):
-            #Perform vector rejection.  u is already normalized
+            #Perform vector rejection.
             u = pp[i,:]
-            v = new_row
-            vv = v - (u*v.T) * u
+            v = new_row / np.linalg.norm(new_row)
+            vv = v - ((u*v.T)/(u*u.T)) * u
             norm = np.linalg.norm(vv)
             if norm < self.tol:
                 #Constraint is redundant so delete it

@@ -5,7 +5,7 @@ sys.path.insert(0,'..')
 import dynamic
 
 n = 4
-tol = 1e-3
+tol = 1e-6
 
 for k in range(5, 20, 2):
     good = 0.0
@@ -14,7 +14,7 @@ for k in range(5, 20, 2):
     total = 0.0
 
     print( "n=%d, k=%d" % (n,k) )
-    for i in range(1000):
+    for i in range(400):
         if i % 100 == 0 and i != 0:
             sys.stdout.write('#')
             sys.stdout.flush()
@@ -22,7 +22,7 @@ for k in range(5, 20, 2):
         try:
             UY = dynamic.trial(n,k)
         except:
-            print "Runtime Error"
+            print "Warning skipping exception"
             continue
 
         gg = np.asscalar( sum(sum( abs((abs(UY) - 1.0)) < tol ).transpose() ) )

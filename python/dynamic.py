@@ -62,6 +62,16 @@ def get_active_constraints_bool(U,Y,tol=1e-9):
     #neg: constraint is met in the negative direction: <u_i, y_j> = -1
     return np.logical_or(pos,neg)
 
+def get_distance_from_boundary(U,Y,tol=1e-2):
+    X = U*Y
+    d = np.matrix(np.zeros( X.shape ) )
+
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            if abs( abs(X[i,j]) - 1) < tol:
+                d[i,j] = abs( abs(X[i,j]) - 1 )
+
+    return d
 
 def random_orthogonal(n):
     '''
@@ -85,8 +95,6 @@ def random_unit(n):
 def find_infeasible_point(U,V,Y,mask=[]):
     #finds a (non-optimal) value of t so that U+t*V is infeasible
     if not is_feasible(U,Y,1e-12,mask):
-        p = U*Y
-        #print "U*Y=%s\n" % p
         raise ValueError("Starting point not feasible")
     t = 1
     try: 
@@ -114,7 +122,7 @@ def binary_search(U,V,Y,t_start=0.0,t_stop=[],steps=64,mask=[]):
 
     for i in range(steps):
         step /= 2
-        if is_feasible(U+t*V,Y,1e-12,mask):
+        if is_feasible(U+t*V,Y,1e-15,mask):
             t += step
         else:
             t -= step
@@ -204,15 +212,7 @@ def row_to_vertex( U, feasible_region, row, UY = [] ):
     while not is_zero_one.all():
         bad = 0
         while i < n:
-
-            try:
-                y = np.matrix( np.copy( Y[:,bad_index[bad]] ) )
-            except IndexError:
-                print "Badness here:"
-                print "Y = %s" % Y
-                print "Bad indices: %s" % bad_index
-                print "Index: %d" % bad
-                raise IndexError
+            y = np.matrix( np.copy( Y[:,bad_index[bad]] ) )
             v = np.matrix(np.zeros( (4,1) ) )
             v = v.T
 
@@ -327,7 +327,7 @@ def find_vertex_on_face(U, Y, feasible_region, UY = []):
     return U
 
 
-def dynamic_solve(U,Y):
+def dynamic_solve(U,Y, verbose=False):
     (n,k) = Y.shape
     V = objgrad(U)
     #diff = abs((1-abs(U*Y))/(V*Y))
@@ -340,11 +340,14 @@ def dynamic_solve(U,Y):
     p = []
 
     for i in range(n**2 - 1):
-        #print '\n%s' % ('-'*40)
-        #print "Iteration %d" % i
         XX = U*Y
-        #print "U*Y = %s" % XX
 
+        if verbose:
+            print '\n%s' % ('-'*40)
+            print "Iteration %d" % i
+            print "U*Y = %s" % XX
+            print "Error = %s" % get_distance_from_boundary( U,Y )
+            
         p_bool_new = get_active_constraints_bool(U,Y)
         p_update = p_bool_new ^ p_bool
         p_bool = p_bool_new
@@ -352,23 +355,34 @@ def dynamic_solve(U,Y):
         fr.insert_mtx( p_bool )
         
         V = objgrad(U)
+        if verbose:
+            print "Gradient: "
+            print V
+
         V = fr.reject_mtx( V )
 
         if np.linalg.norm(V) < 1e-12:
-            #print "Gradient is orthogonal to null space at step %s" % i
+            if verbose:
+                print "Gradient is orthogonal to null space at step %s" % i
             if not check_zero_one( XX ).all():
-                #print "Need to call find_vertex_on_face"
+                if verbose:
+                    print "Calling find_vertex_on_face"
                 U = find_vertex_on_face(U,Y, fr, XX)
 
             break 
 
-        mask = np.logical_not(get_active_constraints_bool(U,Y))*1
+        mask = np.logical_not(get_active_constraints_bool(U,Y,tol=1e-8))*1
         t = binary_search(U,V,Y,mask=mask)
         #t = boundary_dist(U, V, Y, XX, mask)
         U = U+t*V
-        #print '%s' % ('-'*40)
+        if verbose:
+            print 'V = %s' % V
+            print 't = %s' % t
+            print '%s' % ('-'*40)
 
-    #print "U * Y = %s" % (U*Y)
+    if verbose:
+        print "U * Y = %s" % (U*Y)
+
 
     return U
 
@@ -394,7 +408,14 @@ def trial(n,k):
     k = Y.shape[1]
 
     Ui = rand_init(n,Y)
-    U = dynamic_solve(Ui,Y)
+    try:
+        U = dynamic_solve(Ui,Y)
+    except: 
+        instance = { 'U' : Ui,
+                     'Y' : Y }
+        pickle.dump( instance, open("error.p", "wb") )
+        raise 
+        
 
     #if np.min(abs(U*Y)) > 0.99:
     #    print("Solved")
