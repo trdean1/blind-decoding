@@ -7,7 +7,7 @@ import dynamic
 n = 4
 tol = 1e-6
 
-for k in range(5, 10, 2):
+for k in range(5, 20, 2):
     good = 0.0
     zero = 0.0
     other = 0.0
