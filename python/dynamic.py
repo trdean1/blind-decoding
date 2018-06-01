@@ -25,14 +25,15 @@ def objgrad(x):
     return np.linalg.inv(x).transpose()
 
 
-def is_feasible(U,Y,tol=1e-14,mask=[]):
+def is_feasible(U,Y,tol=1e-14,mask=[],prod=[]):
     '''
     Returns true if the given value of U is feasible.  Ignores entires
     in the product U*Y where mask is set to one.  This is done to ignore entries
     that correspond to active constraints --- numerical instability might lead
     to our point being just outside the feasible region
     '''
-    prod = U*Y
+    if prod == []:
+        prod = U*Y
 
     if mask == []:
         mask = np.matrix(np.ones(prod.shape))
@@ -44,12 +45,13 @@ def is_feasible(U,Y,tol=1e-14,mask=[]):
         return True
 
 
-def get_active_constraints_bool(U,Y,tol=1e-9):
+def get_active_constraints_bool(U,Y,tol=1e-9, prod=[]):
     '''
     Returns a boolean matrix where each entry tells whether or
     not the constraint is active (within tol)
     '''
-    prod = U*Y
+    if prod == []:
+        prod = U*Y
     pos = abs(1 - prod) < tol
     neg = abs(1 + prod) < tol
 
@@ -57,8 +59,9 @@ def get_active_constraints_bool(U,Y,tol=1e-9):
     #neg: constraint is met in the negative direction: <u_i, y_j> = -1
     return np.logical_or(pos,neg)
 
-def get_distance_from_boundary(U,Y,tol=1e-2):
-    X = U*Y
+def get_distance_from_boundary(U,Y,tol=1e-2, X = []):
+    if X == []:
+        X = U*Y
     d = np.matrix(np.zeros( X.shape ) )
 
     for i in range(X.shape[0]):
@@ -87,13 +90,13 @@ def random_unit(n):
     return v / np.linalg.norm(v)
 
 
-def find_infeasible_point(U,V,Y,mask=[]):
+def find_infeasible_point(U,V,Y,mask=[],UY = []):
     #finds a (non-optimal) value of t so that U+t*V is infeasible
-    if not is_feasible(U,Y,1e-12,mask):
+    if not is_feasible(U,Y,1e-12,mask, UY):
         raise ValueError("Starting point not feasible")
     t = 1
     try: 
-        while is_feasible(U+t*V,Y,1e-12,mask):
+        while is_feasible(U+t*V,Y,1e-12,mask, UY):
             t *= 2
     except OverflowError:
         #print "t = %d\n" % t
@@ -102,14 +105,14 @@ def find_infeasible_point(U,V,Y,mask=[]):
     return t
 
 
-def binary_search(U,V,Y,t_start=0.0,t_stop=[],steps=64,mask=[]):
+def binary_search(U,V,Y,t_start=0.0,t_stop=[],steps=64,mask=[], UY = []):
     #start must be feasible and stop must be infeasible
     if t_stop == []:
-        t_stop = find_infeasible_point(U,V,Y,mask)
+        t_stop = find_infeasible_point(U,V,Y,mask,UY=UY)
 
-    if not is_feasible(U+t_start*V,Y,mask=mask):
+    if not is_feasible(U+t_start*V,Y,mask=mask,prod=UY):
         raise ValueError("Starting point not feasible")
-    if is_feasible(U+t_stop*V,Y,mask=mask):
+    if is_feasible(U+t_stop*V,Y,mask=mask,prod=UY):
         raise ValueError("Stopping point is feasible")
 
     step = (t_stop - t_start) / 2.0
@@ -117,7 +120,7 @@ def binary_search(U,V,Y,t_start=0.0,t_stop=[],steps=64,mask=[]):
 
     for i in range(steps):
         step /= 2
-        if is_feasible(U+t*V,Y,1e-15,mask):
+        if is_feasible(U+t*V,Y,1e-15,mask,prod=UY):
             t += step
         else:
             t -= step
@@ -337,9 +340,7 @@ def find_vertex_on_face(U, Y, feasible_region, UY = [], verbose=False):
 def dynamic_solve(U,Y, verbose=False):
     (n,k) = Y.shape
     V = objgrad(U)
-    #diff = abs((1-abs(U*Y))/(V*Y))
     t = binary_search(U,V,Y)
-    #t = diff.min()
     U = U+t*V
 
     p_bool = np.matrix(np.zeros(Y.shape)) == 1
@@ -355,7 +356,7 @@ def dynamic_solve(U,Y, verbose=False):
             print "U*Y = %s" % XX
             print "Error = %s" % get_distance_from_boundary( U,Y )
             
-        p_bool_new = get_active_constraints_bool(U,Y)
+        p_bool_new = get_active_constraints_bool(U,Y,prod=XX)
         p_update = p_bool_new ^ p_bool
         p_bool = p_bool_new
 
@@ -369,6 +370,11 @@ def dynamic_solve(U,Y, verbose=False):
         V = fr.reject_mtx( V )
 
         if np.linalg.norm(V) < 1e-12:
+            # XXX: This means we aren't at a vertex but the graident is
+            # has no component that lies in the nullspace.  It should 
+            # be possible to handle this by picking V at random and rejecting
+            # it from p.  There's often some numerical stability issues here and
+            # so I handle this with the function find_vertex_on_face
             if verbose:
                 print "Gradient is orthogonal to null space at step %s" % i
             if not check_zero_one( XX ).all():
@@ -378,7 +384,7 @@ def dynamic_solve(U,Y, verbose=False):
 
             break 
 
-        mask = np.logical_not(get_active_constraints_bool(U,Y,tol=1e-8))*1
+        mask = np.logical_not(get_active_constraints_bool(U,Y,tol=1e-8, prod=XX))*1
         #t = binary_search(U,V,Y,mask=mask)
         t = boundary_dist(U, V, Y, XX, mask)
         U = U+t*V
