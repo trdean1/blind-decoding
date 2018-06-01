@@ -161,8 +161,9 @@ def X_guarantee(n, k, strict=False):
     X = []
     try:
         X = guarantee[n][np.random.randint(len(guarantee[n]))]
-        if k > n:
-            X = np.concatenate( (X, X_random(n, k-n)), axis=1 )
+        kx = X.shape[1]
+        if k > kx:
+            X = np.concatenate( (X, X_random(n, k-kx)), axis=1 )
 
         return X
     except KeyError:

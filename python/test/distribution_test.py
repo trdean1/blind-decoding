@@ -7,7 +7,7 @@ import dynamic
 n = 4
 tol = 1e-6
 
-for k in range(5, 20, 2):
+for k in range(5, 10, 2):
     good = 0.0
     zero = 0.0
     other = 0.0
@@ -36,6 +36,7 @@ for k in range(5, 20, 2):
 
         other += n*k - (gg + zz)
         total += n*k
+
 
     sys.stdout.write('\n')
     print("pm 1: %f,\t0: %e\tother: %e\n" % (good/total, zero/total, other/total) )
