@@ -1,4 +1,4 @@
-clear all; close all;
+bhclear all; close all;
 n = 4;
 M = 1;          %BPSK
 k = 6;          %num symbols
