@@ -1,4 +1,4 @@
-bhclear all; close all;
+clear all; close all; clc;
 n = 4;
 M = 1;          %BPSK
 k = 6;          %num symbols
@@ -24,7 +24,7 @@ C           = [ B;
                -B];
 b           = ones(2*n*k,1) * M;
 x0          = randn(n*n,1);
-w0          = C*x0 + b;
+w0          = b - C*x0;  %w0          = C*x0 + b;
 w0(w0<0)    = 1;
 alpha       = 0.1;
 beta        = 0.9;
@@ -72,7 +72,7 @@ while true
     rp = wt + C*xt - b;
     
     % accpm slide 6-7    
-    S       = -C'*H*C;
+    S       = C'*H*C;
     dx      = S \ (C'*(g - H*rp));
     dw      = -C*dx - rp;
     dv      = -H*dw - g - vt;
