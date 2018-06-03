@@ -38,12 +38,15 @@ for i = 1:n*n
     end
 end
 
+% % gf0_n2 = reshape(grad_f0, [n*n,1]);
+% Hf0 = -reshape(grad_f0, [n*n,1]) * reshape(grad_f0', [n*n,1])';
+
 check_Hf0 = NaN(num_checks,1);
 for i = 1:10
     Utest = rand(n,n);
     Hf0_sym_eval = double(subs(Hf0_sym, U, Utest));
     Hf0_eval = double(subs(Hf0, U, Utest));
-    check_Hf0(i) = norm(Hf0_eval - Hf0_sym_eval, 'fro');
+    check_Hf0(i) = norm(Hf0_eval - Hf0_sym_eval, 'fro')
 end
 disp(['Maximum Hf0 difference: ' num2str(max(check_Hf0))]);
 

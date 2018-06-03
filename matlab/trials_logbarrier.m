@@ -10,7 +10,7 @@ s = zeros(0,15);
 for k = kmin:kmax
     p = 0;
     for i = 1:numTrials
-        [u,h] = trialTransform_logbarrier(n,2,k);
+        [u,h] = trialTransform_logbarrier(n,2,k,1);
         if abs(det(u*h))-1.0 < 0.01 % For n=4 this implies recover up to an ATM
             p = p+1;
         end
