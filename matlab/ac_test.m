@@ -1,4 +1,4 @@
-bhclear all; close all;
+clear all; close all;
 n = 4;
 M = 1;          %BPSK
 k = 6;          %num symbols
@@ -114,7 +114,7 @@ rps
 
 
 function residual = res(x,w,v,C,b,g)
-    r_prim = w + C*x - b;
+    r_prim = w - C*x - b;
     r_dual = [C'*v; g + v];
     residual = norm([r_prim; r_dual]);
 end
