@@ -1,7 +1,7 @@
 clear all; close all; clc;
 n = 4;
 M = 1;          %BPSK
-k = 6;          %num symbols
+k = 20;          %num symbols
 
 %Random square channel
 H = randn(n);
@@ -32,7 +32,7 @@ beta        = 0.9;
 
 % Infeasible start Newton method for LP centering problem:
 %   minimize    -sum(log wi)
-%   subject to  w = b - Ax
+%   subject to  w = b - Cx
 %
 % Inputs: A, b, c, x0, alpha, beta
 %   x0 > 0
@@ -45,11 +45,11 @@ beta        = 0.9;
 %   2. maximum number of iterations iter_max reached
 
 tol = 1e-6;
-max_iter = 5;
+max_iter = 10;
 % n = length(c);
 % m = length(b);
 
-if ~all(w0); disp('Error: x0 must be positive'); return; end
+if ~all(w0); disp('Error: w0 must be positive'); return; end
 
 wt = w0;
 xt = x0;
@@ -57,6 +57,7 @@ vt = zeros(2*n*k,1);
 iter = 0;
 residuals = [];
 rps = [norm(wt + C*xt - b)];
+rds = [norm([C'*vt; -1./wt + vt])];
 
 while true
     iter = iter + 1;
@@ -100,6 +101,7 @@ while true
     res_t = res(xt,wt,vt,C,b,g);
     residuals = [residuals; res_t];
     rps = [rps; norm(wt + C*xt - b)];
+    rds = [rds; norm([C'*vt; g + vt])];
     
     if ( all(rp <= tol) && res_t <= tol) || iter >= max_iter
         xopt = xt;
