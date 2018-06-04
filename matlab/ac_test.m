@@ -4,14 +4,14 @@ M = 1;          %BPSK
 k = 20;          %num symbols
 
 %Random square channel
-H = randn(n);
+H_w = randn(n);
 
 %Make symbols
 X = 2*randi(M+1,n,k) - 3;
 M = M + 0.5;
 
 %Test with no noise 
-Y = H*X;
+Y = H_w*X;
 
 % Construct B from Y
 B = [];
@@ -57,36 +57,53 @@ vt = zeros(2*n*k,1);
 iter = 0;
 residuals = [];
 rps = [norm(wt + C*xt - b)];
-rds = [norm([C'*vt; -1./wt + vt])];
+% rds = [norm([C'*vt; -1./wt + vt])];
 
 while true
+    tic
     iter = iter + 1;
     
     %Compute primal and dual Newton Steps
     %Graident and Hessian
-    H      = diag(wt.^-2);
+    invX     = inv(reshape(xt, [n,n]));
+    H_x      = zeros(n*n);
+    for i = 1:n*n
+    for j = 1:n*n
+        A = zeros(n,n); B = zeros(n,n);
+        A(i) = 1; B(j) = 1;
+        H_x(i,j) = trace(invX*A*invX*B);
+    end
+    end
+    
+    H_w      = diag(wt.^-2);
 %     Hinv   = diag(wt.^2);
-    g      = -1./wt;   
+    g_w      = -1./wt;
+    g_x      = reshape(-invX, [n*n,1]);
 %     h      = C*xt - b;
 
     %Residual
     rp = wt + C*xt - b;
+    rd = [g_x + C'*vt; g_w + vt];
     
     % accpm slide 6-7    
-    S       = C'*H*C;
-    dx      = S \ (C'*(g - H*rp));
-    dw      = -C*dx - rp;
-    dv      = -H*dw - g - vt;
-%     vt     = S \ (C*Hinvg - h);
-%     xnt    = H     \ (-C'*vt - g);
-%     vnt    = vt - vt1;
-    
+%     S       = C'*H_w*C;               % sign changed based on posted code
+%     dx      = S \ (C'*(g_w - H_w*rp));
+%     dw      = -C*dx - rp;
+%     dv      = -H_w*dw - g_w - vt;
+    kkt_mat = [H_x              zeros(n*n,2*n*k)    C';
+               zeros(2*n*k,n*n) H_w                 eye(2*n*k);
+               C                eye(2*n*k)          zeros(2*n*k)];
+    kkt_sol = kkt_mat \ -[rd; rp];
+    dx = kkt_sol(1:n*n);
+    dw = kkt_sol(n*n+1: 2*n*k + n*n);
+    dv = kkt_sol(2*n*k + n*n + 1 : end);
+           
     %Backtracking line search on ||res||
     t = 1;
     while any(wt + t*dw <= 0) && t > tol
         t = beta*t;
     end
-    while res(xt + t*dx, wt + t*dw, vt + t*dv,C,b,g) > (1-alpha*t)*res(xt,wt,vt,C,b,g) && t > tol
+    while res(xt + t*dx, wt + t*dw, vt + t*dv,C,b,g_w,g_x) > (1-alpha*t)*res(xt,wt,vt,C,b,g_w,g_x) && t > tol
         t = beta*t;
     end
     
@@ -98,10 +115,10 @@ while true
         vt = vt + t*dv;
     end
 
-    res_t = res(xt,wt,vt,C,b,g);
+    res_t = res(xt,wt,vt,C,b,g_w,g_x);
     residuals = [residuals; res_t];
     rps = [rps; norm(wt + C*xt - b)];
-    rds = [rds; norm([C'*vt; g + vt])];
+%     rds = [rds; norm([C'*vt; g_w + vt])];
     
     if ( all(rp <= tol) && res_t <= tol) || iter >= max_iter
         xopt = xt;
@@ -111,12 +128,13 @@ while true
         end
         break;
     end
+    toc
 end
 rps
 
 
-function residual = res(x,w,v,C,b,g)
+function residual = res(x,w,v,C,b,gw,gx)
     r_prim = w + C*x - b;
-    r_dual = [C'*v; g + v];
+    r_dual = [gx + C'*v; gw + v];
     residual = norm([r_prim; r_dual]);
 end
