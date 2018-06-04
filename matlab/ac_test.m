@@ -4,21 +4,21 @@ M = 1;          %BPSK
 k = 20;          %num symbols
 
 %Random square channel
-H_w = randn(n);
+H = randn(n);
 
 %Make symbols
 X = 2*randi(M+1,n,k) - 3;
 M = M + 0.5;
 
 %Test with no noise 
-Y = H_w*X;
+Y = H*X;
 
 % Construct B from Y
 B = [];
 for i=1:n
     B = blkdiag(B, Y');
 end
-clearvars H X Y i
+clearvars H i
 
 C           = [ B; 
                -B];
@@ -45,7 +45,7 @@ beta        = 0.9;
 %   2. maximum number of iterations iter_max reached
 
 tol = 1e-6;
-max_iter = 10;
+max_iter = 50;
 % n = length(c);
 % m = length(b);
 
@@ -58,6 +58,7 @@ iter = 0;
 residuals = [];
 rps = [norm(wt + C*xt - b)];
 % rds = [norm([C'*vt; -1./wt + vt])];
+obj = [-log(abs(det(reshape(xt, [n,n]))))];
 
 while true
     tic
@@ -119,6 +120,7 @@ while true
     residuals = [residuals; res_t];
     rps = [rps; norm(wt + C*xt - b)];
 %     rds = [rds; norm([C'*vt; g_w + vt])];
+    obj = [obj -log(abs(det(reshape(xt, [n,n]))))];
     
     if ( all(rp <= tol) && res_t <= tol) || iter >= max_iter
         xopt = xt;
@@ -130,7 +132,10 @@ while true
     end
     toc
 end
-rps
+rps'
+obj
+
+U = reshape(xt, [n,n])';
 
 
 function residual = res(x,w,v,C,b,gw,gx)
