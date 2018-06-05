@@ -1,14 +1,27 @@
-clear all; close all; clc;
-n = 4;
-M = 1;          %BPSK
-k = 8;          %num symbols
+function [U, dists, objs, residuals, rps, rds] = newton_step_trial(n, k, alpha, beta, tau, max_iter, scale_factor)
+% Infeasible start Newton method for LP centering problem:
+%   minimize    -sum(log wi)
+%   subject to  w = b - Cx
+%
+% Inputs: TODO
+%   x0 > 0
+%   A: m x n, m < n (fat, full rank).
+%   alpha in (0, 0.5), beta in (0, 1)
+% Output: xopt (primal opt pt), vopt (dual opt pt), num_newton_steps
+%
+% Stopping criteria: 
+%   1. L2 norm of primal and dual residuals ||r(x,v)||2 < 1e-6
+%   2. maximum number of iterations iter_max reached
+tol = 1e-6;
+
 
 %Random square channel
 channel = randn(n);
 
 %Make symbols
+M = 1;          %BPSK
 X = 2*randi(M+1,n,k) - 3;
-M = M*1.05;
+M = M*scale_factor;
 
 %Test with no noise 
 Y = channel*X;
@@ -25,30 +38,7 @@ b           = ones(2*n*k,1) * M;
 x0          = randn(n*n,1);
 w0          = b - C*x0;  %w0          = C*x0 + b;
 w0(w0<0)    = 1;
-alpha       = 0.1;
-beta        = 0.9;
-tau         = 1e-2;
 
-% Infeasible start Newton method for LP centering problem:
-%   minimize    -sum(log wi)
-%   subject to  w = b - Cx
-%
-% Inputs: A, b, c, x0, alpha, beta
-%   x0 > 0
-%   A: m x n, m < n (fat, full rank).
-%   alpha in (0, 0.5), beta in (0, 1)
-% Output: xopt (primal opt pt), vopt (dual opt pt), num_newton_steps
-%
-% Stopping criteria: 
-%   1. L2 norm of primal and dual residuals ||r(x,v)||2 < 1e-6
-%   2. maximum number of iterations iter_max reached
-
-tol = 1e-6;
-max_iter = 20;
-% n = length(c);
-% m = length(b);
-
-if ~all(w0); disp('Error: w0 must be positive'); return; end
 
 wt = w0;
 xt = x0;
@@ -117,7 +107,7 @@ while true
     
     % Update only if step "worked"
     if t > tol
-        disp(num2str(iter));
+%         disp(num2str(iter));
         xt = xt + t*dx;
         wt = wt + t*dw;
         vt = vt + t*dv;
@@ -126,9 +116,9 @@ while true
     if ( all(rp <= tol) && res_t <= tol) || iter >= max_iter
         xopt = xt;
         vopt = vt;
-        if iter >= max_iter
-            disp('Maximum number of iterations reached') 
-        end
+%         if iter >= max_iter
+%             disp('Maximum number of iterations reached') 
+%         end
         break;
     end
 end
@@ -144,19 +134,9 @@ objs = [objs -log(abs(det(U)))];
 UY = U*Y;
 dists = [dists norm(UY - sign(UY), 'fro')];
 
-rps'
-objs
-% dists
-% residuals
-plot(0:iter, dists)
 
+end
 
-% cvx_begin
-%     variable U(n,n) 
-%     minimize(-log_det(U))
-%     subject to
-%         norm(U*Y, Inf) <= 1
-% cvx_end
 
 function residual = res(x,w,v,C,b,gw,gx)
     r_prim = w + C*x - b;
