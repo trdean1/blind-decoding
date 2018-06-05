@@ -1,14 +1,14 @@
 clear all; close all; clc;
 n = 4;
 M = 1;          %BPSK
-k = 10;          %num symbols
+k = 8;          %num symbols
 
 %Random square channel
 channel = randn(n);
 
 %Make symbols
 X = 2*randi(M+1,n,k) - 3;
-M = M*1.01;
+M = M*1.5;
 
 %Test with no noise 
 Y = channel*X;
@@ -27,7 +27,7 @@ w0          = b - C*x0;  %w0          = C*x0 + b;
 w0(w0<0)    = 1;
 alpha       = 0.1;
 beta        = 0.9;
-tau         = 1e1;
+tau         = 1;
 
 % Infeasible start Newton method for LP centering problem:
 %   minimize    -sum(log wi)
@@ -55,11 +55,10 @@ xt = x0;
 vt = zeros(2*n*k,1);
 iter = 0;
 residuals = [];
-rps = [norm(wt + C*xt - b)];
-% rds = [norm([C'*vt; -1./wt + vt])];
-obj = [-log(abs(det(reshape(xt, [n,n]))))];
-UY = (reshape(xt, [n,n]))*Y;
-dists = [norm(UY - sign(UY), 'fro')];
+rps = [];
+rds = [];
+objs = [];
+dists = [];
 
 while true
     iter = iter + 1;
@@ -77,14 +76,22 @@ while true
     end
     
     H_w      = 1/tau * diag(wt.^-2);
-%     Hinv   = diag(wt.^2);
     g_w      = 1/tau * -1./wt;
     g_x      = reshape(-invX, [n*n,1]);
-%     h      = C*xt - b;
 
-    %Residual
+    %Residuals
+    res_t = res(xt,wt,vt,C,b,g_w,g_x);
+    residuals = [residuals; res_t];
     rp = wt + C*xt - b;
     rd = [g_x + C'*vt; g_w + vt];
+    rps = [rps; rp];
+    rds = [rds; rd];
+    
+    % Objective and distance to opt
+    Ut = reshape(xt, [n,n])';
+    objs = [objs -log(abs(det(Ut)))];
+    UY = Ut*Y;
+    dists = [dists norm(UY - sign(UY), 'fro')];
     
     % accpm slide 6-7    
 %     S       = C'*H_w*C;               % sign changed based on posted code
@@ -115,14 +122,6 @@ while true
         wt = wt + t*dw;
         vt = vt + t*dv;
     end
-
-    res_t = res(xt,wt,vt,C,b,g_w,g_x);
-    residuals = [residuals; res_t];
-    rps = [rps; norm(wt + C*xt - b)];
-%     rds = [rds; norm([C'*vt; g_w + vt])];
-    obj = [obj -log(abs(det(reshape(xt, [n,n]))))];
-    UY = (reshape(xt, [n,n]))*Y;
-    dists = [dists norm(UY - sign(UY), 'fro')];
     
     if ( all(rp <= tol) && res_t <= tol) || iter >= max_iter
         xopt = xt;
@@ -133,11 +132,20 @@ while true
         break;
     end
 end
+
+res_t = res(xt,wt,vt,C,b,g_w,g_x);
+residuals = [residuals; res_t];
+rps = [rps; norm(wt + C*xt - b)];
+rds = [rds; norm([C'*vt; g_w + vt])];
+objs = [objs -log(abs(det(reshape(xt, [n,n])))) - sum(log(wt))];
+UY = (reshape(xt, [n,n]))'*Y;
+dists = [dists norm(UY - sign(UY), 'fro')];
+
 rps'
-obj
-dists
+objs
+% dists
+residuals
 plot(0:iter, dists)
-U = reshape(xt, [n,n])';
 
 
 function residual = res(x,w,v,C,b,gw,gx)
