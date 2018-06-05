@@ -1,24 +1,23 @@
 clear all; close all; clc;
 n = 4;
 M = 1;          %BPSK
-k = 20;          %num symbols
+k = 10;          %num symbols
 
 %Random square channel
-H = randn(n);
+channel = randn(n);
 
 %Make symbols
 X = 2*randi(M+1,n,k) - 3;
-M = M + 0.5;
+M = M*1.01;
 
 %Test with no noise 
-Y = H*X;
+Y = channel*X;
 
 % Construct B from Y
 B = [];
 for i=1:n
     B = blkdiag(B, Y');
 end
-clearvars H i
 
 C           = [ B; 
                -B];
@@ -28,7 +27,7 @@ w0          = b - C*x0;  %w0          = C*x0 + b;
 w0(w0<0)    = 1;
 alpha       = 0.1;
 beta        = 0.9;
-
+tau         = 1e1;
 
 % Infeasible start Newton method for LP centering problem:
 %   minimize    -sum(log wi)
@@ -45,7 +44,7 @@ beta        = 0.9;
 %   2. maximum number of iterations iter_max reached
 
 tol = 1e-6;
-max_iter = 50;
+max_iter = 10;
 % n = length(c);
 % m = length(b);
 
@@ -61,7 +60,6 @@ rps = [norm(wt + C*xt - b)];
 obj = [-log(abs(det(reshape(xt, [n,n]))))];
 
 while true
-    tic
     iter = iter + 1;
     
     %Compute primal and dual Newton Steps
@@ -76,9 +74,9 @@ while true
     end
     end
     
-    H_w      = diag(wt.^-2);
+    H_w      = 1/tau * diag(wt.^-2);
 %     Hinv   = diag(wt.^2);
-    g_w      = -1./wt;
+    g_w      = 1/tau * -1./wt;
     g_x      = reshape(-invX, [n*n,1]);
 %     h      = C*xt - b;
 
@@ -130,7 +128,6 @@ while true
         end
         break;
     end
-    toc
 end
 rps'
 obj
