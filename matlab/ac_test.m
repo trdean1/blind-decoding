@@ -58,6 +58,8 @@ residuals = [];
 rps = [norm(wt + C*xt - b)];
 % rds = [norm([C'*vt; -1./wt + vt])];
 obj = [-log(abs(det(reshape(xt, [n,n]))))];
+UY = (reshape(xt, [n,n]))*Y;
+dists = [norm(UY - sign(UY), 'fro')];
 
 while true
     iter = iter + 1;
@@ -119,6 +121,8 @@ while true
     rps = [rps; norm(wt + C*xt - b)];
 %     rds = [rds; norm([C'*vt; g_w + vt])];
     obj = [obj -log(abs(det(reshape(xt, [n,n]))))];
+    UY = (reshape(xt, [n,n]))*Y;
+    dists = [dists norm(UY - sign(UY), 'fro')];
     
     if ( all(rp <= tol) && res_t <= tol) || iter >= max_iter
         xopt = xt;
@@ -131,7 +135,8 @@ while true
 end
 rps'
 obj
-
+dists
+plot(0:iter, dists)
 U = reshape(xt, [n,n])';
 
 
