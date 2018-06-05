@@ -133,12 +133,15 @@ while true
     end
 end
 
+% Compute final residuals, objective & distances
 res_t = res(xt,wt,vt,C,b,g_w,g_x);
 residuals = [residuals; res_t];
 rps = [rps; norm(wt + C*xt - b)];
 rds = [rds; norm([C'*vt; g_w + vt])];
-objs = [objs -log(abs(det(reshape(xt, [n,n])))) - sum(log(wt))];
-UY = (reshape(xt, [n,n]))'*Y;
+
+U = reshape(xt, [n,n])';
+objs = [objs -log(abs(det(U))) - sum(log(wt))];
+UY = U*Y;
 dists = [dists norm(UY - sign(UY), 'fro')];
 
 rps'
