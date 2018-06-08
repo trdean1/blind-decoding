@@ -16,12 +16,14 @@ tau     = 1e-2;
 max_iter= 5;
 
 distances = zeros(ntrial, max_iter+1);
+min_distances = zeros(ntrial, max_iter+1);
 r_primals = zeros(ntrial, max_iter+1);
 objective = zeros(ntrial, max_iter+1);
 for trial = 1:ntrial
-    [U, dists, objs, residuals, rps, rds] = ...
+    [U, dists, mindists, objs, residuals, rps, rds] = ...
             newton_step_trial(n, k, alpha, beta, tau, max_iter, scale);
     distances(trial,:) = dists;
+    min_distances(trial,:) = mindists;
     r_primals(trial,:) = rps;
     objective(trial,:) = objs;
 end
@@ -33,12 +35,12 @@ figure; hold on;
 for trial = 1:ntrial
     if abs(r_primals(trial,end)) < 1e-3
         num_sucessful = num_sucessful + 1;
-        plot(0:max_iter, distances(trial,:), 'linewidth', 2);
+        plot(0:max_iter, min_distances(trial,:), 'linewidth', 2);
     end
 end
 set(gca,'fontname','arial','fontsize',14);
-title('Distance to vertex vs iteration');
-ylabel('Distance to vertex (L2)');
+title('Minimum Distance to vertex vs iteration');
+ylabel('Minimum Distance to vertex (L2)');
 xlabel('Iteration');
 grid on;
 
