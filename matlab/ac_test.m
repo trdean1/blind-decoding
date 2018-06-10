@@ -59,6 +59,7 @@ rps = [];
 rds = [];
 objs = [];
 dists = [];
+mindists = [];
 
 while true
     iter = iter + 1;
@@ -92,6 +93,15 @@ while true
     objs = [objs -log(abs(det(Ut)))];
     UY = Ut*Y;
     dists = [dists norm(UY - sign(UY), 'fro')];
+    if (iter == 1)
+        mindists = [dists(1)];
+    else
+        if(dists(iter) < mindists(iter-1))
+            mindists = [mindists dists(iter)]; 
+        else
+            mindists = [mindists mindists(iter-1)];
+        end
+    end
     
     % accpm slide 6-7    
 %     S       = C'*H_w*C;               % sign changed based on posted code
@@ -123,6 +133,10 @@ while true
         vt = vt + t*dv;
     end
     
+    if (iter > 1 && dists(iter-1) - dists(iter)<10^-4)
+       tau = tau*10 ;
+    end
+    
     if ( all(rp <= tol) && res_t <= tol) || iter >= max_iter
         xopt = xt;
         vopt = vt;
@@ -143,12 +157,16 @@ U = reshape(xt, [n,n])';
 objs = [objs -log(abs(det(U)))];
 UY = U*Y;
 dists = [dists norm(UY - sign(UY), 'fro')];
-
+if(dists(end) < mindists(end))
+    mindists = [mindists dists(end)]; 
+else
+    mindists = [mindists mindists(end)];
+end
 rps'
 objs
 % dists
 % residuals
-plot(0:iter, dists)
+plot(0:iter, dists, 0:iter, mindists)
 
 
 % cvx_begin
