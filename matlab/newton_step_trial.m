@@ -16,6 +16,7 @@ tol = 1e-6;
 
 
 %Random square channel
+randn('state', 0);
 channel = randn(n);
 
 %Make symbols

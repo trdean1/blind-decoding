@@ -6,11 +6,11 @@ ntrial = 50;
 
 % Problem params
 n       = 5;
-k       = 8;
-scale   = 1.01;
+k       = 12;
+scale   = 1;
 
 % Solver params
-alpha   = 0.1;
+alpha   = 0.1;e
 beta    = 0.9;
 tau     = 1e-2;
 max_iter= 5;
@@ -36,10 +36,10 @@ for trial = 1:ntrial
         plot(0:max_iter, distances(trial,:), 'linewidth', 2);
     end
 end
-set(gca,'fontname','arial','fontsize',14);
-title('Distance to vertex vs iteration');
-ylabel('Distance to vertex (L2)');
-xlabel('Iteration');
+set(gca, 'fontsize',14);
+title('Distance to vertex vs iteration', 'interpreter', 'latex');
+ylabel('Distance to vertex ($l_2$)', 'interpreter', 'latex');
+xlabel('Iteration', 'interpreter', 'latex');
 grid on;
 
 % figure; hold on;
