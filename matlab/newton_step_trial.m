@@ -1,4 +1,4 @@
-function [U, dists, mindists, objs, residuals, rps, rds] = newton_step_trial(n, k, alpha, beta, tau, max_iter, scale_factor)
+function [U, dists, mindists, objs, residuals, rps, rds] = newton_step_trial(n, k, alpha, beta, tau, max_iter, M, Y)
 % Infeasible start Newton method for LP centering problem:
 %   minimize    -sum(log wi)
 %   subject to  w = b - Cx
@@ -13,19 +13,6 @@ function [U, dists, mindists, objs, residuals, rps, rds] = newton_step_trial(n, 
 %   1. L2 norm of primal and dual residuals ||r(x,v)||2 < 1e-6
 %   2. maximum number of iterations iter_max reached
 tol = 1e-6;
-
-
-%Random square channel
-randn('state', 0);
-channel = randn(n);
-
-%Make symbols
-M = 1;          %BPSK
-X = 2*randi(M+1,n,k) - 3;
-M = M*scale_factor;
-
-%Test with no noise 
-Y = channel*X;
 
 % Construct B from Y
 B = [];
