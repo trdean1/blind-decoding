@@ -1,4 +1,6 @@
-% Newton Step Testing
+% Newton Step Testing:  Determining if our method produces a U such that
+% U*Y is near a vertex.  Vertices occur when U*Y = Xhat has elements 
+% that are only +-1.
 clear all; close all;
 randn('state', 0);
 
