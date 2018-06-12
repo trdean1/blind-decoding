@@ -1,6 +1,7 @@
 % Newton Step Testing:  Determining if our method produces a U such that
 % U*Y is near a vertex.  Vertices occur when U*Y = Xhat has elements 
-% that are only +-1.
+% that are only +-1.  Calls newton_step_trial.m for each test.
+% Plots minimum distance over iteration for primal feasible runs.
 clear all; close all;
 randn('state', 0);
 
@@ -48,6 +49,7 @@ for trial = 1:ntrial
     r_duals(trial,:) = rds;
     objective(trial,:) = objs;
 
+    % Check primal feasibility
     if abs(r_primals(trial,end)) < 1e-3
         num_sucessful = num_sucessful + 1;
     end
@@ -57,7 +59,6 @@ for trial = 1:ntrial
 %     if isPermute(vert, X)
 %         num_recovered = num_recovered + 1;
 %     end
-    
     
 end
 fprintf('\n%d/%d', (kind-1)*length(ks) + nind, length(ks)*length(ns));

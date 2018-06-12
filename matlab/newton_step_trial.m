@@ -1,7 +1,12 @@
 function [U, dists, mindists, objs, residuals, rps, rds] = newton_step_trial(n, k, alpha, beta, tau, max_iter, M, Y)
-% Find a matrix U such that U*Y is near a vertex.  A vertex is achieved
-% when all elements are +-1.  An infeasible start Newton method
-% is used to achieve this.  
+% 
+% Find a matrix U such that U*Y is near a vertex.  
+% Our goal is to minimize -log|det U| subject to norm(U*Y,inf) <= 1.  While
+% the problem is non-convex, solutions occur on the vertices of the 
+% feasible region, i.e. U*Y is in {+1,-1}^(nxk).  
+% Thus, we reformulate the problem, add a log barrier, and use an 
+% infeasible start Newton method with the goal of getting U*Y close 
+% to a vertex.  
 %
 % Inputs:
 %   n: Size of square channel matrix
@@ -12,13 +17,13 @@ function [U, dists, mindists, objs, residuals, rps, rds] = newton_step_trial(n, 
 %   Y: Matrix of received symbols.
 %
 % Outputs:
-% U: Matrix such that U*Y is near a vertex
-% dists: Distances of U*Y to vertex on each iteration
-% mindists:  Minimum distances so far
-% objs:  Value of objective at each iteration
-% residuals: Vector of norm(rp,rd) per iteration
-% rps: Primal residuals
-% rds: Dual residuals
+%   U: Matrix such that U*Y is hopefully near a vertex
+%   dists: Distances of U*Y to vertex on each iteration
+%   mindists:  Minimum distances so far
+%   objs:  Value of objective at each iteration
+%   residuals: Vector of norm(rp,rd) per iteration
+%   rps: Primal residuals
+%   rds: Dual residuals
 %
 % Stopping criteria:
 %   1. L2 norm of primal and dual residuals ||r(x,v)||2 < 1e-6

@@ -5,7 +5,7 @@
 %
 clear all; close all;
 
-disp('Running symbolic gradident checks...');
+disp('Running symbolic gradient checks...');
 
 %% Graident of f0
 n = 4;
@@ -52,7 +52,7 @@ end
 disp(['Maximum Hf0 difference: ' num2str(max(check_Hf0))]);
 
 
-%% Graident of constraints
+%% Gradient of constraints
 M = 1;          %BPSK
 k = 10;         %10 symbols
 
