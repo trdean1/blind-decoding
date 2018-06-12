@@ -4,18 +4,25 @@ randn('state', 0);
 
 % Testing params
 ntrial = 50;
+ks = [10, 12, 15];
+ns = 4:8;
 
+rprim_zero = zeros(length(ks), length(ns));
+for kind = 1:length(ks)
+for nind = 1:length(ns)
+    
 % Problem params
-n       = 5;
-k       = 12;
-scale   = 1;
+n       = ns(nind);
+k       = ks(kind);
 
 % Solver params
 alpha   = 0.1;
 beta    = 0.9;
 tau     = 1e-2;
-max_iter= 50;
+max_iter= 5;
 
+num_sucessful = 0;
+num_recovered = 0;
 distances = zeros(ntrial, max_iter+1);
 min_distances = zeros(ntrial, max_iter+1);
 r_primals = zeros(ntrial, max_iter+1);
@@ -38,20 +45,29 @@ for trial = 1:ntrial
     r_primals(trial,:) = rps;
     r_duals(trial,:) = rds;
     objective(trial,:) = objs;
+
+    if abs(r_primals(trial,end)) < 1e-3
+        num_sucessful = num_sucessful + 1;
+    end
     
-    % Check ATM
-    vert = sign(U*Y);
+%     % Check ATM
+%     vert = sign(U*Y);
+%     if isPermute(vert, X)
+%         num_recovered = num_recovered + 1;
+%     end
     
     
 end
+fprintf('\n%d/%d', (kind-1)*length(ks) + nind, length(ks)*length(ns));
+rprim_zero(kind, nind) = num_sucessful;
 
+end
+end
 
 %% Plotting
-num_sucessful = 0;
 figure;
 for trial = 1:ntrial
     if abs(r_primals(trial,end)) < 1e-3
-        num_sucessful = num_sucessful + 1;
         semilogy(0:max_iter, min_distances(trial,:), 'linewidth', 2);
         hold on;
     end
@@ -102,3 +118,15 @@ grid on;
 % title('Objective vs iteration');
 % ylabel('objective');
 % xlabel('Iteration');
+
+%% 
+figure; hold on;
+for kind = 1:length(ks)
+    plot(ns, 2*rprim_zero(kind,:), 'linewidth', 3, 'displayname', ['k = ' num2str(ks(kind))]);
+end
+set(gca, 'fontsize',14);
+title('Percent of primal feasible runs after 5 steps vs $n$', 'interpreter', 'latex');
+ylabel('Percent of primal feasible $U$s', 'interpreter', 'latex');
+xlabel('n', 'interpreter', 'latex');
+grid on;
+legend('show');
