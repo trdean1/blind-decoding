@@ -1,12 +1,26 @@
 clear all; close all;
 
+% Purpose of script: this uses test_single_run as a basis and simply loops 
+% for a single randomply generated gain matrix H and noise, varying the
+% number of permutations used. It plots the errors discussed for
+% test_single_run against the number of permutations used, as well as the
+% difference between these errors.
+% 
+% NOTE 1: This code is inefficient and
+% recomputes the results for permutations, but since it was just a proof
+% of concept and the runtime wasn't horrific, we did not worry about this.
+% 
+% NOTE 2: As discussed in the report and paper, the given in those two
+% documents is the result of running this script multiple times for
+% different rng seeds and averaging the results.
+
 rng(3)
 n = 4;
 m = n+2;
 k = n+1;
 maxPerm = 15;
 pamSize = 2;
-noiseOn = 1;
+noiseLevel = 1; % 0 = noiseless
 
 %Random square channel
 H = randn(m,n);
@@ -22,7 +36,6 @@ Y = H*X + noiseOn*(1e-2*randn(m,k));
 rm = randn(n);
 [q,r] = qr(rm);
 x0 = 0.1*reshape(q,[n^2,1]);
-j=0;
 poss_perm = combnk(1:m,n);
 cB = pamSize*ones(2*n*k,1)-1;
 obj = @det_from_list;
@@ -41,19 +54,11 @@ for numPerm = 1:maxPerm
     A = zeros(size(H));
     count = zeros(size(H));
     count_for_avg = 0;
-    %err_cum = zeros(size(H));
 
-    %disp(['length numPerm = ' num2str(length(numPerm))]);
     for i = 1:numPerm
         curr_perm = poss_perm(i,:);
         H_perm(:,:,i) = H(curr_perm,:);
         
-        %x0 is a random unitary matrix
-        %         rm = randn(n);
-        %         [q,r] = qr(rm);
-        %         x0 = 0.1*reshape(q,[n^2,1]);
-        
-        %cA and cB are the contraints passed to fmincon
         cA = construct_constraints(transpose(Y(curr_perm,:)));
         
         U_flat = fmincon(obj,x0,cA,cB,[],[],[],[],[],options);
@@ -66,18 +71,11 @@ for numPerm = 1:maxPerm
             count(curr_perm,:) = count(curr_perm,:) + 1;
             err_perm(i) = norm(A_perm(:,:,i) - H_perm(:,:,i),'fro');
             count_for_avg = count_for_avg + 1;
-            %err_cum(curr_perm,:) = abs(A_perm(:,:,i) - H_perm(:,:,i));
         end
-        %     if is_atm(i)%abs(det(U*H_perm(:,:,i)))-1.0 < 0.01
-        %         j = i;
-        %         break;
-        %     end
     end
     A = A ./ count;
-    %is_atm;
     err(numPerm) = norm(A(count ~= 0) - H(count ~= 0),'fro')/(n*(sum(count(:,1) ~= 0)));
     err_avg(numPerm) = sum(err_perm)/(count_for_avg * n^2);
-    %err_del_avg(numPerm) = norm(err_cum(count ~= 0),'fro')/(n*(sum(count(:,1) ~= 0)))
 end
 
 figure(1)

@@ -1,34 +1,47 @@
 clear all; close all;
 
+% Purpose of script: this was an initial testing script to which was then
+% generalized to test_perm_loop. The algorithm is described explicitly in
+% the report, so we will only give a quick outline here.
+% We randomly generate a gain matrix H, define an input X to ensure 
+% recoverability (eg full rank and few other conditions specified in 
+% Dean et al), add noise (if noiseLevel != 0), and attempt to revoer H_perm
+% for a variety of permutations of Y, called Y_perm. The resultant
+% "recovered" H_perm's, called A_perm in the code, are then averaged to a 
+% final estimate A. The error of this estimate, measured as the frobenius
+% norm of the difference from the ground-truth H, was then compared with
+% the average errors of all the A_perms.
+
 rng(0)
 n = 4;
 m = n+5;
 k = n+1;
 numPerm = 10%126;
 pamSize = 2;
-noiseOn = 1;
+noiseLevel = 1; % 0 = noiseless
 
 %Random square channel
 H = randn(m,n);
 
-%Make symbols
+%Make symbols -- we choose this X to ensure recoverability
 X = [1  1  1  1  1;...
         1  1 -1 -1  1;...
         1 -1  1 -1  1;...
         1 -1 -1  1 -1];
 
 %Test with no noise
-Y = H*X + noiseOn*(1e-2*randn(m,k));
-rm = randn(n);
+Y = H*X + noiseLevel*(1e-2*randn(m,k));
+rm = randn(n); % for generating first guess x0
 [q,r] = qr(rm);
 x0 = 0.1*reshape(q,[n^2,1]);
-j=0;
 poss_perm = combnk(1:m,n);
 cB = pamSize*ones(2*n*k,1)-1;
 obj = @det_from_list;
 
 options = optimoptions('fmincon','MaxFunctionEvaluations',25000,'OptimalityTolerance',1e-8, 'StepTolerance',1e-7,'Display','off');
 
+% Note that it is actually unnecessary to store most of the following variables;
+% however, it was helpful in debugging and understanding what was going on.
 H_perm = zeros(n,n,numPerm);
 U_perm = zeros(n,n,numPerm);
 T = zeros(n,n,numPerm);
@@ -37,19 +50,11 @@ err_perm = zeros(1,numPerm);
 is_atm = zeros(1,numPerm);
 A = zeros(size(H));
 count = zeros(size(H));
-err_cum = zeros(size(H));
 
-%disp(['length numPerm = ' num2str(length(numPerm))]);
 for i = 1:numPerm
     curr_perm = poss_perm(i,:);
     H_perm(:,:,i) = H(curr_perm,:);
     
-    %x0 is a random unitary matrix
-    %         rm = randn(n);
-    %         [q,r] = qr(rm);
-    %         x0 = 0.1*reshape(q,[n^2,1]);
-    
-    %cA and cB are the contraints passed to fmincon
     cA = construct_constraints(transpose(Y(curr_perm,:)));
     
     U_flat = fmincon(obj,x0,cA,cB,[],[],[],[],[],options);
@@ -61,18 +66,11 @@ for i = 1:numPerm
         A(curr_perm,:) = A(curr_perm,:) + A_perm(:,:,i);
         count(curr_perm,:) = count(curr_perm,:) + 1;
         err_perm(i) = norm(A_perm(:,:,i) - H_perm(:,:,i),'fro');
-        err_cum(curr_perm,:) = abs(A_perm(:,:,i) - H_perm(:,:,i));
     end
-%     if is_atm(i)%abs(det(U*H_perm(:,:,i)))-1.0 < 0.01
-%         j = i;
-%         break;
-%     end
 end
 A = A ./ count;
-is_atm
 err = norm(A(count ~= 0) - H(count ~= 0),'fro')/(n*(sum(count(:,1) ~= 0)))
 err_avg = mean(err_perm)/(n^2)
-err_del_avg = norm(err_cum(count ~= 0),'fro')/(n*(sum(count(:,1) ~= 0)))
 
 function [ A ] = construct_constraints( y )
 %Uses y to construct a series of contraints corresponding
