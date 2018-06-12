@@ -1,6 +1,8 @@
 % Numerical Gradient Testing
-% Theo Diamandis
 % May 2018
+%
+% Tests implementation of objective and constraint graidents
+%
 clear all; close all;
 
 disp('Running symbolic gradident checks...');
@@ -14,6 +16,7 @@ df = gradient(f, reshape(U, [n*n,1]));
 grad_f0_sym = reshape(df, [n,n]);
 grad_f0 = - inv(U)';
 
+% 10 random tests to check if custom implementation is the same as matlab's
 num_checks = 10;
 check = NaN(num_checks,1);
 for i = 1:10
@@ -30,6 +33,7 @@ Hf0_sym = hessian(f, reshape(U, [n*n,1]));
 Hf0 = sym('Hf0', [n*n,n*n]);
 A = zeros(n,n); B = zeros(n,n);
 
+% Construct Hessian
 for i = 1:n*n
     for j = 1:n*n
         A = zeros(n,n); B = zeros(n,n);
@@ -37,9 +41,6 @@ for i = 1:n*n
         Hf0(i,j) = trace(inv(U)*A*inv(U)*B);
     end
 end
-
-% % gf0_n2 = reshape(grad_f0, [n*n,1]);
-% Hf0 = -reshape(grad_f0, [n*n,1]) * reshape(grad_f0', [n*n,1])';
 
 check_Hf0 = NaN(num_checks,1);
 for i = 1:10
@@ -52,7 +53,6 @@ disp(['Maximum Hf0 difference: ' num2str(max(check_Hf0))]);
 
 
 %% Graident of constraints
-
 M = 1;          %BPSK
 k = 10;         %10 symbols
 
@@ -71,6 +71,7 @@ phi = log(M - uj*yi) + log(M + uj*yi);
 grad_phi_sym = gradient(phi, uj)';
 grad_phi = -yi/(M - uj*yi) + yi/(M + uj*yi);
 
+% Checks
 check_grad_phi = NaN(num_checks,1);
 for c = 1:num_checks
     grad_phi_test = zeros(n,n);
@@ -96,10 +97,10 @@ disp(['Maximum grad_phi difference: ' num2str(max(check_grad_phi))]);
 
 
 %% Hessian of constraints
-
 Hphi_sym = hessian(phi, uj);
 Hphi = -yi*yi'/(M - uj*yi)^2 - yi*yi'/(M + uj*yi)^2;
 
+%Checks
 check_Hphi = NaN(num_checks,1);
 for c = 1:num_checks
     Hphi_test = zeros(n*n);
@@ -124,6 +125,5 @@ for c = 1:num_checks
         end
     end
     check_Hphi(c) = norm(Hphi_test - Hphi_sym_test, 'fro');
-%     disp(['Completed Check ' num2str(c) '. Difference: ' num2str(check_Hphi(c))]);
 end
 disp(['Maximum Hphi difference: ' num2str(max(check_Hphi))]);
