@@ -5,6 +5,7 @@ sys.path.insert(0,'..')
 import dynamic
 
 n = 4
+n_trials = 2000
 tol = 1e-6
 
 for k in range(5, 20, 2):
@@ -14,7 +15,7 @@ for k in range(5, 20, 2):
     total = 0.0
 
     print( "n=%d, k=%d" % (n,k) )
-    for i in range(2000):
+    for i in range(n_trials):
         if i % 100 == 0 and i != 0:
             sys.stdout.write('#')
             sys.stdout.flush()
