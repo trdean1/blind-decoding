@@ -9,3 +9,6 @@ rand = "*"
 regex = "*"
 log = "*"
 env_logger = "*"
+
+[profile.release]
+debug = true

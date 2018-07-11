@@ -399,7 +399,7 @@ def dynamic_solve(U,Y, verbose=False):
 
     return U
 
-def trial(n,k):
+def trial(n,k,verbose=False):
     #Generate channel and observed samples
     A = np.random.randn(n,n)
     X = Xmats.X_guarantee(n, k)
@@ -408,7 +408,7 @@ def trial(n,k):
 
     Ui = rand_init(n,Y)
     try:
-        U = dynamic_solve(Ui,Y)
+        U = dynamic_solve(Ui,Y, verbose)
     except: 
         instance = { 'U' : Ui,
                      'Y' : Y }
