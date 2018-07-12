@@ -27,10 +27,11 @@ use rand::Rng;
 use std::fmt;
 use std::error;
 use std::error::Error;
-use std::process;
 use std::collections::{HashSet,HashMap};
 
+mod matrix;
 mod testlib;
+
 use testlib::TrialResults;
 
 // end imports@}
@@ -170,7 +171,7 @@ fn many_bfs(reps: usize) { //{@
             let x = get_matrix(&dims[i .. i+1]);
             //let x = basemtx.fill();
             let (_a, y) = trial(&x, false);
-            let u_i = rand_init(&y);
+            let u_i = matrix::rand_init(&y);
             //println!("a = {}\ny = {}\nUi = {}", a, y, u_i);
             let bfs = find_bfs(&u_i, &y).unwrap();
             //let uy = bfs.clone() * y.clone();
@@ -346,7 +347,7 @@ fn test_awgn() {
                 //Main loop
                 for _ in 0 .. reps_per {
                     //Generate noise
-                    let e = rand_matrix(n, k);
+                    let e = matrix::rand_matrix(n, k);
                     let mut y = y_base.clone() + var[v]*e;
                     res.trials += 1;
 
@@ -615,7 +616,7 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, row: usize,
                 return Some( u_row );
             }
 
-            v = rand_unit( n );
+            v = matrix::rand_unit( n );
 
             //Reject v (direction to move) from p (basis of active constraints)
             for i in 0..p.nrows() {
@@ -770,7 +771,7 @@ fn single_wrong_dynamic_test( n : usize, k : usize, zthresh : f64 )
         let x = get_matrix( &dim[0 .. 1] );
         let (_a, y) = trial( &x, false );
 
-        let u_i = rand_init(&y);
+        let u_i = matrix::rand_init(&y);
     
         let mut bfs = match find_bfs(&u_i, &y) {
             Some(r) => r, 
@@ -861,7 +862,7 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
                 None => return Err(FlexTabError::Runout),
             };
         }
-        let mut u_i = rand_init(&y); // Choose rand init start pt.
+        let mut u_i = matrix::rand_init(&y); // Choose rand init start pt.
         //let (y, u_i) = use_given_matrices(); // Use for debugging only.
 
         z = y.clone();
@@ -979,70 +980,6 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
 // end runnable functions@}
 
 // matrix generation functions{@
-#[allow(dead_code)]
-fn rand_unit(n: usize) -> na::DMatrix<f64> {
-    let mut v = rand_matrix( 1, n );
-    let norm = v.norm();
-    v /= norm;
-
-    return v;
-}
-
-#[allow(dead_code)]
-//{@
-///Generate a random Gaussian(0, 1) matrix of the given dimensions.
-//@}
-fn rand_matrix(nrows: usize, ncols: usize) -> na::DMatrix<f64> { //{@
-    let mut rng = rand::thread_rng();
-    let mut data = Vec::with_capacity(nrows * ncols);
-    let dist = Normal::new(0.0, 1.0);
-    for _ in 0 .. (nrows * ncols) {
-        data.push(dist.sample(&mut rng));
-    }
-    na::DMatrix::from_column_slice(nrows, ncols, &data)
-} //@}
-
-///Genreate a random Gaussian(0, 1) complex matrix that is n x n.
-///represented as [re im; -im re]
-#[allow(dead_code)]
-fn rand_complex_matrix( n: usize ) -> na::DMatrix<f64> {
-    let nb = n /2;
-
-    let mut rng = rand::thread_rng();
-    let mut real_data = Vec::with_capacity(nb * nb);
-    let mut imag_data = Vec::with_capacity(nb * nb);
-    let mut data = Vec::with_capacity(n * n);
-
-    let dist = Normal::new(0.0, 1.0);
-    for _ in 0 .. (nb * nb) {
-        real_data.push(dist.sample(&mut rng));
-        imag_data.push(dist.sample(&mut rng));
-    }
-
-    for i in 0 .. nb {
-        data.extend(&real_data[(nb*i) .. nb*(i+1)]);
-        data.extend(&imag_data[(nb*i) .. nb*(i+1)]);
-    }
-
-    for i in 0 .. nb {
-        //v = -1.0 * imag_data[nb*i .. nb*(i+1)]
-        let v = imag_data
-            .iter()
-            .cloned()
-            .map(|x| -1.0 * x)
-            .skip(nb*i)
-            .take(nb)
-            .collect::<Vec<f64>>();
-
-        data.extend(&v);
-
-        data.extend(&real_data[(nb*i) .. nb*(i+1)]);
-    }
-
-    na::DMatrix::from_row_slice(n, n, &data)
-}
-
-
 #[allow(dead_code)]
 //{@
 /// Generate a random \pm 1 matrix of the given dimensions.
@@ -1381,9 +1318,9 @@ fn trial(x: &na::DMatrix<f64>, complex: bool) -> (na::DMatrix<f64>, na::DMatrix<
 
     // Generate random Gaussian matrix A.
     let a = if complex {
-        rand_complex_matrix(n) 
+        matrix::rand_complex_matrix(n) 
     } else {
-        rand_matrix(n,n)
+        matrix::rand_matrix(n,n)
     };
 
     // Compute Y = A * X
@@ -1401,29 +1338,7 @@ fn objgrad(x: &mut na::DMatrix<f64>) -> Option<na::DMatrix<f64>> { //{@
         false => None,
     }
 } //@}
-//{@
-/// Generate a random orthogonal n x n matrix
-//@}
-fn random_orthogonal(n: usize) -> na::DMatrix<f64> { //{@
-    na::QR::new(rand_matrix(n, n)).q()
-} //@}
-//{@
-/// Find a random feasible point, which is an n x n U such that all entries of
-/// UY are bounded by 1 in absolute value.
-/// Input:   Y = n x k matrix of received sybest_state.mbols.
-/// Output:  U = n x n feasible inverse of the channel gain matrix.
-//@}
-fn rand_init(y: &na::DMatrix<f64>) -> na::DMatrix<f64> { //{@
-    let n = y.shape().0;
-    let mut u = random_orthogonal(n);
-    let mut scale = 1;
-    while !is_feasible(&u, &y, None) {
-        u = random_orthogonal(n);
-        u /= scale as f64;
-        scale <<= 1;
-    }
-    u
-} //@}
+
 //{@
 /// Returns true if the given value of U is feasible.  Ignores entries in the
 /// product UY where mask is set to 0.  This is done to ignore entries that
