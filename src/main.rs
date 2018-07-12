@@ -16,7 +16,8 @@ extern crate regex;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
-use rand::distributions::IndependentSample;
+//use rand::distributions::IndependentSample; <- Depricated
+use rand::distributions::{Normal, Distribution};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -991,9 +992,9 @@ fn rand_unit(n: usize) -> na::DMatrix<f64> {
 fn rand_matrix(nrows: usize, ncols: usize) -> na::DMatrix<f64> { //{@
     let mut rng = rand::thread_rng();
     let mut data = Vec::with_capacity(nrows * ncols);
-    let dist = rand::distributions::Normal::new(0.0, 1.0);
+    let dist = Normal::new(0.0, 1.0);
     for _ in 0 .. (nrows * ncols) {
-        data.push(dist.ind_sample(&mut rng));
+        data.push(dist.sample(&mut rng));
     }
     na::DMatrix::from_column_slice(nrows, ncols, &data)
 } //@}
@@ -1009,10 +1010,10 @@ fn rand_complex_matrix( n: usize ) -> na::DMatrix<f64> {
     let mut imag_data = Vec::with_capacity(nb * nb);
     let mut data = Vec::with_capacity(n * n);
 
-    let dist = rand::distributions::Normal::new(0.0, 1.0);
+    let dist = Normal::new(0.0, 1.0);
     for _ in 0 .. (nb * nb) {
-        real_data.push(dist.ind_sample(&mut rng));
-        imag_data.push(dist.ind_sample(&mut rng));
+        real_data.push(dist.sample(&mut rng));
+        imag_data.push(dist.sample(&mut rng));
     }
 
     for i in 0 .. nb {
@@ -2802,11 +2803,9 @@ impl FlexTab { //{@
     } //@}
 
     fn add_row_multiple(&mut self, tgtrow: usize, srcrow: usize, mult: f64) { //{@
-
         for j in 0 .. self.state.rows.ncols() {
             self.state.rows[(tgtrow,j)] += mult * self.state.rows[(srcrow,j)];//self.state.tmp[j];
         }
-
     } //@}
 
     fn div_row_float(&mut self, tgtrow: usize, divisor: f64) { //{@
