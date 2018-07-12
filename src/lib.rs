@@ -168,7 +168,7 @@ fn many_bfs(reps: usize) { //{@
 
         for _ in 0 .. reps {
             //let basemtx = rng.choose(&xmats).unwrap();
-            let x = get_matrix(&dims[i .. i+1]);
+            let x = matrix::get_matrix(&dims[i .. i+1]);
             //let x = basemtx.fill();
             let (_a, y) = trial(&x, false);
             let u_i = matrix::rand_init(&y);
@@ -322,7 +322,7 @@ fn test_awgn() {
                 if ii % 10 == 0 { eprint!("#"); }
 
                 let mut res = TrialResults::new(n,k,var[v]);
-                let x = get_matrix( &dim[0 .. 1] );
+                let x = matrix::get_matrix( &dim[0 .. 1] );
                 let (a, y_base) = trial(&x, complex);
 
                 info!("A = {:.4}", a);
@@ -481,7 +481,7 @@ pub fn run_reps() { //{@
 
         // Select X matrix of one specific set of dimensions (n, k).
         let x = if use_basis {
-            get_matrix(&dims[which .. which + 1]) 
+            matrix::get_matrix(&dims[which .. which + 1]) 
         } else {
             matrix::rand_pm1_matrix(dims[which].0, dims[which].1)
         };
@@ -768,7 +768,7 @@ fn single_wrong_dynamic_test( n : usize, k : usize, zthresh : f64 )
 {
     loop {
         let dim = vec![(n,k)];
-        let x = get_matrix( &dim[0 .. 1] );
+        let x = matrix::get_matrix( &dim[0 .. 1] );
         let (_a, y) = trial( &x, false );
 
         let u_i = matrix::rand_init(&y);
@@ -981,7 +981,6 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
 
 // matrix generation functions{@
 #[allow(dead_code)]
-
 //{@
 /// Return true iff a == b up to an ATM.
 //@}
@@ -1167,94 +1166,6 @@ fn force_estimate( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64> )
     let x_hat2 = p_hat * x_hat.clone();
     compute_symbol_errors( &x_hat2, &x, None, None ).unwrap() 
 }
-
-//{@
-/// Randomly select one (n, k) value from the array of (n, k) pairs given in
-/// +dims+.  Fill the necessary extra columns (if necessary) with random iid
-/// \pm 1 entries.
-//@}
-fn get_matrix(dims: &[(usize, usize)]) -> na::DMatrix<f64> { //{@
-    let xmats = vec![
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(2, 2,
-                &vec![  1.,  1.,
-                        1., -1., 
-                ]), extra_cols: 0,
-        },
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(3, 4,
-                &vec![  1.,  1.,  1.,  1.,
-                        1.,  1., -1., -1.,
-                        1., -1.,  1., -1.,
-                ]), extra_cols: 0,
-        },
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(4, 5,
-                &vec![  1.,  1.,  1.,  1.,  1.,
-                        1.,  1., -1., -1.,  1.,
-                        1., -1.,  1., -1.,  1.,
-                        1., -1., -1.,  1., -1.,
-                ]), extra_cols: 0,
-        },
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(5, 6,
-                &vec![  -1., -1., -1., -1., -1., -1.,
-                        -1., -1., -1.,  1.,  1.,  1.,
-                        -1., -1.,  1., -1.,  1.,  1.,
-                        -1.,  1., -1., -1.,  1., -1.,
-                        -1.,  1.,  1.,  1., -1., -1.,
-                ]), extra_cols: 0,
-        },
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(6, 6,
-                &vec![ -1.,  1.,  1.,  1.,  1.,  1.,
-                        1., -1.,  1.,  1.,  1.,  1.,
-                        1.,  1., -1.,  1.,  1.,  1.,
-                       -1., -1., -1., -1.,  1.,  1.,
-                       -1., -1., -1.,  1., -1.,  1.,
-                       -1., -1., -1.,  1.,  1., -1.,
-                ]), extra_cols: 0,
-        },
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(8, 8,
-            &vec![  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,
-                    1.,  1., -1., -1.,  1.,  1., -1., -1.,
-                    1., -1., -1.,  1.,  1., -1., -1.,  1.,
-                    1., -1.,  1., -1.,  1., -1.,  1., -1.,
-                    1.,  1.,  1.,  1., -1., -1., -1., -1.,
-                    1.,  1., -1., -1., -1., -1.,  1.,  1.,
-                    1., -1., -1.,  1., -1.,  1.,  1., -1.,
-                    1., -1.,  1., -1., -1.,  1., -1.,  1.,
-            ]), extra_cols: 0,
-        },
-    ];
-
-    // DEBUG: start splice for specific X
-    /*
-    let xmats = vec![
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(4, 6,
-                &vec![
-                -1.0, -1.0, -1.0, -1.0,  1.0, -1.0,
-                1.0, -1.0, -1.0,  1.0, -1.0,  1.0,
-                1.0, -1.0,  1.0, -1.0, -1.0, -1.0,
-                -1.0, -1.0, -1.0,  1.0,  1.0, -1.0,
-                ]), extra_cols: 0,
-        },
-    ];
-    */
-    // DEBUG: end splice for specific X
-
-    // Setup eligible matrices.
-    let mut eligible: Vec<BaseMatrix> = Vec::new();
-    for &(n, k) in dims.iter() {
-        for ref bmtx in xmats.iter() {
-            if bmtx.basemtx.nrows() == n {
-                let mut bmtx = (*bmtx).clone();
-                bmtx.extra_cols = k - bmtx.basemtx.ncols();
-                eligible.push(bmtx);
-            }
-        }
-    }
-
-    let mut rng = rand::thread_rng();
-    let basemtx = rng.choose(&eligible).unwrap();
-    let x = basemtx.fill();
-    x
-} //@}
 // end matrix generation functions@}
 
 // BFS finder functions.{@
@@ -1627,32 +1538,7 @@ fn count_bfs_entry(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64)
     return (sum_pm1, sum_zeros, sum_other);
 }
 
-#[derive(Clone)]
-struct BaseMatrix { //{@
-    basemtx: na::DMatrix<f64>,
-    extra_cols: usize,
-} //@}
-impl BaseMatrix { //{@
-    //{@
-    /// Fill in extra_cols with iid \pm1 entries.
-    //@}
-    fn fill(&self) -> na::DMatrix<f64> {
-        // Insert the columns.
-        let mut mtx = self.basemtx.clone().insert_columns(self.basemtx.ncols(),
-                self.extra_cols, 1.0);
 
-        // Flip to -1.0 wp 0.5.
-        let mut rng = rand::thread_rng();
-        for j in mtx.ncols() - self.extra_cols .. mtx.ncols() {
-            for i in 0 .. mtx.nrows() {
-                if rng.gen_range(0, 2) == 1 {
-                    mtx.column_mut(j)[i] = -1.0;
-                }
-            }
-        }
-        mtx
-    }
-} //@}
 
 // Tableau{@
 #[derive(Debug)] //{@

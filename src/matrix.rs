@@ -105,3 +105,103 @@ pub fn rand_pm1_matrix(nrows: usize, ncols: usize) -> na::DMatrix<f64> { //{@
     }
     na::DMatrix::from_column_slice(nrows, ncols, &data)
 } //@}
+
+//{@
+/// Randomly select one (n, k) value from the array of (n, k) pairs given in
+/// +dims+.  Fill the necessary extra columns (if necessary) with random iid
+/// \pm 1 entries.
+//@}
+pub fn get_matrix(dims: &[(usize, usize)]) -> na::DMatrix<f64> { //{@
+    let xmats = vec![
+        BaseMatrix { basemtx: na::DMatrix::from_row_slice(2, 2,
+                &vec![  1.,  1.,
+                        1., -1., 
+                ]), extra_cols: 0,
+        },
+        BaseMatrix { basemtx: na::DMatrix::from_row_slice(3, 4,
+                &vec![  1.,  1.,  1.,  1.,
+                        1.,  1., -1., -1.,
+                        1., -1.,  1., -1.,
+                ]), extra_cols: 0,
+        },
+        BaseMatrix { basemtx: na::DMatrix::from_row_slice(4, 5,
+                &vec![  1.,  1.,  1.,  1.,  1.,
+                        1.,  1., -1., -1.,  1.,
+                        1., -1.,  1., -1.,  1.,
+                        1., -1., -1.,  1., -1.,
+                ]), extra_cols: 0,
+        },
+        BaseMatrix { basemtx: na::DMatrix::from_row_slice(5, 6,
+                &vec![  -1., -1., -1., -1., -1., -1.,
+                        -1., -1., -1.,  1.,  1.,  1.,
+                        -1., -1.,  1., -1.,  1.,  1.,
+                        -1.,  1., -1., -1.,  1., -1.,
+                        -1.,  1.,  1.,  1., -1., -1.,
+                ]), extra_cols: 0,
+        },
+        BaseMatrix { basemtx: na::DMatrix::from_row_slice(6, 6,
+                &vec![ -1.,  1.,  1.,  1.,  1.,  1.,
+                        1., -1.,  1.,  1.,  1.,  1.,
+                        1.,  1., -1.,  1.,  1.,  1.,
+                       -1., -1., -1., -1.,  1.,  1.,
+                       -1., -1., -1.,  1., -1.,  1.,
+                       -1., -1., -1.,  1.,  1., -1.,
+                ]), extra_cols: 0,
+        },
+        BaseMatrix { basemtx: na::DMatrix::from_row_slice(8, 8,
+            &vec![  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,
+                    1.,  1., -1., -1.,  1.,  1., -1., -1.,
+                    1., -1., -1.,  1.,  1., -1., -1.,  1.,
+                    1., -1.,  1., -1.,  1., -1.,  1., -1.,
+                    1.,  1.,  1.,  1., -1., -1., -1., -1.,
+                    1.,  1., -1., -1., -1., -1.,  1.,  1.,
+                    1., -1., -1.,  1., -1.,  1.,  1., -1.,
+                    1., -1.,  1., -1., -1.,  1., -1.,  1.,
+            ]), extra_cols: 0,
+        },
+    ];
+
+    // Setup eligible matrices.
+    let mut eligible: Vec<BaseMatrix> = Vec::new();
+    for &(n, k) in dims.iter() {
+        for ref bmtx in xmats.iter() {
+            if bmtx.basemtx.nrows() == n {
+                let mut bmtx = (*bmtx).clone();
+                bmtx.extra_cols = k - bmtx.basemtx.ncols();
+                eligible.push(bmtx);
+            }
+        }
+    }
+
+    let mut rng = rand::thread_rng();
+    let basemtx = rng.choose(&eligible).unwrap();
+    let x = basemtx.fill();
+    x
+} //@}
+
+#[derive(Clone)]
+struct BaseMatrix { //{@
+    basemtx: na::DMatrix<f64>,
+    extra_cols: usize,
+} //@}
+impl BaseMatrix { //{@
+    //{@
+    /// Fill in extra_cols with iid \pm1 entries.
+    //@}
+    fn fill(&self) -> na::DMatrix<f64> {
+        // Insert the columns.
+        let mut mtx = self.basemtx.clone().insert_columns(self.basemtx.ncols(),
+                self.extra_cols, 1.0);
+
+        // Flip to -1.0 wp 0.5.
+        let mut rng = rand::thread_rng();
+        for j in mtx.ncols() - self.extra_cols .. mtx.ncols() {
+            for i in 0 .. mtx.nrows() {
+                if rng.gen_range(0, 2) == 1 {
+                    mtx.column_mut(j)[i] = -1.0;
+                }
+            }
+        }
+        mtx
+    }
+} //@}
