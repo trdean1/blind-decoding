@@ -205,3 +205,80 @@ impl BaseMatrix { //{@
         mtx
     }
 } //@}
+
+#[allow(dead_code)]
+//{@
+/// Return generator for all ATM's of a given matrix.
+//@}
+fn all_atm(mtx: &na::DMatrix<f64>) -> Box<FnMut() -> Option<na::DMatrix<f64>>> { //{@
+    let mtx = mtx.clone();
+    let n = mtx.shape().0;
+    let perms = gen_perm(n);
+    let mut perm_idx = 0;
+    let mut sign_idx = 0;
+
+    // Generating closure for all n! * 2^n ATM's of mtx.  Outer iteration is
+    // over all permutations, which are pre-generated in perms.  Inner iteration
+    // is over all sign matrices foreach permutation.
+    Box::new(move || {
+        // If all permutations already exhausted, return None.
+        if perm_idx == perms.len() {
+            return None;
+        }
+
+        // Get the current permutation, create a clean matrix.
+        let perm = &perms[perm_idx];
+        let mut next_mtx = mtx.clone();
+
+        // For every row, do 2 things:
+        //     1) If it should in fact be permuted, get the right row from mtx.
+        //     2) If it should be sign flipped, do that.
+        for i in 0 .. n {
+            // Right row of permutation.
+            if perm[i] != i {
+                for j in 0 .. n {
+                    next_mtx.row_mut(i)[j] = mtx.row(perm[i])[j];
+                }
+            }
+            // Sign flip.
+            if sign_idx & (1 << i) != 0 {
+                for j in 0 .. n {
+                    next_mtx.row_mut(i)[j] *= -1.0;
+                }
+            }
+        }
+
+        // Increment inner loop over sign matrices; if done increment outer loop
+        // over permutation matrices.
+        sign_idx += 1;
+        if sign_idx == (1 << n) {
+            sign_idx = 0;
+            perm_idx += 1;
+        }
+
+        // Return the matrix produced during this iteration.
+        Some(next_mtx)
+    })
+} //@}
+//{@
+/// Create all permutations of {0, 1, ..., n-1}.
+//@}
+fn gen_perm(n: usize) -> Vec<Vec<usize>> { //{@
+    if n == 0 {
+        return Vec::new();
+    }
+    if n == 1 {
+        return vec![ vec![0] ];
+    }
+
+    let mut ret = Vec::new();
+    let lower = gen_perm(n - 1);
+    for base in lower {
+        for i in 0 .. base.len() + 1 {
+            let mut cur = base.clone();
+            cur.insert(i, n - 1);
+            ret.push(cur);
+        }
+    }
+    ret
+} //@}
