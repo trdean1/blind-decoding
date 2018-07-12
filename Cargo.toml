@@ -12,3 +12,11 @@ env_logger = "*"
 
 [profile.release]
 debug = true
+
+[lib]
+name = "blindlib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
