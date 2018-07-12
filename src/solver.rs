@@ -111,7 +111,7 @@ fn many_bfs(reps: usize) { //{@
             //let basemtx = rng.choose(&xmats).unwrap();
             let x = matrix::get_matrix(&dims[i .. i+1]);
             //let x = basemtx.fill();
-            let (_a, y) = trial(&x, false);
+            let (_a, y) = matrix::y_a_from_x(&x, false);
             let u_i = matrix::rand_init(&y);
             //println!("a = {}\ny = {}\nUi = {}", a, y, u_i);
             let bfs = dynamic::find_bfs(&u_i, &y).unwrap();
@@ -264,7 +264,7 @@ fn test_awgn() {
 
                 let mut res = TrialResults::new(n,k,var[v]);
                 let x = matrix::get_matrix( &dim[0 .. 1] );
-                let (a, y_base) = trial(&x, complex);
+                let (a, y_base) = matrix::y_a_from_x(&x, complex);
 
                 info!("A = {:.4}", a);
                 info!("Y = {:.4}", y_base);
@@ -378,7 +378,7 @@ fn single_wrong_dynamic_test( n : usize, k : usize, zthresh : f64 )
     loop {
         let dim = vec![(n,k)];
         let x = matrix::get_matrix( &dim[0 .. 1] );
-        let (_a, y) = trial( &x, false );
+        let (_a, y) = matrix::y_a_from_x( &x, false );
 
         let u_i = matrix::rand_init(&y);
     
@@ -775,25 +775,6 @@ fn force_estimate( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64> )
     compute_symbol_errors( &x_hat2, &x, None, None ).unwrap() 
 }
 // end matrix generation functions@}
-
-pub fn trial(x: &na::DMatrix<f64>, complex: bool) -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
-    trace!("X = {}", x);
-    let n = x.nrows();
-    let k = x.ncols();
-
-    // Generate random Gaussian matrix A.
-    let a = if complex {
-        matrix::rand_complex_matrix(n) 
-    } else {
-        matrix::rand_matrix(n,n)
-    };
-
-    // Compute Y = A * X
-    let mut y = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
-    a.mul_to(&x, &mut y);
-
-    (a, y)
-} //@}
 
 fn count_bfs_entry(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) 
     -> (u64,u64,u64) {

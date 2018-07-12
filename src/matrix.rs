@@ -170,6 +170,26 @@ pub fn get_matrix(dims: &[(usize, usize)]) -> na::DMatrix<f64> { //{@
     x
 } //@}
 
+pub fn y_a_from_x(x: &na::DMatrix<f64>, complex: bool) 
+    -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
+    trace!("X = {}", x);
+    let n = x.nrows();
+    let k = x.ncols();
+
+    // Generate random Gaussian matrix A.
+    let a = if complex {
+        rand_complex_matrix(n) 
+    } else {
+        rand_matrix(n,n)
+    };
+
+    // Compute Y = A * X
+    let mut y = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
+    a.mul_to(&x, &mut y);
+
+    (a, y)
+} //@}
+
 #[derive(Clone)]
 struct BaseMatrix { //{@
     basemtx: na::DMatrix<f64>,

@@ -61,7 +61,7 @@ fn main() {
         res.trials += 1;
 
         // Obtain A, Y matrices, then run.
-        let (a, y) = blindsolver::trial(&x, complex);
+        let (a, y) = matrix::y_a_from_x(&x, complex);
         let timer = std::time::Instant::now();
         match blindsolver::single_run(&y,use_basis, 0f64) {
             Err(e) => {
