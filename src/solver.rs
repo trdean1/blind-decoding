@@ -9,25 +9,15 @@
  */
 
 // imports{@
-#![allow(unused_imports)]
 extern crate nalgebra as na;
 extern crate rand;
 extern crate regex;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
-//use rand::distributions::IndependentSample; <- Depricated
-use rand::distributions::{Normal, Distribution};
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::BufReader;
+
 use std::io::stdout;
-use regex::Regex;
-use rand::Rng;
-use std::fmt;
-use std::error;
-use std::error::Error;
-use std::collections::{HashSet,HashMap};
+use std::io::Write;
 
 mod matrix;
 mod testlib;

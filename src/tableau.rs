@@ -4,7 +4,7 @@ use std;
 use std::fmt;
 use std::error;
 use std::error::Error;
-use std::collections::{HashSet,HashMap};
+use std::collections::{HashSet};
 
 use ZTHRESH;
 use equal_atm;

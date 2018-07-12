@@ -2,11 +2,9 @@ extern crate nalgebra as na;
 extern crate rand;
 
 use rand::distributions::{Normal, Distribution};
-use rand::Rng;
 use std;
-use std::collections::{HashSet,HashMap};
+use std::collections::{HashSet};
 
-use is_feasible;
 use ZTHRESH;
 
 #[allow(dead_code)]

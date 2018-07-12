@@ -11,7 +11,7 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::cmp::Ordering;
 use std::thread;
-use std::collections::{HashSet, BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
