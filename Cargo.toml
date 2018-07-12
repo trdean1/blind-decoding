@@ -14,8 +14,8 @@ env_logger = "*"
 debug = true
 
 [lib]
-name = "blindlib"
-path = "src/lib.rs"
+name = "blindsolver"
+path = "src/solver.rs"
 
 [[bin]]
 name = "main"

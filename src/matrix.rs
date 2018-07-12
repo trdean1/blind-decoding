@@ -7,15 +7,6 @@ use rand::Rng;
 use is_feasible;
 
 #[allow(dead_code)]
-pub fn rand_unit(n: usize) -> na::DMatrix<f64> {
-    let mut v = rand_matrix( 1, n );
-    let norm = v.norm();
-    v /= norm;
-
-    return v;
-}
-
-#[allow(dead_code)]
 //{@
 ///Generate a random Gaussian(0, 1) matrix of the given dimensions.
 //@}
