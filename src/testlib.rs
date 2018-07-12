@@ -14,8 +14,6 @@ use std::thread;
 use std::collections::{HashSet, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
-use gen_all_pm1;
-
 #[derive(Clone)]
 pub struct TrialResults {
     pub dims: (usize,usize),
@@ -366,5 +364,21 @@ pub fn read_mtx_file(fname: &str) -> na::DMatrix<f64> { //{@
     na::DMatrix::from_row_slice(nrows, ncols.unwrap(), &data)
 } //@}
 
-
-
+#[allow(dead_code)]
+//{@
+/// Return closure that generates all matrices in {-1, +1} ^ {n x n}.
+//@}
+fn gen_all_pm1(n: usize) -> Box<FnMut() -> Option<na::DMatrix<f64>>> { //{@
+    let mut count = 0;
+    Box::new(move || {
+        if count >= (1 << n*n) { return None; }
+        // Get next matrix.
+        let mut data = Vec::with_capacity(n * n);
+        for i in 0 .. n*n {
+            let e = if count & (1 << i) != 0 { 1.0 } else { -1.0 };
+            data.push(e);
+        }
+        count += 1;
+        Some(na::DMatrix::from_row_slice(n, n, &data))
+    })
+} //@}

@@ -93,3 +93,15 @@ pub fn rand_init(y: &na::DMatrix<f64>) -> na::DMatrix<f64> { //{@
     }
     u
 } //@}
+
+//{@
+/// Generate a random \pm 1 matrix of the given dimensions.
+//@}
+pub fn rand_pm1_matrix(nrows: usize, ncols: usize) -> na::DMatrix<f64> { //{@
+    let mut rng = rand::thread_rng();
+    let mut data = Vec::with_capacity(nrows * ncols);
+    for _ in 0 .. (nrows * ncols) {
+        data.push(1.0 - (2 * rng.gen_range(0, 2)) as f64);
+    }
+    na::DMatrix::from_column_slice(nrows, ncols, &data)
+} //@}

@@ -483,7 +483,7 @@ pub fn run_reps() { //{@
         let x = if use_basis {
             get_matrix(&dims[which .. which + 1]) 
         } else {
-            rand_pm1_matrix(dims[which].0, dims[which].1)
+            matrix::rand_pm1_matrix(dims[which].0, dims[which].1)
         };
 
         trace!("selected x = {}", x);
@@ -981,35 +981,7 @@ fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
 
 // matrix generation functions{@
 #[allow(dead_code)]
-//{@
-/// Generate a random \pm 1 matrix of the given dimensions.
-//@}
-fn rand_pm1_matrix(nrows: usize, ncols: usize) -> na::DMatrix<f64> { //{@
-    let mut rng = rand::thread_rng();
-    let mut data = Vec::with_capacity(nrows * ncols);
-    for _ in 0 .. (nrows * ncols) {
-        data.push(1.0 - (2 * rng.gen_range(0, 2)) as f64);
-    }
-    na::DMatrix::from_column_slice(nrows, ncols, &data)
-} //@}
-#[allow(dead_code)]
-//{@
-/// Return closure that generates all matrices in {-1, +1} ^ {n x n}.
-//@}
-fn gen_all_pm1(n: usize) -> Box<FnMut() -> Option<na::DMatrix<f64>>> { //{@
-    let mut count = 0;
-    Box::new(move || {
-        if count >= (1 << n*n) { return None; }
-        // Get next matrix.
-        let mut data = Vec::with_capacity(n * n);
-        for i in 0 .. n*n {
-            let e = if count & (1 << i) != 0 { 1.0 } else { -1.0 };
-            data.push(e);
-        }
-        count += 1;
-        Some(na::DMatrix::from_row_slice(n, n, &data))
-    })
-} //@}
+
 //{@
 /// Return true iff a == b up to an ATM.
 //@}
