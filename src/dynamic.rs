@@ -556,8 +556,8 @@ pub fn rand_unit(n: usize) -> na::DMatrix<f64> {
 mod tests {
     use super::*;
 
-    /// This just tests the BFS finding with a fixed input.  The BFS solver will return
-    /// something infeasible half the time
+    /// This tests the BFS Finder with a fixed input.  The BFS solver will return
+    /// something infeasible half the time. This works fine in the python version
     #[test]
     fn bfs_instability_test() {
         for _ in 0 .. 100 {
@@ -587,4 +587,30 @@ mod tests {
             assert!( feasible );
         }
     }
+
+    /*
+    /// This was in the old code...not sure what bug this was testing
+    fn use_given_matrices() -> (na::DMatrix<f64>, na::DMatrix<f64>) { 
+        let y = na::DMatrix::from_row_slice(3, 8,
+                &vec![
+                -2.13221971, 1.65267722, -3.58171708, 0.20317985,
+                -0.20317985, -1.65267722, -2.13221971, 2.13221971,
+
+                1.33427445, 0.75515798, -1.76382965, -2.34294612, 
+                2.34294612, -0.75515798, 1.33427445, -1.33427445,
+
+                -2.49940914, 0.07649133, -0.74610697, 1.8297935,
+                -1.8297935, -0.07649133, -2.49940914, 2.49940914,
+                ]);
+
+        let u_i = na::DMatrix::from_row_slice(3, 3,
+                &vec![
+                -0.04251098, -0.1185273, 0.21597244,
+                0.22137548, 0.07778901, 0.08626569,
+                0.10810049, -0.20591296, -0.0917286,
+                ]);
+        
+        (y, u_i)
+    }
+    */
 }

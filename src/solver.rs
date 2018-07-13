@@ -20,229 +20,16 @@ pub mod testlib;
 pub mod tableau;
 pub mod dynamic;
 
-use testlib::TrialResults;
 use tableau::FlexTabError;
 use tableau::FlexTab;
 
 const ZTHRESH: f64 = 1e-9;
 
-
-#[allow(dead_code)]
-//{@
-/// Return set matrices: (y, u_i) used for debugging purposes.
-//@}
-fn use_given_matrices() -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
-    let y = na::DMatrix::from_row_slice(3, 8,
-            &vec![
-            -2.13221971, 1.65267722, -3.58171708, 0.20317985,
-            -0.20317985, -1.65267722, -2.13221971, 2.13221971,
-
-            1.33427445, 0.75515798, -1.76382965, -2.34294612, 
-            2.34294612, -0.75515798, 1.33427445, -1.33427445,
-
-            -2.49940914, 0.07649133, -0.74610697, 1.8297935,
-            -1.8297935, -0.07649133, -2.49940914, 2.49940914,
-            ]);
-
-    let u_i = na::DMatrix::from_row_slice(3, 3,
-            &vec![
-            -0.04251098, -0.1185273, 0.21597244,
-            0.22137548, 0.07778901, 0.08626569,
-            0.10810049, -0.20591296, -0.0917286,
-            ]);
-    
-    (y, u_i)
-} //@}
-
-#[allow(dead_code)]
-/// If x is within tol of {-1,0,1}, then return how far off it is
-/// otherwise return 0
-fn near_pm_one_or_zero( x: f64, tol: f64 ) -> f64 {
-    if ( x - 1f64 ).abs() < tol {
-        return x - 1f64;
-    } else if ( x + 1f64 ).abs() < tol {
-        return x + 1f64;
-    } else if x.abs() < tol {
-        return x;
-    }
-
-    0f64
-}
-
-#[allow(dead_code)]
-/// The main centering step.  Returns a new version of y so that the entries
-/// of u*y that are within tol of {-1, 0, 1} are forced to those values
-/// Set tol=0f64 and the function will just return a copy of y
-fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) -> 
-    Option<na::DMatrix<f64>> 
-{
-    let n = y.nrows();
-    let k = y.ncols();
-
-    //Skip if tolerance is zero (i.e. don't center)
-    if tol == 0f64 {
-        return Some( y.clone() );
-    }
-
-    let mut uy = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
-    u.mul_to( y, &mut uy );
-
-    //Find epsilon
-    let del = uy.map( |x| near_pm_one_or_zero(x, tol) );
-
-    //center y, first we need bfs_inv
-    match u.clone().try_inverse() {
-        Some(u_inv) => return Some( y - u_inv * del ),
-        None => return None,
-    }
-}
-
-
-#[allow(dead_code)]
-/// Crude test code to test AWGN performance
-fn test_awgn() {
-    let channels = 50;
-    let reps_per = 100;
-
-    let n = 4; let k = 30;
-    let complex = false;
-    
-    //This code does a parameter sweep over the following two variables
-    let var = vec![0.001, 0.005, 0.01, 0.05, 0.1]; // Noise variance
-    let tol = [0.1];
-
-    //let var = vec![0.008,0.004,0.002,0.001]; // Noise variance
-    //let tol = [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.11,0.12]; //Centering tolerance
-
-
-    let dim = vec![(n, k)];
-
-    let mut res_vec = Vec::new();
-    //let mut res_wc_vec = Vec::new();
-
-    for v in 0 .. var.len() {
-        for t in 0 .. tol.len() {
-        println!("Tolerance: {}", tol[t]);
-            eprintln!("Noise variance: {}", var[v]);
-            let mut results = TrialResults::new(n,k,var[v]);
-            results.tol = tol[t];
-            //let mut well_cond_results = TrialResults::new(n,k,var[v]);
-
-            //Generate trial and add noise
-            for ii in 0 .. channels {
-                if ii % 10 == 0 { eprint!("#"); }
-
-                let mut res = TrialResults::new(n,k,var[v]);
-                let x = matrix::get_matrix( &dim[0 .. 1] );
-                let (a, y_base) = matrix::y_a_from_x(&x, complex);
-
-                info!("A = {:.4}", a);
-                info!("Y = {:.4}", y_base);
-
-                //Mostly for debugging purposes, display the singular values of the
-                //channel.  
-                if cfg!(build = "debug") {
-                    let svd = na::SVD::new(a.clone(), false, false);
-                    let s = svd.singular_values;
-                    let mut outstr = format!("Singular values: ");
-                    let mut min = 1000f64; let mut max = 0f64;
-                    for ss in s.iter() {
-                        if ss > &max { max = *ss; }
-                        if ss < &min { min = *ss; }
-                        outstr += &format!("{} ", ss);
-                    }
-                    trace!("{}", outstr);
-                    trace!("Condition number: {}, sigma_4: {}", max / min, min);
-                }
-
-                //Main loop
-                for _ in 0 .. reps_per {
-                    //Generate noise
-                    let e = matrix::rand_matrix(n, k);
-                    let mut y = y_base.clone() + var[v]*e;
-                    res.trials += 1;
-
-                    match single_run(&y,true,tol[t]) {
-                        Err(e) => {
-                            match e {
-                                FlexTabError::Runout => {
-                                    res.runout += 1;
-                                },
-                                
-                                _ => res.error += 1,
-                            };
-                        },
-
-                        Ok(ft) => {
-                            res.complete += 1;
-                            res.total_bits += n*k;
-                            let mut uy = ft.best_state.get_u() * y_base.clone();
-                            uy.apply( |x| x.signum() );
-                            if equal_atm(&uy, &x) {
-                                res.success += 1;
-                                info!("EQUAL ATM");
-                            } else {
-                                res.not_atm += 1;
-                                // UY did +not+ match X, print some results and also
-                                // determine if UY was even a vertex.
-                                info!("Non-ATM");
-                                trace!("base_state.uy = {:.2}", ft.best_state.get_uy());
-                                trace!("uy = {:.2}", uy );
-                                trace!("x = {:.2}", x);
-                                let ser = compute_symbol_errors( &uy, &x, 
-                                                                 Some(&ft.best_state.get_u()), 
-                                                                 Some(&a) );
-
-                                match ser {
-                                    Some(s) => {
-                                        res.bit_errors += s;
-                                    },
-                                    //Temporary code until I write better ATM recovery:
-                                    None => {
-                                        res.bit_errors += 
-                                            force_estimate( &uy, &x );
-                                    }
-                                }
-                            }
-                        }
-                    };
-                }
-                info!("{}\n", res); 
-                
-                //if min > 0.1 {
-                //    well_cond_results += res.clone();
-                //}
-
-                results += res;
-            }
-
-            println!("\n{}\n", results);
-            //println!("For sigma_4 > 0.1:\n{}\n", well_cond_results);
-
-            res_vec.push( results );
-            //res_wc_vec.push( well_cond_results );
-
-        }
-
-        println!("\n-----------------------------------");
-    }
-
-    println!("SNR\t delta\t Complete\t BER");
-    for i in 0 .. res_vec.len() {
-        let n = 1.0 / res_vec[i].var;
-        println!("{:.0},\t {:.2},\t {:.2e},\t {:.2e}", 10.0*n.log10(), res_vec[i].tol,
-                 res_vec[i].complete as f64 / res_vec[i].trials as f64,
-                 res_vec[i].bit_errors as f64 / res_vec[i].total_bits as f64 );
-    }
-}
-
-//{@
 /// Perform a single run using a given +y+ matrix, which contains k symbols each
 /// of length n.
-//@}r
 pub fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) 
     -> Result<FlexTab, FlexTabError> 
-{ //{@
+{ 
     let mut attempts = 0;
     const LIMIT: usize = 100; // Max attempts to restart with fresh random U_i.
     let mut ft;
@@ -393,14 +180,10 @@ pub fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
     } else {
         return Ok(ft);
     }
-} //@}
-// end runnable functions@}
+}
 
-// matrix generation functions{@
 #[allow(dead_code)]
-//{@
 /// Return true iff a == b up to an ATM.
-//@}
 pub fn equal_atm(a: &na::DMatrix<f64>, b: &na::DMatrix<f64>) -> bool { //{@
     if a.shape() != b.shape() { return false; }
     // used_rows[k] will be set to true when a row k of +b+ is used to match
@@ -423,8 +206,56 @@ pub fn equal_atm(a: &na::DMatrix<f64>, b: &na::DMatrix<f64>) -> bool { //{@
         if !matched { return false; }
     }
     true
-} //@}
+} 
 
+
+#[allow(dead_code)]
+fn count_bfs_entry(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) 
+    -> (u64,u64,u64) {
+
+    let prod = u*y;
+    let pm1 = prod.into_iter().map( |&elt| (elt.abs() - 1.0).abs() < zthresh );
+    let zeros = prod.into_iter().map( |&elt| elt.abs() < zthresh );
+    let other = prod.into_iter().map( |&elt| ( elt.abs() > zthresh ) 
+                                      && ((elt.abs() - 1.0).abs() > zthresh) );
+
+    let sum_pm1 = pm1.into_iter().fold(0, |acc, x| acc + (x as u64));
+    let sum_zeros = zeros.into_iter().fold(0, |acc, x| acc + (x as u64));
+    let sum_other = other.into_iter().fold(0, |acc, x| acc + (x as u64));
+
+    return (sum_pm1, sum_zeros, sum_other);
+}
+
+/// Returns true if the given value of U is feasible.  Ignores entries in the
+/// product UY where mask is set to 0.  This is done to ignore entries that
+fn is_feasible(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
+               mask: Option<&na::DMatrix<bool>>) -> bool {
+    let prod = u * y;
+    if let Some(mask) = mask {
+        assert!(prod.shape() == mask.shape());
+    }
+
+    for j in 0 .. prod.ncols() {
+        for i in 0 .. prod.nrows() {
+            let check = match mask {
+                None => true,
+                Some(mask) => mask.column(j)[i],
+            };
+            if check && prod.column(j)[i].abs() > 1.0f64 + ZTHRESH {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/////////////////////////////////////////////////////////////////////////
+///
+/// This is all code for dealing with AWGN / bit errors.  Needs cleaning
+/// up and is somewhat incomplete.  Will likely move to a its own module
+/// eventually.
+///
+/////////////////////////////////////////////////////////////////////////
 
 /// Return true if a is an ATM matrix
 /// a is rounded to nearest int so necessary and sufficient condition
@@ -451,7 +282,7 @@ pub fn is_atm( a: &na::DMatrix<f64> ) -> bool {
 #[allow(dead_code)]
 ///Find the number of symbol errors in x_hat.  If u, h are provided, then try to 
 ///recover an ATM.  Otherwise, directly compare x and x_hat
-fn compute_symbol_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
+pub fn compute_symbol_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
                          u: Option<&na::DMatrix<f64>>, h: Option<&na::DMatrix<f64>> )
     -> Option<usize>
 {
@@ -573,7 +404,7 @@ fn recover_from_non_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
 
 /// Temp code until I implement the above function.  If estimate_permutation
 /// fails, then get a very crude estimate that is at least less than half
-fn force_estimate( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64> )
+pub fn force_estimate( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64> )
     -> usize 
 {
     let n = x.shape().0;
@@ -586,45 +417,44 @@ fn force_estimate( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64> )
 // end matrix generation functions@}
 
 #[allow(dead_code)]
-fn count_bfs_entry(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) 
-    -> (u64,u64,u64) {
+/// If x is within tol of {-1,0,1}, then return how far off it is
+/// otherwise return 0
+fn near_pm_one_or_zero( x: f64, tol: f64 ) -> f64 {
+    if ( x - 1f64 ).abs() < tol {
+        return x - 1f64;
+    } else if ( x + 1f64 ).abs() < tol {
+        return x + 1f64;
+    } else if x.abs() < tol {
+        return x;
+    }
 
-    let prod = u*y;
-    let pm1 = prod.into_iter().map( |&elt| (elt.abs() - 1.0).abs() < zthresh );
-    let zeros = prod.into_iter().map( |&elt| elt.abs() < zthresh );
-    let other = prod.into_iter().map( |&elt| ( elt.abs() > zthresh ) 
-                                      && ((elt.abs() - 1.0).abs() > zthresh) );
-
-    let sum_pm1 = pm1.into_iter().fold(0, |acc, x| acc + (x as u64));
-    let sum_zeros = zeros.into_iter().fold(0, |acc, x| acc + (x as u64));
-    let sum_other = other.into_iter().fold(0, |acc, x| acc + (x as u64));
-
-    return (sum_pm1, sum_zeros, sum_other);
+    0f64
 }
 
-//{@
-/// Returns true if the given value of U is feasible.  Ignores entries in the
-/// product UY where mask is set to 0.  This is done to ignore entries that
-//@}
-fn is_feasible(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, //{@
-        mask: Option<&na::DMatrix<bool>>) -> bool {
-    let prod = u * y;
-    if let Some(mask) = mask {
-        assert!(prod.shape() == mask.shape());
+#[allow(dead_code)]
+/// The main centering step.  Returns a new version of y so that the entries
+/// of u*y that are within tol of {-1, 0, 1} are forced to those values
+/// Set tol=0f64 and the function will just return a copy of y
+fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) -> 
+    Option<na::DMatrix<f64>> 
+{
+    let n = y.nrows();
+    let k = y.ncols();
+
+    //Skip if tolerance is zero (i.e. don't center)
+    if tol == 0f64 {
+        return Some( y.clone() );
     }
 
-    for j in 0 .. prod.ncols() {
-        for i in 0 .. prod.nrows() {
-            let check = match mask {
-                None => true,
-                Some(mask) => mask.column(j)[i],
-            };
-            if check && prod.column(j)[i].abs() > 1.0f64 + ZTHRESH {
-                return false;
-            }
-        }
-    }
-    true
-} //@}
+    let mut uy = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
+    u.mul_to( y, &mut uy );
 
-// end principal functions@}
+    //Find epsilon
+    let del = uy.map( |x| near_pm_one_or_zero(x, tol) );
+
+    //center y, first we need bfs_inv
+    match u.clone().try_inverse() {
+        Some(u_inv) => return Some( y - u_inv * del ),
+        None => return None,
+    }
+}
