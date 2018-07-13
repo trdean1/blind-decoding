@@ -66,38 +66,6 @@ fn bfs_test() {
 /// Run the BFS finder multiple times over multiple different base matrices.
 //@}
 fn many_bfs(reps: usize) { //{@
-    /*
-    let xmats = vec![
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(2, 2,
-                &vec![  1.,  1.,
-                        1., -1., 
-                ]), extra_cols: 3,
-        },
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(3, 4,
-                &vec![  1.,  1.,  1.,  1.,
-                        1.,  1., -1., -1.,
-                        1., -1.,  1., -1.,
-                ]), extra_cols: 5,
-        },
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(4, 5,
-                &vec![  1.,  1.,  1.,  1.,  1.,
-                        1.,  1., -1., -1.,  1.,
-                        1., -1.,  1., -1.,  1.,
-                        1., -1., -1.,  1., -1.,
-                ]), extra_cols: 5,
-        },
-        BaseMatrix { basemtx: na::DMatrix::from_row_slice(6, 6,
-                &vec![ -1.,  1.,  1.,  1.,  1.,  1.,
-                        1., -1.,  1.,  1.,  1.,  1.,
-                        1.,  1., -1.,  1.,  1.,  1.,
-                       -1., -1., -1., -1.,  1.,  1.,
-                       -1., -1., -1.,  1., -1.,  1.,
-                       -1., -1., -1.,  1.,  1., -1.,
-                ]), extra_cols: 8,
-        },
-    ];
-    */
-
     let dims: Vec<(usize,usize)> = (6..20).filter(|x| x % 2 == 0).map(|x| (4,x) ).collect();
 
     //let mut rng = rand::thread_rng();
@@ -494,6 +462,8 @@ pub fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64)
                     break;
                 },
             }
+
+            if center_tol == 0f64 { break; }
 
             if (bfs.clone() - u_i.clone()).amax() < ZTHRESH {
                 break;
