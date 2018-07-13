@@ -580,7 +580,11 @@ mod tests {
             let bfs = find_bfs(&ui, &y).unwrap();
             
             let uy = bfs * y;
-            assert!( uy.iter().all( |&elt| elt < 1.0 + 1e-9 ) );
+            let feasible = uy.iter().all( |&elt| elt < 1.0 + 1e-9 );
+            
+            if !feasible{ println!("UY = {:.4}", uy); }
+
+            assert!( feasible );
         }
     }
 }

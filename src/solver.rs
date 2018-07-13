@@ -585,6 +585,7 @@ fn force_estimate( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64> )
 }
 // end matrix generation functions@}
 
+#[allow(dead_code)]
 fn count_bfs_entry(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) 
     -> (u64,u64,u64) {
 
