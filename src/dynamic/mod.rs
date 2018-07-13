@@ -7,6 +7,8 @@ use std::collections::{HashSet};
 
 use ZTHRESH;
 
+mod feasibleregion;
+
 #[allow(dead_code)]
 #[derive(Hash, Eq, PartialEq)]
 pub enum BFSType { //{@
@@ -208,6 +210,8 @@ fn boundary_dist(u: &na::DMatrix<f64>, v: &na::DMatrix<f64>, //{@
 pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>) 
     -> Option<na::DMatrix<f64>> 
 { //{@
+    let fs = feasibleregion::FeasibleRegion::new(y, None);
+
     let mut u = u_i.clone();
     let mut gradmtx = u.clone();
     let (n, k) = y.shape();
