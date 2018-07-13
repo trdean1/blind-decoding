@@ -16,9 +16,6 @@ extern crate regex;
 extern crate log;
 extern crate env_logger;
 
-use std::io::stdout;
-use std::io::Write;
-
 pub mod matrix;
 pub mod testlib;
 pub mod tableau;
@@ -27,7 +24,6 @@ pub mod dynamic;
 use testlib::TrialResults;
 use tableau::FlexTabError;
 use tableau::FlexTab;
-use dynamic::BFSType;
 
 // end imports@}
 // constants{@
@@ -139,18 +135,6 @@ fn use_given_matrices() -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
     
     (y, u_i)
 } //@}
-
-#[allow(dead_code)]
-/// Old centering code
-fn near_pm_one( x: f64, tol: f64 ) -> f64 {
-    if ( x - 1f64 ).abs() < tol {
-        return x - 1f64;
-    } else if ( x + 1f64 ).abs() < tol {
-        return x + 1f64;
-    }
-
-    0f64
-}
 
 #[allow(dead_code)]
 /// If x is within tol of {-1,0,1}, then return how far off it is
@@ -331,69 +315,6 @@ fn test_awgn() {
         println!("{:.0},\t {:.2},\t {:.2e},\t {:.2e}", 10.0*n.log10(), res_vec[i].tol,
                  res_vec[i].complete as f64 / res_vec[i].trials as f64,
                  res_vec[i].bit_errors as f64 / res_vec[i].total_bits as f64 );
-    }
-}
-
-
-
-///Keeps forming problem instances and running the dynamic solver
-///until we land on the face of a feasible region.
-///Then we try to correct and move to a vertex.
-#[allow(dead_code)]
-fn single_wrong_dynamic_test( n : usize, k : usize, zthresh : f64 ) 
-    -> Option<na::DMatrix<f64>>
-{
-    loop {
-        let dim = vec![(n,k)];
-        let x = matrix::get_matrix( &dim[0 .. 1] );
-        let (_a, y) = matrix::y_a_from_x( &x, false );
-
-        let u_i = matrix::rand_init(&y);
-    
-        let mut bfs = match dynamic::find_bfs(&u_i, &y) {
-            Some(r) => r, 
-            None => return None,
-        };
-
-        //Check if we are not in {-1, 0, 1}
-        if dynamic::verify_bfs( &bfs, &y, zthresh ) == BFSType::Wrong {
-            bfs = match dynamic::find_vertex_on_face( &bfs, &y, zthresh ) {
-                Some(r) => r,
-                None => return None,
-            };
-            return Some(bfs * y);
-        }
-    }
-}
-
-#[allow(dead_code)]
-fn multiple_dynamic_test( dims: Vec<(usize,usize)>, trials: usize, zthresh: f64 )
-{
-    for (n, k) in dims.into_iter() {
-        let mut pm1 = 0; let mut pm10 = 0; 
-        let mut wrong = 0; let mut error = 0;
-        println!("Collecting {} trials at n={}, k={}", trials, n, k);
-        for i in 0..trials {
-            if (i % (trials / 10) == 0) && i != 0 {
-                print!(".");
-                let _ = stdout().flush();
-            }
-            let uy = match single_wrong_dynamic_test( n, k, zthresh ) {
-                Some(r) => r,
-                None => {error += 1; continue;},
-            };
-
-            if uy.iter().all( |&elt| (elt.abs() - 1.0).abs() < zthresh ) {
-                pm1 += 1;
-            } else if uy.iter().all( |&elt| (elt.abs() - 1.0).abs() < zthresh 
-                                     || elt.abs() < zthresh ) {
-                pm10 += 1;
-            } else {
-                println!("{:.4}", uy);
-                wrong += 1;
-            }
-        }
-        println!("\nPM1: {}, PM10: {}, Wrong: {}, Errors: {}\n", pm1, pm10, wrong, error);
     }
 }
 

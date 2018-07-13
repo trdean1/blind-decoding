@@ -20,7 +20,7 @@ fn main() {
     //Sweep from n=2 to n=8, skipping n=7 (works but is slow since we don't have an is_done
     //function)
     let mut dims = Vec::new();
-    for ii in 2 .. 9 {
+    for ii in 2 .. 5 {
         if ii == 7 { continue; }
         for jj in 0 .. 8 {
             if 4*jj <= ii { continue; }
