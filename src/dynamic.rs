@@ -560,7 +560,7 @@ mod tests {
     /// something infeasible half the time
     #[test]
     fn bfs_instability_test() {
-        for _ in 0 .. 10 {
+        for _ in 0 .. 100 {
             let y = na::DMatrix::from_row_slice( 4,6,
                     &vec![
                     -0.85105277, -0.63492999, 3.41237287, 1.20811145, 0.35892148, 2.41836825,
@@ -580,7 +580,7 @@ mod tests {
             let bfs = find_bfs(&ui, &y).unwrap();
             
             let uy = bfs * y;
-            let feasible = uy.iter().all( |&elt| elt < 1.0 + 1e-9 );
+            let feasible = uy.iter().all( |&elt| elt < 1.0 + 1e-6 );
             
             if !feasible{ println!("UY = {:.4}", uy); }
 
