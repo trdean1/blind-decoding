@@ -8,7 +8,6 @@
  *
  */
 
-// imports{@
 extern crate nalgebra as na;
 extern crate rand;
 extern crate regex;
@@ -25,89 +24,8 @@ use testlib::TrialResults;
 use tableau::FlexTabError;
 use tableau::FlexTab;
 
-// end imports@}
-// constants{@
 const ZTHRESH: f64 = 1e-9;
-// end constants@}
 
-#[allow(dead_code)]
-/// This just tests the BFS finding with a fixed input.  The BFS solver will return
-/// something infeasible half the time
-fn bfs_test() {
-    let y = na::DMatrix::from_row_slice( 4,6,
-            &vec![
-            -0.85105277, -0.63492999, 3.41237287, 1.20811145, 0.35892148, 2.41836825,
-            3.96976924, -0.73519243, -1.04010774, 0.12971196, 1.03251896, -2.80775547,
-            3.12355480, 2.95773796, 0.67356399, 0.87056107, 2.94202708, 0.68919778,
-            -2.31709338, 0.66587824, 1.21174544, 2.38172050, -1.41046808, 3.28820386
-            ]);
-
-    let ui = na::DMatrix::from_row_slice( 4,4,
-           &vec![
-            -0.06779237, -0.08776801,  0.03347982, -0.04695821,
-            -0.01830087, -0.05418955, -0.09233134,  0.06187484,
-            0.06205623, -0.02276697, -0.05832655, -0.08862112,
-            0.08272422, -0.06683513,  0.05076455,  0.04168607
-           ]);
-
-    println!("UY={}", ui.clone()*y.clone());
-    let bfs = dynamic::find_bfs(&ui, &y).unwrap();
-    println!("UY={:.3}", bfs * y );
-}
-
-// Principal functions{@
-// Runnable functions{@
-
-#[allow(dead_code)]//{@
-/// Run the BFS finder multiple times over multiple different base matrices.
-//@}
-fn many_bfs(reps: usize) { //{@
-    let dims: Vec<(usize,usize)> = (6..20).filter(|x| x % 2 == 0).map(|x| (4,x) ).collect();
-
-    //let mut rng = rand::thread_rng();
-    //let mut results = HashMap::new();
-    for i in 0 .. dims.len() {
-        let mut good = 0;
-        let mut zero = 0;
-        let mut other = 0;
-
-        for _ in 0 .. reps {
-            //let basemtx = rng.choose(&xmats).unwrap();
-            let x = matrix::get_matrix(&dims[i .. i+1]);
-            //let x = basemtx.fill();
-            let (_a, y) = matrix::y_a_from_x(&x, false);
-            let u_i = matrix::rand_init(&y);
-            //println!("a = {}\ny = {}\nUi = {}", a, y, u_i);
-            let bfs = dynamic::find_bfs(&u_i, &y).unwrap();
-            //let uy = bfs.clone() * y.clone();
-            //println!("UY = {}\n", uy);
-
-            let (g,z,o) = count_bfs_entry(&bfs, &y, 1e-3);
-            good += g; zero += z; other += o;
-
-            //if o > 0 {
-            //    println!( "UY = {:.13}", bfs.clone() * y.clone() );
-            //    println!( "Y = {:.13}", y.clone() );
-            //    println!( "U_i = {:.13}", u_i.clone() );
-            //}
-
-            //let res = verify_bfs(&bfs, &y, ZTHRESH);
-            //if res == BFSType::Wrong {
-            //    let uy = bfs.clone() * y.clone();
-            //    println!("BFS Fail: a = {:.6}y = {:.6}u_i = {:.6}u = {:.6}\nuy = {:.6}",
-            //            a, y, u_i, bfs, uy);
-            //}
-            //let count = results.entry(res).or_insert(0);
-            //*count += 1;
-        }
-        let total = reps * dims[i].0 * dims[i].1;
-
-        print!("({},{}):\t", dims[i].0, dims[i].1);
-        println!("Good = {:.4}, Zero = {:.3e}, Other = {:.3e}", (good as f64) / (total as f64), 
-                 (zero as f64) / (total as f64), 
-                 (other as f64) / (total as f64) );
-    }
-} //@}
 
 #[allow(dead_code)]
 //{@
