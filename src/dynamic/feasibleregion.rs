@@ -91,13 +91,9 @@ impl FeasibleRegion {
         }
     }
 
-    pub fn insert_mtx( &mut self, update: &na::DMatrix<bool> ) {
-        for i in 0 .. update.nrows() {
-            for j in 0 .. update.ncols() {
-                if update[(i,j)] {
-                    self.insert( i, j );
-                }
-            }
+    pub fn insert_from_vec( &mut self, update: &Vec<(usize,usize)> ) {
+        for (i,j) in update.iter() {
+            self.insert( *i, *j );
         }
     }
 
@@ -192,6 +188,15 @@ impl FeasibleRegion {
         }
         
         Some(vv.transpose())
+    }
+
+    pub fn get_len_p( &self ) -> usize {
+        let mut len = 0;
+        for row in self.p.iter() {
+            len += row.len();
+        }
+
+        len
     }
 
     #[allow(dead_code)]

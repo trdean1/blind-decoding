@@ -210,7 +210,6 @@ fn boundary_dist(u: &na::DMatrix<f64>, v: &na::DMatrix<f64>, //{@
 pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>) 
     -> Option<na::DMatrix<f64>> 
 { //{@
-    let fs = feasibleregion::FeasibleRegion::new(y, None);
 
     let mut u = u_i.clone();
     let mut gradmtx = u.clone();
@@ -226,18 +225,22 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
     u += v;
 
     let mut gradmtx = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
-    let mut gradvec = vec![0.0; n*n];
+    //let mut gradvec = vec![0.0; n*n];
     let mut p_bool = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
     let mut p_bool_iter = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
     let mut p_bool_updates = Vec::with_capacity(k);
-    let mut p = na::DMatrix::from_column_slice(0, n*n, &Vec::<f64>::new());
+    let mut fs = feasibleregion::FeasibleRegion::new(y, None);
+
     for _iter in 0 .. (n*n - 1) {
+
+        //Print UY to trace each iteration if debug build
         if cfg!(build = "debug") {
             let mut _uy = na::DMatrix::from_column_slice(n, y.ncols(),
-                    &vec![0.0; n * y.ncols()]);
+                                                         &vec![0.0; n * y.ncols()]);
             u.mul_to(&y, &mut _uy);
-            trace!("Iteration {}\nuy = {:.3}p = {:.3}", _iter, _uy, p);
+            trace!("Iteration {}\nuy = {:.3}\nfs = {:.3}", _iter, _uy, fs);
         }
+
         get_active_constraints_bool(&u, &y, &mut p_bool_iter, ZTHRESH);
         p_bool_updates.clear();
         for j in 0 .. k {
@@ -251,17 +254,19 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
         }
         p_bool.copy_from(&p_bool_iter);
 
-        p = update_p(p, &p_bool_updates, &y);
-        p = orthogonalize_p(p,ZTHRESH);
+        //p = update_p(p, &p_bool_updates, &y);
+        fs.insert_from_vec( &p_bool_updates );
+        //p = orthogonalize_p(p,ZTHRESH);
 
         gradmtx.copy_from(&u);
         gradmtx = match objgrad(&mut gradmtx) {
             Some(grad) => grad,
             None => break,
         };
-        gradvec.copy_from_slice(&gradmtx.transpose().as_slice());
-        debug!("Iteration {} has {} independent constraints", _iter, p.nrows());
+        //gradvec.copy_from_slice(&gradmtx.transpose().as_slice());
+        debug!("Iteration {} has {} independent constraints", _iter, fs.get_len_p());
 
+        /*
         for row_idx in 0 .. p.nrows() {
             let row = p.row(row_idx);
             let s = gradvec.iter()
@@ -273,16 +278,16 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
                    .enumerate()
                    .for_each(|(j, e)| *e -= s * row[j]);
         }
-
         debug!("gradvec = {:?}", gradvec);
-
+        
         for j in 0 .. n {
             let mut col = gradmtx.column_mut(j);
             for i in 0 .. n {
                 let idx = n * i + j;
                 col[i] = gradvec[idx];
             }
-        }
+        }*/
+        gradmtx = fs.reject_mtx( &gradmtx );
 
         debug!("norm = {}", gradmtx.norm());
         if gradmtx.norm() < 1e-9 {
@@ -333,7 +338,8 @@ pub fn verify_bfs(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) //{@
 } //@}
 // end BFS finder.@}
 
-fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, row: usize,
+fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, 
+                  fs: &mut feasibleregion::FeasibleRegion, row: usize,
                   zthresh: f64)
     -> Option<na::DMatrix<f64>>
 {
@@ -349,6 +355,7 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, row: usize,
              .map(|(i,_x)| i )
              .collect();
 
+    /*
     //this holds the active constraints (row, column)
     let mut p_updates: Vec<(usize,usize)> = bad_row.into_iter()
              .enumerate()
@@ -368,6 +375,7 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, row: usize,
         new_row /= norm;
     }
     p = orthogonalize_p( p, zthresh );
+    */
 
     //Now main loop...don't try moving in more than n subspaces
     let mut i = 0;
@@ -379,13 +387,13 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, row: usize,
         let bad_y = y.column( bad_indices[j] );
 
         //This is the direction we are going to move in
-        let mut v = na::DMatrix::from_column_slice(n, 1, &vec![0.0; n]);
+        let mut v = na::RowDVector::from_column_slice(n, &vec![0.0; n]);
         norm[(0,0)] = 0.0;
 
         //temp variable
-        let mut uu = na::DMatrix::from_column_slice(n, 1, &vec![0.0; n]);
-        let mut vv = na::DMatrix::from_column_slice(1, n, &vec![0.0; n]);
-        let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
+        //let mut uu = na::DMatrix::from_column_slice(n, 1, &vec![0.0; n]);
+        //let mut vv = na::DMatrix::from_column_slice(1, n, &vec![0.0; n]);
+        //let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
 
         //Attempt to find vector in null space
         let mut k = n;
@@ -397,8 +405,13 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, row: usize,
                 return Some( u_row );
             }
 
-            v = rand_unit( n );
+            v = rand_unit( n ).transpose();
+            v = match fs.reject_vec( &v.transpose(), row ) {
+                Some(r) => r.transpose(),
+                None => na::RowDVector::from_column_slice(n, &vec![0.0; n]),
+            };
 
+            /*
             //Reject v (direction to move) from p (basis of active constraints)
             for i in 0..p.nrows() {
                 p.row(i).transpose_to( &mut uu );
@@ -407,20 +420,23 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, row: usize,
                 v.sub_to( &uu.transpose(), &mut vv );
                 v.copy_from(&vv);
             }
-            
+            */
 
             //Update norm of projection
             v.mul_to(&v.transpose(), &mut norm);
+            
 
             if norm[(0,0)] < 1e-13 {
                 continue;
             }
             v /= norm[(0,0)].sqrt();
             
+
             //println!("Normalized direction after rejection={:.4}", v);
         }
 
         //Compute values to force to -1 and +1
+        let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
         let mut uy_dot = na::DMatrix::from_column_slice(1, 1, &vec![0.0; 1]);
         u_row.mul_to( &bad_y, &mut uy_dot );
         v.mul_to( &bad_y, &mut uv);
@@ -485,12 +501,15 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, row: usize,
              .map(|(i,_x)| i )
              .collect();
 
-        p_updates = bad_row.into_iter()
+        let p_updates = bad_row.into_iter()
              .enumerate()
              .filter(|&(_i,x)| x.abs() < zthresh || (x.abs() - 1.0).abs() < zthresh )
              .map(|(i,_x)| (row,i) )
              .collect();
 
+
+        fs.insert_from_vec( &p_updates );
+        /*
         for &(_ii,jj) in p_updates.iter() {
             let row_idx = p.nrows();
             p = p.insert_row(row_idx, 0.0);
@@ -501,17 +520,32 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, row: usize,
             new_row /= norm;
         }
         p = orthogonalize_p( p, zthresh );
+        */
     }
      
     Some( u_row )
 }
 
-pub fn find_vertex_on_face( u_i : &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh : f64 )
+pub fn find_vertex_on_face( u_i : &na::DMatrix<f64>, y: &na::DMatrix<f64>, 
+                            zthresh : f64 )
     -> Option<na::DMatrix<f64>>
 {
     let mut u = u_i.clone();
     let uy = u.clone() * y.clone();
     let (n, _k) = y.shape();
+
+    //TODO: I shouldn't have to redo this, I should at least implement copy
+    //for FeasibleRegion and then copy over p rather than recomputing...
+    let mut fs = feasibleregion::FeasibleRegion::new( &y, Some(zthresh) );
+    let mut updates: Vec<(usize, usize)> = Vec::new();
+    for j in 0 .. uy.ncols() {
+        for i in 0 .. uy.nrows() {
+            if (uy[(i,j)].abs() - 1.0).abs() < zthresh {
+                updates.push( (i,j) );
+            }
+        }
+    }
+    fs.insert_from_vec( &updates );
 
     trace!("Starting uy = {:.4}", uy);
 
@@ -522,7 +556,7 @@ pub fn find_vertex_on_face( u_i : &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthre
                           || elt.abs() < zthresh ) {
             continue;
         } else {
-            let new_row = match row_to_vertex( &u, &y, i, zthresh ) {
+            let new_row = match row_to_vertex( &u, &y, &mut fs, i, zthresh ) {
                 Some(r) => r,
                 None => return None,
             };
@@ -541,7 +575,7 @@ pub fn find_vertex_on_face( u_i : &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthre
 }
 
 #[allow(dead_code)]
-pub fn rand_unit(n: usize) -> na::DMatrix<f64> {
+pub fn rand_unit(n: usize) -> na::DVector<f64> {
     let mut rng = rand::thread_rng();
     let mut data = Vec::with_capacity(n);
     let dist = Normal::new(0.0, 1.0);
@@ -549,7 +583,7 @@ pub fn rand_unit(n: usize) -> na::DMatrix<f64> {
         data.push(dist.sample(&mut rng));
     }
 
-    let mut v = na::DMatrix::from_column_slice(1, n, &data);
+    let mut v = na::DVector::from_column_slice(n, &data);
     let norm = v.norm();
     v /= norm;
 
