@@ -34,14 +34,34 @@ impl fmt::Display for FeasibleRegion {
         s += "b = \n";
         for i in 0 .. self.b.len() {
             for j in 0 .. self.b[i].len() {
-                s += &format!("{:.4}\n", self.b[i][j]);
+                s += "\t[";
+                for k in 0 .. self.dims.0 {
+                    if self.b[i][j][(0,k)] >= 0.0 {
+                        s += " ";
+                    }
+                    s += &format!("{:.4}", self.b[i][j][(0,k)]);
+                    if k != self.dims.0 - 1 {
+                        s += ", ";
+                    }
+                }
+                s += "]\n";
             }
         }
 
         s += "p = \n";
         for i in 0 .. self.p.len() {
             for j in 0 .. self.p[i].len() {
-                s += &format!("{:.4}\n", self.p[i][j]);
+                s += "\t[";
+                for k in 0 .. self.dims.0 {
+                    if self.p[i][j][(0,k)] >= 0.0 {
+                        s += " ";
+                    }
+                    s += &format!("{:.4}", self.p[i][j][(0,k)]);
+                    if k != self.dims.0 - 1 {
+                        s += ", ";
+                    }
+                }
+                s += "]\n";
             }
         }
 
@@ -108,10 +128,10 @@ impl FeasibleRegion {
             let u = &self.p[row][i];
 
             //uv = (u * v.T)
-            v.mul_to( &u, &mut uv );
+            v.mul_to( &u.transpose(), &mut uv );
 
             //u_norm = u * u.T
-            u.mul_to( &u.transpose().clone(), &mut u_norm );
+            u.mul_to( &u.transpose(), &mut u_norm );
 
             //v = v - ((u * v.T) / (u * u.T)) * u
             v -= (uv[(0,0)] / u_norm[(0,0)]) * u.clone();
@@ -129,7 +149,7 @@ impl FeasibleRegion {
         self.p[row].push( v );
     }
 
-    pub fn reject_mtx( &self, v: na::DMatrix<f64> )
+    pub fn reject_mtx( &self, v: &na::DMatrix<f64> )
             -> na::DMatrix<f64> {
         let n = v.ncols();
         let mut vv: na::DMatrix<f64> = na::DMatrix::from_column_slice(0,n,&Vec::new());
@@ -172,4 +192,112 @@ impl FeasibleRegion {
         Some(vv.transpose())
     }
 
+    #[allow(dead_code)]
+    //This is for testing only
+    fn get_p( &self ) -> Vec<Vec<na::RowDVector<f64>>> {
+        self.p.clone()
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic() {
+        let y = na::DMatrix::from_row_slice(4, 9, &vec![
+            -2.9559865737125,  2.5865278325864, -2.2980562996102,  0.7369790120865,
+            -1.7022470264114,  2.5865278325864,  2.5865278325864, -0.7369790120865,
+            -1.9907185593875,
+             1.2508223406517, -0.7159569731051,  2.9493672391056, -3.8027781425851,
+             3.6435053746187, -0.7159569731051, -0.7159569731051,  3.8027781425851,
+             1.4100951086181,
+            -0.9635641883542, -1.4738581147596, -2.9837682836541, -1.3922099258609,
+            -2.0144903304535, -1.4738581147596, -1.4738581147596,  1.3922099258609,
+             2.4431360679602,
+            -0.8759863225138, -0.8875888657254,  2.6402078223407, -1.6158556098730,
+             1.2462441219873, -0.8875888657254, -0.8875888657254,  1.6158556098730,
+            -0.5063748346281]);
+
+        let mut fs = FeasibleRegion::new( &y, Some(ZTHRESH) );
+        
+        println!("Add first entry");
+        fs.insert( 0, 0 );
+        println!("{}", fs);
+
+        println!("Make full rank");
+        fs.insert( 0, 1 );
+        fs.insert( 0, 2 );
+        fs.insert( 0, 3 );
+        println!("{}", fs);
+
+        println!("Adding redundant constraints");
+        fs.insert( 0, 4 );
+        fs.insert( 0, 5 );
+        fs.insert( 0, 6 );
+        fs.insert( 0, 7 );
+        println!("{}", fs);
+
+        println!("Ensuring p is orthonormal");
+        let pp = fs.get_p();
+        let mut res: Vec<f64> = Vec::new();
+        for i in 0 .. pp[0].len() {
+            for j in 0 .. pp[0].len() {
+                let mut prod = pp[0][i].clone() * pp[0][j].transpose().clone();
+                if i == j { prod[(0,0)] -= 1.0; }
+                res.push( prod[(0,0)] );
+            }
+        }
+        assert!( res.iter().all( |&x| x < ZTHRESH ) );
+        println!("OK!");
+    }
+
+    #[test]
+    fn rejection() {
+        let y = na::DMatrix::from_row_slice(4, 9, &vec![
+            -2.9559865737125,  2.5865278325864, -2.2980562996102,  0.7369790120865,
+            -1.7022470264114,  2.5865278325864,  2.5865278325864, -0.7369790120865,
+            -1.9907185593875,
+             1.2508223406517, -0.7159569731051,  2.9493672391056, -3.8027781425851,
+             3.6435053746187, -0.7159569731051, -0.7159569731051,  3.8027781425851,
+             1.4100951086181,
+            -0.9635641883542, -1.4738581147596, -2.9837682836541, -1.3922099258609,
+            -2.0144903304535, -1.4738581147596, -1.4738581147596,  1.3922099258609,
+             2.4431360679602,
+            -0.8759863225138, -0.8875888657254,  2.6402078223407, -1.6158556098730,
+             1.2462441219873, -0.8875888657254, -0.8875888657254,  1.6158556098730,
+            -0.5063748346281]);
+
+        let mut fs = FeasibleRegion::new( &y, Some(ZTHRESH) );
+
+        fs.insert( 0, 0 );
+        fs.insert( 0, 2 );
+        fs.insert( 2, 2 );
+        fs.insert( 2, 7 );
+
+        let v = na::DMatrix::from_row_slice( 4, 4, &vec![
+            1.0,  1.0,  1.0,  1.0,
+            1.0,  1.0, -1.0, -1.0,
+            1.0, -1.0,  1.0, -1.0,
+            1.0, -1.0, -1.0,  1.0] );
+
+        let res = fs.reject_mtx( &v );
+
+        let p = fs.get_p();
+        let mut residual_norms: Vec<f64> = Vec::new();
+
+        for i in 0 .. 4 {
+            for j in 0 .. p[i].len() {
+                let residuals = res.clone() * p[i][j].transpose();
+                for norm in residuals.iter() {
+                    if *norm < ZTHRESH {
+                        residual_norms.push( norm.clone() );
+                    }
+                }
+            }
+        }
+
+        assert!(residual_norms.len() > 3 );
+    }
 }
