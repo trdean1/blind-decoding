@@ -7,7 +7,7 @@ use ZTHRESH;
 pub struct FeasibleRegion {
     y: na::DMatrix<f64>,
     dims: (usize,usize),
-    b: Vec<Vec<na::RowDVector<f64>>>,
+    //b: Vec<Vec<na::RowDVector<f64>>>,
     p: Vec<Vec<na::RowDVector<f64>>>,
     col_map: Vec<Vec<usize>>,
     zthresh: f64,
@@ -18,7 +18,7 @@ impl Default for FeasibleRegion {
         FeasibleRegion {
             y: na::DMatrix::from_column_slice(0,0, &Vec::new()),
             dims: (0,0),
-            b: vec![vec![na::RowDVector::from_column_slice(0, &Vec::new()); 1]],
+            //b: vec![vec![na::RowDVector::from_column_slice(0, &Vec::new()); 1]],
             p: vec![vec![na::RowDVector::from_column_slice(0, &Vec::new()); 1]],
             col_map: vec![Vec::new(); 1],
             zthresh: ZTHRESH,
@@ -31,6 +31,7 @@ impl fmt::Display for FeasibleRegion {
         let mut s = String::new();
         s += &format!("Y = {:.4}\n", self.y);
 
+        /*
         s += "b = \n";
         for i in 0 .. self.b.len() {
             for j in 0 .. self.b[i].len() {
@@ -47,6 +48,7 @@ impl fmt::Display for FeasibleRegion {
                 s += "]\n";
             }
         }
+        */
 
         s += "p = \n";
         for i in 0 .. self.p.len() {
@@ -80,7 +82,7 @@ impl FeasibleRegion {
         FeasibleRegion {
             y: y.clone(),
             dims: (n,k),
-            b: vec![Vec::with_capacity(k); n],
+            //b: vec![Vec::with_capacity(k); n],
             p: vec![Vec::with_capacity(n); n],
             col_map: vec![Vec::with_capacity(n); n],
             zthresh: match zthresh{ Some(z) => z, None => ZTHRESH },
@@ -106,7 +108,7 @@ impl FeasibleRegion {
         }
 
         //Copy column of y and insert into b
-        self.b[row].push( self.y.column(column).transpose().into_owned() );
+        //self.b[row].push( self.y.column(column).transpose().into_owned() );
 
         //Update column map
         self.col_map[row].push(column);
