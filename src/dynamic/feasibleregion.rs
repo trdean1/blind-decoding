@@ -26,7 +26,6 @@ impl Default for FeasibleRegion {
     }
 }
 
-/*
 impl fmt::Display for FeasibleRegion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
@@ -34,12 +33,16 @@ impl fmt::Display for FeasibleRegion {
 
         s += "b = \n";
         for i in 0 .. self.b.len() {
-            s += &format!("{:.4}\n", self.b[i]);
+            for j in 0 .. self.b[i].len() {
+                s += &format!("{:.4}\n", self.b[i][j]);
+            }
         }
 
         s += "p = \n";
         for i in 0 .. self.p.len() {
-            s += &format!("{:.4}\n", self.p[i]);
+            for j in 0 .. self.p[i].len() {
+                s += &format!("{:.4}\n", self.p[i][j]);
+            }
         }
 
         s += "Column Mapping = \n";
@@ -50,7 +53,6 @@ impl fmt::Display for FeasibleRegion {
         write!(f, "{}", s)
     }
 }
-*/
 
 impl FeasibleRegion {
     pub fn new( y: &na::DMatrix<f64>, zthresh: Option<f64>) -> FeasibleRegion {
@@ -98,7 +100,7 @@ impl FeasibleRegion {
         let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
         
         //Normalize v
-        v.mul_to( &v.transpose().clone(), &mut v_norm );
+        v.mul_to( &v.transpose(), &mut v_norm );
         v /= v_norm[(0,0)].sqrt();
 
         //Perform matrix rejection, add v to p as long as it is not orthogonal
@@ -106,7 +108,7 @@ impl FeasibleRegion {
             let u = &self.p[row][i];
 
             //uv = (u * v.T)
-            v.mul_to( &u.clone(), &mut uv );
+            v.mul_to( &u, &mut uv );
 
             //u_norm = u * u.T
             u.mul_to( &u.transpose().clone(), &mut u_norm );
@@ -115,7 +117,7 @@ impl FeasibleRegion {
             v -= (uv[(0,0)] / u_norm[(0,0)]) * u.clone();
 
             //Check if v is orthogonal to u
-            v.mul_to( &v.clone().transpose(), &mut v_norm );
+            v.mul_to( &v.transpose(), &mut v_norm );
             if v_norm[(0,0)].sqrt() < self.zthresh { return }
 
             //Normalize and continue
@@ -127,17 +129,47 @@ impl FeasibleRegion {
         self.p[row].push( v );
     }
 
-    pub fn reject_mtx( &self, v: na::DMatrix<f64>, zthresh: Option<f64> )
-        -> Option<na::DMatrix<f64>> {
-        None 
+    pub fn reject_mtx( &self, v: na::DMatrix<f64> )
+            -> na::DMatrix<f64> {
+        let n = v.ncols();
+        let mut vv: na::DMatrix<f64> = na::DMatrix::from_column_slice(0,n,&Vec::new());
+
+        for i in 0 .. v.nrows() {
+            let v_row = v.row( i );
+            match self.reject_vec( &v_row.transpose(), i ) {
+                Some(r) => {
+                    vv = vv.insert_row( i, 0.0 );
+                    for j in 0 .. n {
+                        vv[(i,j)] = r[(j,0)];
+                    }
+                }
+                None => {
+                    vv = vv.insert_row( i, 0.0 );
+                },
+            }
+        }
+
+        vv
     }
 
-    pub fn reject_vec( &self, v: na::DMatrix<f64>, row: usize ) 
-        -> Option<na::DMatrix<f64>> {
-        //for i in 0 .. self.p[row]len() {
-        //    
-        //}
-        None
+    pub fn reject_vec( &self, v: &na::DVector<f64>, row: usize ) 
+            -> Option<na::DVector<f64>> {
+        let mut vv = v.transpose().into_owned();
+
+        let mut uu = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
+        let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
+
+        for i in 0 .. self.p[row].len() {
+            let u = &self.p[row][i];
+            vv.mul_to( &u.transpose(), &mut uv ); 
+            u.mul_to( &u.transpose(), &mut uu );
+
+            if uu[(0,0)].sqrt() < self.zthresh{ return None; }
+
+            vv -= (uv[(0,0)] / uu[(0,0)]) * u;
+        }
+        
+        Some(vv.transpose())
     }
 
 }
