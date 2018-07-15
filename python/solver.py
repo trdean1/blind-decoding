@@ -90,6 +90,11 @@ def gen_trial(X, verbose = False): #{{{
     # Compute the received symbols Y, with no error.
     Y = A * X
 
+    return Y, A
+
+def find_bfs(Y, verbose=False):
+    n = Y.shape[0]
+
     # Pick a random feasible point.
     Ui = dynamic.rand_init(n, Y)
     # Find a nonsingular vertex of the feasible region.
@@ -103,7 +108,7 @@ def gen_trial(X, verbose = False): #{{{
         print UY
 
     # Return the estimate of the symbols X, since U * Y = A^-1 * A * X = X.
-    return UY, U, Y, A, Ui
+    return UY, U 
 #end }}}
 # end function set}}}
 
@@ -118,15 +123,19 @@ def single_run(n, k, Xtype='guarantee', verbose = False, errfile = None, trap = 
         2. An integer representing the number of extra columns to add to the
         base matrix, which will be iid \pm 1
     '''
-    while True:
-        if Xtype == 'guarantee':
-            X = Xmats.X_guarantee(n, k)
-        elif Xtype == 'MSP':
-            X = Xmats.X_MSP(n, k)
-        else:
-            X = Xmats.X_random(n, k)
+    if Xtype == 'guarantee':
+        X = Xmats.X_guarantee(n, k)
+    elif Xtype == 'MSP':
+        X = Xmats.X_MSP(n, k)
+    else:
+        X = Xmats.X_random(n, k)
 
-        UY, U, Y, A, Ui = gen_trial(X, verbose)
+    Y, A = gen_trial(X, verbose)
+
+    attempts = 0
+    while True:
+        attempts += 1
+        UY, U = find_bfs(Y, verbose) 
         if verbose:
             print "X = "
             print X
