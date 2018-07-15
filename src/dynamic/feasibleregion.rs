@@ -113,33 +113,46 @@ impl FeasibleRegion {
         let mut v: na::RowDVector<f64> = 
             self.y.column(column).transpose().into_owned();
 
-        let mut v_norm = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
-        let mut u_norm = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
-        let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
-        
         //Normalize v
-        v.mul_to( &v.transpose(), &mut v_norm );
-        v /= v_norm[(0,0)].sqrt();
+        let v_norm = v.iter()
+                      .fold(0.0,
+                            |sum, &e|
+                            sum + e * e)
+                      .sqrt();
+
+        v /= v_norm;
 
         //Perform matrix rejection, add v to p as long as it is not orthogonal
         for i in 0 .. self.p[row].len() {
             let u = &self.p[row][i];
 
             //uv = (u * v.T)
-            v.mul_to( &u.transpose(), &mut uv );
+            let uv = v.iter()
+                      .enumerate()
+                      .fold(0.0,
+                            |sum, (idx, &e)|
+                            sum + e * u[idx]);
 
             //u_norm = u * u.T
-            u.mul_to( &u.transpose(), &mut u_norm );
+            let uu = u.iter()
+                          .fold(0.0,
+                                |sum, &e|
+                                sum + e * e);
 
             //v = v - ((u * v.T) / (u * u.T)) * u
-            v -= (uv[(0,0)] / u_norm[(0,0)]) * u.clone();
+            v -= (uv / uu) * u.clone();
 
             //Check if v is orthogonal to u
-            v.mul_to( &v.transpose(), &mut v_norm );
-            if v_norm[(0,0)].sqrt() < self.zthresh { return }
+            let v_norm = v.iter()
+                          .fold(0.0,
+                                |sum, &e|
+                                sum + e * e)
+                          .sqrt();
+
+            if v_norm < self.zthresh { return }
 
             //Normalize and continue
-            v /= v_norm[(0,0)].sqrt();
+            v /= v_norm;
         }
         
         //If p already has n entries then we should have returned already
@@ -265,6 +278,7 @@ mod tests {
                 res.push( prod[(0,0)] );
             }
         }
+        println!("{:?}", res);
         assert!( res.iter().all( |&x| x < ZTHRESH ) );
         println!("OK!");
     }

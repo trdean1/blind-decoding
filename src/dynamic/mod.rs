@@ -148,8 +148,6 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
     v *= t;
     u += v;
 
-    //let mut uy = na::DMatrix::from_column_slice(n, k, &vec![0.0;n*k]);
-    //let mut vy = na::DMatrix::from_column_slice(n, k, &vec![0.0;n*k]);
     let mut gradmtx = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
     let mut p_bool = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
     let mut p_bool_iter = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
@@ -161,8 +159,6 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
 
         //Print UY to trace each iteration if debug build
         if cfg!(build = "debug") {
-            //let mut _uy = na::DMatrix::from_column_slice(n, y.ncols(),
-            //                                             &vec![0.0; n * y.ncols()]);
             trace!("Iteration {}\nuy = {:.3}\nfs = {:.3}", _iter, uy, fs);
         }
 
@@ -455,7 +451,7 @@ mod tests {
     /// something infeasible half the time. This works fine in the python version
     #[test]
     fn bfs_instability_test() {
-        for _ in 0 .. 100 {
+        for _ in 0 .. 500 {
             let y = na::DMatrix::from_row_slice( 4,6,
                     &vec![
                     -0.85105277, -0.63492999, 3.41237287, 1.20811145, 0.35892148, 2.41836825,
