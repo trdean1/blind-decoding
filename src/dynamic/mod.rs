@@ -2,8 +2,6 @@ extern crate nalgebra as na;
 extern crate rand;
 
 use rand::distributions::{Normal, Distribution};
-use std;
-use std::collections::{HashSet};
 
 use ZTHRESH;
 
@@ -18,31 +16,6 @@ pub enum BFSType { //{@
 } //@}
 
 // BFS finder functions.{@
-//{@
-/// Generator for all pairs of items from a HashSet.
-//@}
-fn gen_pairs<T: 'static>(h: &HashSet<T>) -> Box<FnMut() -> Option<(T, T)>> //{@
-        where T: Copy + Eq + std::hash::Hash {
-    let vec = h.iter().map(|&e| e).collect::<Vec<_>>();
-    let mut i = 0;
-    let mut j = 1;
-
-    Box::new(move || {
-        if i >= vec.len() || j >= vec.len() { return None; }
-        let ret = (vec[i], vec[j]);
-        j += 1;
-        if j >= vec.len() {
-            i += 1;
-            j = i + 1;
-        }
-        Some(ret)
-    })
-} //@}
-//{@
-/// Generate matrix a of same dimension as _x_, each entry iid ~N(0, 1).
-/// Generate matrix y = a * x.
-/// Return (a, y)
-//@}
 
 //{@
 /// Calculate gradient: (x^-1).transpose.
@@ -53,7 +26,6 @@ fn objgrad(x: &mut na::DMatrix<f64>) -> Option<na::DMatrix<f64>> { //{@
         false => None,
     }
 } //@}
-
 
 //{@
 /// Returns a boolean matrix where each entry tells whether or not the
@@ -79,83 +51,6 @@ fn get_active_constraints_bool(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
     }
 }
 
-//{@
-/// For each entry in +update+, append the corresponding row to +p+.
-//@}
-fn update_p(mut p: na::DMatrix<f64>, update: &Vec<(usize, usize)>, //{@
-        y: &na::DMatrix<f64>) -> na::DMatrix<f64> {
-    let (n, _k) = y.shape();
-    for &(i, j) in update.iter() {
-        // Add the new row, copy in transpose of normalized column.
-        let row_idx = p.nrows();
-        p = p.insert_row(row_idx, 0.0);
-        let ycol = y.column(j);
-        let mut new_row = p.row_mut(row_idx);
-        let norm = ycol.norm();
-        let new_row_baseidx = i * n;
-        for q in 0 .. n {
-            new_row[new_row_baseidx + q] = ycol[q] / norm;
-        }
-    }
-    p
-} //@}
-//{@
-/// Convert p into an orthogonal basis via de-facto optimized QR decomposition.
-//@}
-fn orthogonalize_p(mut p: na::DMatrix<f64>, zthresh: f64) -> na::DMatrix<f64> { //{@
-    let (c, nsq) = p.shape();
-    let pt = p.clone().transpose();
-    let mut a = na::DMatrix::from_column_slice(c, c, &vec![0.0; c*c]);
-    p.mul_to(&pt, &mut a);
-
-    let mut bad = HashSet::new();
-    for j in 0 .. c {
-        let col = a.column(j);
-        for i in (j+1) .. c {
-            if col[i].abs() > zthresh {
-                bad.insert(i);
-                bad.insert(j);
-            }
-        }
-    }
-    debug!("a = {:.3}", a);
-    debug!("Non-orthogonal vectors: {:?}", bad);
-
-    let mut zero = HashSet::new();
-    let mut pair_generator = gen_pairs(&bad);
-    let mut u = na::DMatrix::from_column_slice(1, nsq, &vec![0.0; nsq]);
-    let mut v = na::DMatrix::from_column_slice(1, nsq, &vec![0.0; nsq]);
-    let mut v_t = na::DMatrix::from_column_slice(nsq, 1, &vec![0.0; nsq]);
-    let mut u_vt = na::DMatrix::from_column_slice(1, 1, &vec![0.0; 1]);
-    let mut vv = na::DMatrix::from_column_slice(1, nsq, &vec![0.0; nsq]);
-    while let Some((i, j)) = pair_generator() {
-        if zero.contains(&i) || zero.contains(&j) { continue; }
-        u.copy_from(&p.row(i));
-        v.copy_from(&p.row(j));
-        v_t.tr_copy_from(&v);       // v_t = p[j,:].T
-        u.mul_to(&v_t, &mut u_vt);  // u_vt = u * v.T
-        {
-            let u_vt = u_vt.column(0)[0];
-            u.apply(|e| e * u_vt);      // u = (u * v.T) * u
-        }
-        v.sub_to(&u, &mut vv);      // vv = v - ((u * v.T) * u
-        let norm_vv = vv.norm();
-        if norm_vv < zthresh {
-            zero.insert(j);
-        } else {
-            vv /= norm_vv;
-            p.row_mut(j).copy_from(&vv);
-        }
-    }
-
-    let mut zero = zero.iter().map(|&e| e).collect::<Vec<_>>();
-    zero.sort_by(|&a, &b| b.cmp(&a));
-    debug!("Redundant constraints: {:?}", zero);
-    for &z in zero.iter() {
-        p = p.remove_row(z);
-    }
-    p
-} //@}
 //{@
 /// Calculate the distance to the problem boundary along a given vector.
 /// Input:   u = current feasible solution
@@ -225,7 +120,6 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
     u += v;
 
     let mut gradmtx = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
-    //let mut gradvec = vec![0.0; n*n];
     let mut p_bool = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
     let mut p_bool_iter = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
     let mut p_bool_updates = Vec::with_capacity(k);
@@ -254,39 +148,16 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
         }
         p_bool.copy_from(&p_bool_iter);
 
-        //p = update_p(p, &p_bool_updates, &y);
         fs.insert_from_vec( &p_bool_updates );
-        //p = orthogonalize_p(p,ZTHRESH);
 
         gradmtx.copy_from(&u);
         gradmtx = match objgrad(&mut gradmtx) {
             Some(grad) => grad,
             None => break,
         };
-        //gradvec.copy_from_slice(&gradmtx.transpose().as_slice());
+
         debug!("Iteration {} has {} independent constraints", _iter, fs.get_len_p());
 
-        /*
-        for row_idx in 0 .. p.nrows() {
-            let row = p.row(row_idx);
-            let s = gradvec.iter()
-                           .enumerate()
-                           .fold(0.0, 
-                                 |sum, (idx, &e)|
-                                 sum + e * row[idx]);
-            gradvec.iter_mut()
-                   .enumerate()
-                   .for_each(|(j, e)| *e -= s * row[j]);
-        }
-        debug!("gradvec = {:?}", gradvec);
-        
-        for j in 0 .. n {
-            let mut col = gradmtx.column_mut(j);
-            for i in 0 .. n {
-                let idx = n * i + j;
-                col[i] = gradvec[idx];
-            }
-        }*/
         gradmtx = fs.reject_mtx( &gradmtx );
 
         debug!("norm = {}", gradmtx.norm());
@@ -355,28 +226,6 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
              .map(|(i,_x)| i )
              .collect();
 
-    /*
-    //this holds the active constraints (row, column)
-    let mut p_updates: Vec<(usize,usize)> = bad_row.into_iter()
-             .enumerate()
-             .filter(|&(_i,x)| x.abs() < zthresh || (x.abs() - 1.0).abs() < zthresh )
-             .map(|(i,_x)| (row,i) )
-             .collect();
-
-    //Get orthonormal basis for active constraints
-    let mut p = na::DMatrix::from_column_slice( 0, n, &Vec::<f64>::new() );
-    for &(_i,j) in p_updates.iter() {
-        let row_idx = p.nrows();
-        p = p.insert_row(row_idx, 0.0);
-        let ycol = y.column(j);
-        let mut new_row = p.row_mut(row_idx);
-        let norm = ycol.norm();
-        ycol.transpose_to( &mut new_row );
-        new_row /= norm;
-    }
-    p = orthogonalize_p( p, zthresh );
-    */
-
     //Now main loop...don't try moving in more than n subspaces
     let mut i = 0;
     let mut j = 0;
@@ -390,11 +239,6 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
         let mut v = na::RowDVector::from_column_slice(n, &vec![0.0; n]);
         norm[(0,0)] = 0.0;
 
-        //temp variable
-        //let mut uu = na::DMatrix::from_column_slice(n, 1, &vec![0.0; n]);
-        //let mut vv = na::DMatrix::from_column_slice(1, n, &vec![0.0; n]);
-        //let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
-
         //Attempt to find vector in null space
         let mut k = n;
         while norm[(0,0)] < zthresh {
@@ -407,17 +251,6 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
 
             v = rand_unit( n ).transpose();
             v = fs.reject_vec( &v.transpose(), row ).transpose(); 
-
-            /*
-            //Reject v (direction to move) from p (basis of active constraints)
-            for i in 0..p.nrows() {
-                p.row(i).transpose_to( &mut uu );
-                v.mul_to( &uu, &mut uv );
-                uu *= uv[(0,0)];
-                v.sub_to( &uu.transpose(), &mut vv );
-                v.copy_from(&vv);
-            }
-            */
 
             //Update norm of projection
             v.mul_to(&v.transpose(), &mut norm);
@@ -506,18 +339,6 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
 
 
         fs.insert_from_vec( &p_updates );
-        /*
-        for &(_ii,jj) in p_updates.iter() {
-            let row_idx = p.nrows();
-            p = p.insert_row(row_idx, 0.0);
-            let ycol = y.column(jj);
-            let mut new_row = p.row_mut(row_idx);
-            let norm = ycol.norm();
-            ycol.transpose_to( &mut new_row );
-            new_row /= norm;
-        }
-        p = orthogonalize_p( p, zthresh );
-        */
     }
      
     Some( u_row )
