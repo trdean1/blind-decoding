@@ -36,9 +36,17 @@ fn objgrad(x: &mut na::DMatrix<f64>) -> Option<na::DMatrix<f64>> { //{@
 /// Output:  Boolean matrix (n x k) where output[i, j] = true iff the ith row of
 /// u causes the jth constraint of UY to be active, |<u_i, y_j>| = 1.        
 //@}
-fn get_active_constraints_bool(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, 
+fn get_active_constraints_bool(prod: &na::DMatrix<f64>,
                                c_bool: &mut na::DMatrix<bool>, zthresh: f64) {
-    let prod = u * y;
+    /*
+    let prod = match prod_maybe {
+        Some(r) => r,
+        None => {
+            let r = u * y;
+            &r
+        },
+    };*/
+
     let (n, k) = prod.shape();
 
     for j in 0 .. k {
@@ -77,10 +85,8 @@ fn update_active_constraints_array(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
 ///          all points are considered.
 /// Output: t = maximum distance such that u + t * v remains feasible.
 //@}
-fn boundary_dist(u: &na::DMatrix<f64>, v: &na::DMatrix<f64>, //{@
-        y: &na::DMatrix<f64>, mask: Option<&na::DMatrix<bool>>) -> f64 {
-    let uy = u * y;
-    let dy = v * y;
+fn boundary_dist(uy: &na::DMatrix<f64>, dy: &na::DMatrix<f64>,
+                 y: &na::DMatrix<f64>, mask: Option<&na::DMatrix<bool>>) -> f64 {
     let mut t_min = std::f64::MAX;
 
     debug!("uy={}dy={}",uy,dy);
@@ -88,17 +94,21 @@ fn boundary_dist(u: &na::DMatrix<f64>, v: &na::DMatrix<f64>, //{@
     for j in 0 .. y.shape().1 {
         for i in 0 .. y.shape().0 {
             if let Some(mask) = mask {
-                if mask.column(j)[i] { continue; }
+                //if mask.column(j)[i] { continue; }
+                if mask[(i,j)] { continue; }
             }
 
             // Determine value of t s.t. [i, j] constr reaches boundary.
-            match dy.column(j)[i].partial_cmp(&0.0) {
+            //match dy.column(j)[i].partial_cmp(&0.0) {
+            match dy[(i,j)].partial_cmp(&0.0) {
                 Some(v) => {
                     let t = match v {
                         std::cmp::Ordering::Less =>
-                            (-1.0 - uy.column(j)[i]) / dy.column(j)[i],
+                            //(-1.0 - uy.column(j)[i]) / dy.column(j)[i],
+                            (-1.0 - uy[(i,j)]) / dy[(i,j)],
                         std::cmp::Ordering::Greater =>
-                            (1.0 - uy.column(j)[i]) / dy.column(j)[i],
+                            //(1.0 - uy.column(j)[i]) / dy.column(j)[i],
+                            (1.0 - uy[(i,j)]) / dy[(i,j)],
                         std::cmp::Ordering::Equal => std::f64::MAX,
                     };
                     if t.abs() < t_min.abs() { t_min = t; }
@@ -132,10 +142,14 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
         None => return None,
     }
 
-    let mut t = boundary_dist(&u, &v, &y, None);
+    let mut uy = u.clone() * y.clone();
+    let mut vy = v.clone() * y.clone();
+    let mut t = boundary_dist(&uy, &vy, &y, None);
     v *= t;
     u += v;
 
+    //let mut uy = na::DMatrix::from_column_slice(n, k, &vec![0.0;n*k]);
+    //let mut vy = na::DMatrix::from_column_slice(n, k, &vec![0.0;n*k]);
     let mut gradmtx = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
     let mut p_bool = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
     let mut p_bool_iter = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
@@ -143,18 +157,18 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
     let mut fs = feasibleregion::FeasibleRegion::new(y, None);
 
     for _iter in 0 .. (n*n - 1) {
+        u.mul_to(&y, &mut uy);
 
         //Print UY to trace each iteration if debug build
         if cfg!(build = "debug") {
-            let mut _uy = na::DMatrix::from_column_slice(n, y.ncols(),
-                                                         &vec![0.0; n * y.ncols()]);
-            u.mul_to(&y, &mut _uy);
-            trace!("Iteration {}\nuy = {:.3}\nfs = {:.3}", _iter, _uy, fs);
+            //let mut _uy = na::DMatrix::from_column_slice(n, y.ncols(),
+            //                                             &vec![0.0; n * y.ncols()]);
+            trace!("Iteration {}\nuy = {:.3}\nfs = {:.3}", _iter, uy, fs);
         }
 
         //TODO: make this more efficient. Not sure the best way yet, but 
         //shouldn't take 2n^2 
-        get_active_constraints_bool(&u, &y, &mut p_bool_iter, ZTHRESH);
+        get_active_constraints_bool(&uy, &mut p_bool_iter, ZTHRESH);
         p_bool_updates.clear();
         for j in 0 .. k {
             //let col_iter = p_bool_iter.column(j);
@@ -163,10 +177,11 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
                 //if col_iter[i] && !col_orig[i] {
                 if p_bool_iter[(i,j)] && !p_bool[(i,j)] {
                     p_bool_updates.push((i, j));
+                    p_bool[(i,j)] = true;
                 }
             }
         }
-        p_bool.copy_from(&p_bool_iter);
+        //p_bool.copy_from(&p_bool_iter);
 
         fs.insert_from_vec( &p_bool_updates );
 
@@ -186,10 +201,12 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
             break
         }
 
-        t = boundary_dist(&u, &gradmtx, &y, Some(&p_bool));
-        gradmtx.apply(|e| e * t);
+        gradmtx.mul_to( &y, &mut vy );
+        t = boundary_dist(&uy, &vy,
+                          &y, Some(&p_bool));
+        //gradmtx.apply(|e| e * t);
 
-        u += gradmtx.clone();
+        u += t*gradmtx.clone();
         /*
         for j in 0 .. n {
             let mut col_u = u.column_mut(j);
