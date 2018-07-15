@@ -174,17 +174,31 @@ impl FeasibleRegion {
             -> Option<na::DVector<f64>> {
         let mut vv = v.transpose().into_owned();
 
-        let mut uu = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
-        let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
+        //let mut uu = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
+        //let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
 
         for i in 0 .. self.p[row].len() {
             let u = &self.p[row][i];
-            vv.mul_to( &u.transpose(), &mut uv ); 
-            u.mul_to( &u.transpose(), &mut uu );
 
-            if uu[(0,0)].sqrt() < self.zthresh{ return None; }
+            //vv.mul_to( &u.transpose(), &mut uv ); 
+            //u.mul_to( &u.transpose(), &mut uu );
+            
+            //uv = vv.T * u
+            let uv = u.iter()
+                      .enumerate()
+                      .fold(0.0,
+                            |sum, (idx, &e)|
+                            sum + e * vv[idx]);
+            
+            //uu = u.T * u
+            let uu = u.iter()
+                  .enumerate()
+                  .fold(0.0,
+                        |sum, (idx, &e)|
+                        sum + e * u[idx]);
 
-            vv -= (uv[(0,0)] / uu[(0,0)]) * u;
+            assert!(uu > 1e-12);
+            vv -= (uv / uu) * u;
         }
         
         Some(vv.transpose())
