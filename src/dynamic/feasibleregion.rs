@@ -154,16 +154,10 @@ impl FeasibleRegion {
 
         for i in 0 .. v.nrows() {
             let v_row = v.row( i );
-            match self.reject_vec( &v_row.transpose(), i ) {
-                Some(r) => {
-                    vv = vv.insert_row( i, 0.0 );
-                    for j in 0 .. n {
-                        vv[(i,j)] = r[(j,0)];
-                    }
-                }
-                None => {
-                    vv = vv.insert_row( i, 0.0 );
-                },
+            let r = self.reject_vec( &v_row.transpose(), i ); 
+            vv = vv.insert_row( i, 0.0 );
+            for j in 0 .. n {
+                vv[(i,j)] = r[(j,0)];
             }
         }
 
@@ -171,7 +165,7 @@ impl FeasibleRegion {
     }
 
     pub fn reject_vec( &self, v: &na::DVector<f64>, row: usize ) 
-            -> Option<na::DVector<f64>> {
+            -> na::DVector<f64> {
         let mut vv = v.transpose().into_owned();
 
         //let mut uu = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
@@ -198,10 +192,11 @@ impl FeasibleRegion {
                         sum + e * u[idx]);
 
             assert!(uu > 1e-12);
+
             vv -= (uv / uu) * u;
         }
         
-        Some(vv.transpose())
+        vv.transpose()
     }
 
     pub fn get_len_p( &self ) -> usize {

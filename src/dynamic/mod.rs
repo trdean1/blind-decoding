@@ -406,10 +406,7 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
             }
 
             v = rand_unit( n ).transpose();
-            v = match fs.reject_vec( &v.transpose(), row ) {
-                Some(r) => r.transpose(),
-                None => na::RowDVector::from_column_slice(n, &vec![0.0; n]),
-            };
+            v = fs.reject_vec( &v.transpose(), row ).transpose(); 
 
             /*
             //Reject v (direction to move) from p (basis of active constraints)
