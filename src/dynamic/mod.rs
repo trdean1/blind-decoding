@@ -2,6 +2,7 @@ extern crate nalgebra as na;
 extern crate rand;
 
 use rand::distributions::{Normal, Distribution};
+use std;
 
 use ZTHRESH;
 
@@ -50,6 +51,22 @@ fn get_active_constraints_bool(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
         }
     }
 }
+
+/*
+fn update_active_constraints_array(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
+                                 out: &Vec<(usize,usize)>, zthresh: f64) {
+    let prod = u * y;
+    let (n,k) = prod.shape();
+
+    for i in 0 .. n {
+        for j in 0 .. k {
+            if (1.0 - prod[(i,j)].abs()).abs() < zthresh {
+                out.push((i,j));
+            }
+        }
+    }
+}
+*/
 
 //{@
 /// Calculate the distance to the problem boundary along a given vector.
@@ -135,13 +152,16 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
             trace!("Iteration {}\nuy = {:.3}\nfs = {:.3}", _iter, _uy, fs);
         }
 
+        //TODO: make this more efficient. Not sure the best way yet, but 
+        //shouldn't take 2n^2 
         get_active_constraints_bool(&u, &y, &mut p_bool_iter, ZTHRESH);
         p_bool_updates.clear();
         for j in 0 .. k {
-            let col_iter = p_bool_iter.column(j);
-            let col_orig = p_bool.column_mut(j);
+            //let col_iter = p_bool_iter.column(j);
+            //let col_orig = p_bool.column_mut(j);
             for i in 0 .. n {
-                if col_iter[i] && !col_orig[i] {
+                //if col_iter[i] && !col_orig[i] {
+                if p_bool_iter[(i,j)] && !p_bool[(i,j)] {
                     p_bool_updates.push((i, j));
                 }
             }
@@ -169,7 +189,8 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
         t = boundary_dist(&u, &gradmtx, &y, Some(&p_bool));
         gradmtx.apply(|e| e * t);
 
-        //u += gradmtx;
+        u += gradmtx.clone();
+        /*
         for j in 0 .. n {
             let mut col_u = u.column_mut(j);
             let col_grad = gradmtx.column(j);
@@ -177,6 +198,7 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
                 col_u[i] += col_grad[i];
             }
         }
+        */
     }
 
     //Check if we are in {-1, 0, 1} if not, call find_vertex_on_face
