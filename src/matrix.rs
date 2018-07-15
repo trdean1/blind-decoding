@@ -178,6 +178,7 @@ pub fn y_a_from_x(x: &na::DMatrix<f64>, complex: bool)
 
     // Generate random Gaussian matrix A.
     let a = if complex {
+        assert!( n % 2 == 0 );
         rand_complex_matrix(n) 
     } else {
         rand_matrix(n,n)
