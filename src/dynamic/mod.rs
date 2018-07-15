@@ -216,7 +216,7 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
 
     //Check if we are in {-1, 0, 1} if not, call find_vertex_on_face
     if verify_bfs( &u, &y, ZTHRESH ) == BFSType::Wrong {
-        u = match find_vertex_on_face( &u, &y, ZTHRESH ) {
+        u = match find_vertex_on_face( &u, &y, &fs, ZTHRESH ) {
             Some(r) => r,
             None => u,
         };
@@ -380,16 +380,16 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
 }
 
 pub fn find_vertex_on_face( u_i : &na::DMatrix<f64>, y: &na::DMatrix<f64>, 
-                            zthresh : f64 )
+                            d_fs: &feasibleregion::FeasibleRegion, zthresh : f64 )
     -> Option<na::DMatrix<f64>>
 {
     let mut u = u_i.clone();
     let uy = u.clone() * y.clone();
     let (n, _k) = y.shape();
 
-    //TODO: I shouldn't have to redo this, I should at least implement copy
-    //for FeasibleRegion and then copy over p rather than recomputing...
-    let mut fs = feasibleregion::FeasibleRegion::new( &y, Some(zthresh) );
+    //TODO: probably should just make dynamic a class and then I don't 
+    //need to copy this here...
+    let mut fs = feasibleregion::FeasibleRegion::from_copy( d_fs );
     let mut updates: Vec<(usize, usize)> = Vec::new();
     for j in 0 .. uy.ncols() {
         for i in 0 .. uy.nrows() {

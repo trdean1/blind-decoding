@@ -91,6 +91,29 @@ impl FeasibleRegion {
         }
     }
 
+    pub fn from_copy( fs: &FeasibleRegion ) -> FeasibleRegion {
+        let new_y = fs.get_y();
+        let (n,k) = new_y.shape();
+        /*let mut new_p = vec![Vec::with_capacity(k); n];
+        let ref old_p = fs.get_p();
+
+        for i in 0 .. n {
+            for row in old_p[i].iter() {
+                new_p[i].push( row.into_owned() );
+            }
+        }*/
+
+        FeasibleRegion{ 
+            y: new_y,
+            dims: (n,k),
+            p: fs.get_p(),
+            col_map: fs.get_col_map().clone(),
+            zthresh: fs.get_zthresh(),
+
+            ..Default::default()
+        }
+    }
+
     pub fn insert_from_vec( &mut self, update: &Vec<(usize,usize)> ) {
         for (i,j) in update.iter() {
             self.insert( *i, *j );
@@ -221,10 +244,20 @@ impl FeasibleRegion {
         len
     }
 
-    #[allow(dead_code)]
-    //This is for testing only
-    fn get_p( &self ) -> Vec<Vec<na::RowDVector<f64>>> {
+    pub fn get_p( &self ) -> Vec<Vec<na::RowDVector<f64>>> {
         self.p.clone()
+    }
+
+    pub fn get_y( &self ) -> na::DMatrix<f64> {
+        self.y.clone()
+    }
+
+    pub fn get_col_map( &self ) -> &Vec<Vec<usize>> {
+        &self.col_map
+    }
+
+    pub fn get_zthresh( &self ) -> f64 {
+        self.zthresh
     }
 
 }
@@ -269,7 +302,7 @@ mod tests {
         println!("{}", fs);
 
         println!("Ensuring p is orthonormal");
-        let pp = fs.get_p();
+        let pp = fs.get_p().into_owned();
         let mut res: Vec<f64> = Vec::new();
         for i in 0 .. pp[0].len() {
             for j in 0 .. pp[0].len() {
