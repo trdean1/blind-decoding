@@ -185,15 +185,15 @@ impl FeasibleRegion {
 
     pub fn reject_mtx( &self, v: &na::DMatrix<f64> )
             -> na::DMatrix<f64> {
-        let n = v.ncols();
-        let mut vv: na::DMatrix<f64> = na::DMatrix::from_column_slice(0,n,&Vec::new());
+        let (m,n) = v.shape();
+        let mut vv: na::DMatrix<f64> = na::DMatrix::from_column_slice(m,n,&vec![0.0;n*m]);
+        let mut tmp: na::RowDVector<f64> = na::RowDVector::from_column_slice(n, &vec![0.0;n]);
 
-        for i in 0 .. v.nrows() {
+        for i in 0 .. m {
             let v_row = v.row( i );
-            let r = self.reject_vec( &v_row.transpose(), i ); 
-            vv = vv.insert_row( i, 0.0 );
+            self.reject_vec_to( &v_row.into_owned(), &mut tmp, i ); 
             for j in 0 .. n {
-                vv[(i,j)] = r[(j,0)];
+                vv[(i,j)] = tmp[(0,j)];
             }
         }
 
@@ -234,6 +234,39 @@ impl FeasibleRegion {
         
         vv.transpose()
     }
+
+    //TODO: This still has allocation going on in it...
+    pub fn reject_vec_to( &self, v: &na::RowDVector<f64>, res: &mut na::RowDVector<f64>, 
+                          row: usize ) {
+        assert!( v.nrows() == res.nrows() );
+
+        res.copy_from(v);
+
+        for i in 0 .. self.p[row].len() {
+            let u = &self.p[row][i];
+
+            //vv.mul_to( &u.transpose(), &mut uv ); 
+            //u.mul_to( &u.transpose(), &mut uu );
+            
+            //uv = vv.T * u
+            let uv = u.iter()
+                      .enumerate()
+                      .fold(0.0,
+                            |sum, (idx, &e)|
+                            sum + e * res[idx]);
+            
+            //uu = u.T * u
+            let uu = u.iter()
+                  .enumerate()
+                  .fold(0.0,
+                        |sum, (idx, &e)|
+                        sum + e * u[idx]);
+
+            assert!(uu > 1e-12);
+
+            *res -= (uv / uu) * u;
+        }
+}
 
     pub fn get_len_p( &self ) -> usize {
         let mut len = 0;
@@ -302,7 +335,7 @@ mod tests {
         println!("{}", fs);
 
         println!("Ensuring p is orthonormal");
-        let pp = fs.get_p().into_owned();
+        let pp = fs.get_p();
         let mut res: Vec<f64> = Vec::new();
         for i in 0 .. pp[0].len() {
             for j in 0 .. pp[0].len() {
