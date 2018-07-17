@@ -75,11 +75,10 @@ impl TrialResults {
     }
 
     pub fn extended_results( &self ) {
-        println!("Trials: {}, BFS reruns: {}, LinIndep: {}", 
-                 self.trials, self.goodcols, self.linindep);
-        println!("\tStateStack: {}, TooManyHops: {}, Trapped: {}",
-                 self.statestack, self.toomanyhops, self.trap);
-        println!("\tReduced: {}", self.reduced);
+        println!("BFS reruns: {},  LinIndep: {},  StateStack: {}", 
+                 self.goodcols, self.linindep, self.statestack);
+        println!("TooManyHops: {},  Trapped: {},  Reduced: {}",
+                  self.toomanyhops, self.trap, self.reduced);
     }
 
     pub fn clear( &mut self ) {

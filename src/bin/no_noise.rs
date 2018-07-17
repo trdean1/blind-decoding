@@ -61,7 +61,6 @@ fn main() {
         trace!("selected x = {}", x);
         // Get pointer to relevant results tuple for this dimension.
         let ref mut res = results.iter_mut().find(|ref e| e.dims == x.shape()).unwrap();
-        res.trials += 1;
 
         // Obtain A, Y matrices, then run.
         let (a, y) = matrix::y_a_from_x(&x, complex);
