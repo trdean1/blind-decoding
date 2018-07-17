@@ -22,164 +22,201 @@ pub mod dynamic;
 
 use tableau::FlexTabError;
 use tableau::FlexTab;
+use testlib::TrialResults;
 
 const ZTHRESH: f64 = 1e-9;
 
-/// Perform a single run using a given +y+ matrix, which contains k symbols each
-/// of length n.
-pub fn single_run(y: &na::DMatrix<f64>, skip_check: bool, center_tol: f64) 
-    -> Result<FlexTab, FlexTabError> 
-{ 
-    let mut attempts = 0;
-    const LIMIT: usize = 100; // Max attempts to restart with fresh random U_i.
-    let mut ft;
-    let mut best: Option<FlexTab> = None;
+pub struct Solver {
+    stats:          TrialResults,
+    bfs:            na::DMatrix<f64>,
+    max_attempts:   usize,
+    check_cond:     bool,
+    center_tol:     f64,
+    timer:          std::time::Instant,
+}
 
-    //If true, check that y is not singular.
-    //Solver should still run if check fails but may be slow and will likely 
-    //return garbage
-    if skip_check == false {
-       let (n,_k) = y.shape();
-       let svd = na::SVD::new(y.clone(), false, false);
-       let s = svd.singular_values;
-       trace!("Singular values =\n");
-       for ss in s.iter() {
-           trace!("{}", ss);
-       }
-       let r = s.iter().filter(|&elt| *elt > ZTHRESH).count();
-       trace!("({})\n",r);
-       if r < n {
-            return Err(FlexTabError::SingularInput);
-       }
+impl Default for Solver {
+    fn default() -> Solver {
+        Solver {
+            stats:          TrialResults::new(0,0,0.0),
+            bfs:            na::DMatrix::from_column_slice(0,0,&Vec::new()),
+            max_attempts:   100,
+            check_cond:     false,
+            center_tol:     0.0,
+            timer:          std::time::Instant::now()
+        }
+    }
+}
+
+impl Solver {
+    pub fn new( check_cond: bool, center_tol: f64, attempts: usize ) -> Solver {
+        Solver {
+            max_attempts: attempts,
+            check_cond: check_cond,
+            center_tol: center_tol,
+            ..Default::default()
+        }
     }
 
+    /// Perform a single run using a given +y+ matrix, which contains k symbols each
+    /// of length n.
+    pub fn single_run(&mut self, y: &na::DMatrix<f64>) 
+        -> Result<FlexTab, FlexTabError> 
+    { 
+        let mut attempts = 0;
+        let mut ft;
+        let mut best: Option<FlexTab> = None;
 
-    let mut z; //Holds centered version of y
-    // Loop trying new u_i until we get n linearly independent \pm 1 cols.
-    loop {
-        attempts += 1;
-        if attempts > LIMIT {
-            info!("Ran out of attempts");
-            match best {
-                Some(b) => return Ok(b),
-                None => return Err(FlexTabError::Runout),
-            };
+        //If true, check that y is not singular.
+        //Solver should still run if check fails but may be slow and will likely 
+        //return garbage
+        if self.check_cond == false {
+           let (n,_k) = y.shape();
+           let svd = na::SVD::new(y.clone(), false, false);
+           let s = svd.singular_values;
+           trace!("Singular values =\n");
+           for ss in s.iter() {
+               trace!("{}", ss);
+           }
+           let r = s.iter().filter(|&elt| *elt > ZTHRESH).count();
+           trace!("({})\n",r);
+           if r < n {
+                return Err(FlexTabError::SingularInput);
+           }
         }
-        let mut u_i = matrix::rand_init(&y); // Choose rand init start pt.
-        //let (y, u_i) = use_given_matrices(); // Use for debugging only.
 
-        z = y.clone();
 
-        //Centering loop
-        let mut bfs;
-        let mut center_attempts = 0;
-        let mut bfs_fail = false;
+        let mut z; //Holds centered version of y
+        // Loop trying new u_i until we get n linearly independent \pm 1 cols.
         loop {
-            trace!("y = {:.8}Ui = {:.8}", z, u_i);
-            match dynamic::find_bfs(&u_i, &z) {
-                Some(b) => bfs = b,
-                None => {
-                    //This shouldn't really ever happen but does if the input
-                    //is poorly conditioned and we run into numerical stability 
-                    //issues
-                    trace!("Singular starting point, retrying");
-                    bfs_fail = true;
-                    bfs = u_i;
+            attempts += 1;
+            if attempts > self.max_attempts {
+                info!("Ran out of attempts");
+                match best {
+                    Some(b) => return Ok(b),
+                    None => return Err(FlexTabError::Runout),
+                };
+            }
+            let mut u_i = matrix::rand_init(&y); // Choose rand init start pt.
+            //let (y, u_i) = use_given_matrices(); // Use for debugging only.
+
+            z = y.clone();
+
+            //Centering loop
+            let mut bfs;
+            let mut center_attempts = 0;
+            let mut bfs_fail = false;
+            loop {
+                trace!("y = {:.8}Ui = {:.8}", z, u_i);
+                match dynamic::find_bfs(&u_i, &z) {
+                    Some(b) => bfs = b,
+                    None => {
+                        //This shouldn't really ever happen but does if the input
+                        //is poorly conditioned and we run into numerical stability 
+                        //issues
+                        trace!("Singular starting point, retrying");
+                        bfs_fail = true;
+                        bfs = u_i;
+                        break;
+                    },
+                }
+
+                if self.center_tol == 0f64 { break; }
+
+                if (bfs.clone() - u_i.clone()).amax() < ZTHRESH {
                     break;
+                } else {
+                    u_i = bfs.clone();
+                }
+
+                trace!("bfs = {:.5}", bfs);
+                trace!("uy = {:.5}", bfs.clone() * z.clone() );
+
+                //Center y.  If this fails (it never should) then just use
+                //the old value of y and try our luck with FlexTab
+                z = match center_y( &bfs, &z, self.center_tol ) {
+                    Some(yy) => yy,
+                    None => z,
+                };
+
+                trace!("After centering: {:.5}", bfs.clone() * z.clone() );
+                center_attempts += 1;
+                if center_attempts >= z.shape().0 { break; }
+            }
+
+            //If U was singular (can happen if A is ill-conditioned and we are 
+            //at the mercy of numerical stability) then try again with new 
+            //starting point. Surprisingly we can often recover from this
+            if bfs_fail { continue; }
+
+            ft = match FlexTab::new(&bfs, &z, ZTHRESH) {
+                Ok(ft) => ft,
+                Err(e) => match e {
+                     // Insufficient good cols => retry.
+                    FlexTabError::GoodCols => {
+                        warn!("Insufficient good cols, retrying...");
+                        continue;
+                    },
+                    // Any other error => propogate up.
+                    _ => return Err(e),
                 },
-            }
-
-            if center_tol == 0f64 { break; }
-
-            if (bfs.clone() - u_i.clone()).amax() < ZTHRESH {
-                break;
-            } else {
-                u_i = bfs.clone();
-            }
-
-            trace!("bfs = {:.5}", bfs);
-            trace!("uy = {:.5}", bfs.clone() * z.clone() );
-
-            //Center y.  If this fails (it never should) then just use
-            //the old value of y and try our luck with FlexTab
-            z = match center_y( &bfs, &z, center_tol ) {
-                Some(yy) => yy,
-                None => z,
             };
 
-            trace!("After centering: {:.5}", bfs.clone() * z.clone() );
-            center_attempts += 1;
-            if center_attempts >= z.shape().0 { break; }
-        }
+            // Now we have at least n good cols, so try to solve.  If error is that
+            // we don't have n linearly independent good cols, then try new u_i.
+            // Do same thing if we appear to have been trapped.
+            trace!("num_good_cols = {}", ft.num_good_cols());
+            debug!("initial ft =\n{}", ft);
 
-        //If U was singular (can happen if A is ill-conditioned and we are 
-        //at the mercy of numerical stability) then try again with new 
-        //starting point. Surprisingly we can often recover from this
-        if bfs_fail { continue; }
-
-        ft = match FlexTab::new(&bfs, &z, ZTHRESH) {
-            Ok(ft) => ft,
-            Err(e) => match e {
-                 // Insufficient good cols => retry.
-                FlexTabError::GoodCols => {
-                    warn!("Insufficient good cols, retrying...");
-                    continue;
-                },
-                // Any other error => propogate up.
-                _ => return Err(e),
-            },
-        };
-
-        // Now we have at least n good cols, so try to solve.  If error is that
-        // we don't have n linearly independent good cols, then try new u_i.
-        // Do same thing if we appear to have been trapped.
-        trace!("num_good_cols = {}", ft.num_good_cols());
-        debug!("initial ft =\n{}", ft);
-
-        match ft.solve() {
-            Ok(_) => break,
-            Err(e) => match e {
-                FlexTabError::LinIndep 
-                    => { 
-                        warn!("LinIndep, retrying...");
-                    },
-                FlexTabError::StateStackExhausted | FlexTabError::TooManyHops
-                    => {
-                        best = match best {
-                            Some(b) => if ft.state.obj() > b.state.obj()
-                                { Some(ft) } else { Some(b) },
-                            None => Some(ft),
-                        };
-                        warn!("{}, retrying...", e);
-                    },
-                _ => return Err(e),
-            },
-        }
-    }
-
-    debug!("FlexTab (n,k) = {:?}: {}, visited = {}", ft.dims(), 
-            if ft.has_ybad() { "REDUCED" } else { "FULL" }, ft.visited_vertices());
-
-    // If FlexTab is reduced, we need to do this again starting with a real BFS.
-    // Here there is no possibility of insufficient good cols or lin indep cols.
-    if ft.has_ybad() {
-        debug!("Reduced: now need to solve...");
-        let mut ftfull = FlexTab::new(&ft.state.get_u(), &z, ZTHRESH)?;
-        match ftfull.solve() {
-            Ok(_) => Ok(ftfull),
-            Err(e) => {
-                println!("ftfull from reduced err = {}", e);
-                match e {
-                    FlexTabError::StateStackExhausted
-                        | FlexTabError::TooManyHops
-                        => return Ok(ftfull),
+            match ft.solve() {
+                Ok(_) => break,
+                Err(e) => match e {
+                    FlexTabError::LinIndep 
+                        => { 
+                            warn!("LinIndep, retrying...");
+                        },
+                    FlexTabError::StateStackExhausted | FlexTabError::TooManyHops
+                        => {
+                            best = match best {
+                                Some(b) => if ft.state.obj() > b.state.obj()
+                                    { Some(ft) } else { Some(b) },
+                                None => Some(ft),
+                            };
+                            warn!("{}, retrying...", e);
+                        },
                     _ => return Err(e),
+                },
+            }
+        }
+
+        debug!("FlexTab (n,k) = {:?}: {}, visited = {}", ft.dims(), 
+                if ft.has_ybad() { "REDUCED" } else { "FULL" }, ft.visited_vertices());
+
+        // If FlexTab is reduced, we need to do this again starting with a real BFS.
+        // Here there is no possibility of insufficient good cols or lin indep cols.
+        if ft.has_ybad() {
+            debug!("Reduced: now need to solve...");
+            let mut ftfull = FlexTab::new(&ft.state.get_u(), &z, ZTHRESH)?;
+            match ftfull.solve() {
+                Ok(_) => Ok(ftfull),
+                Err(e) => {
+                    println!("ftfull from reduced err = {}", e);
+                    match e {
+                        FlexTabError::StateStackExhausted
+                            | FlexTabError::TooManyHops
+                            => return Ok(ftfull),
+                        _ => return Err(e),
+                    }
                 }
             }
+        } else {
+            return Ok(ft);
         }
-    } else {
-        return Ok(ft);
     }
+
+
+
+
 }
 
 #[allow(dead_code)]
@@ -224,29 +261,6 @@ fn count_bfs_entry(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64)
     let sum_other = other.into_iter().fold(0, |acc, x| acc + (x as u64));
 
     return (sum_pm1, sum_zeros, sum_other);
-}
-
-/// Returns true if the given value of U is feasible.  Ignores entries in the
-/// product UY where mask is set to 0.  This is done to ignore entries that
-fn is_feasible(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
-               mask: Option<&na::DMatrix<bool>>) -> bool {
-    let prod = u * y;
-    if let Some(mask) = mask {
-        assert!(prod.shape() == mask.shape());
-    }
-
-    for j in 0 .. prod.ncols() {
-        for i in 0 .. prod.nrows() {
-            let check = match mask {
-                None => true,
-                Some(mask) => mask.column(j)[i],
-            };
-            if check && prod.column(j)[i].abs() > 1.0f64 + ZTHRESH {
-                return false;
-            }
-        }
-    }
-    true
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -458,3 +472,28 @@ fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) ->
         None => return None,
     }
 }
+
+/// Returns true if the given value of U is feasible.  Ignores entries in the
+/// product UY where mask is set to 0.  This is done to ignore entries that
+fn is_feasible(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
+               mask: Option<&na::DMatrix<bool>>) -> bool {
+    let prod = u * y;
+    if let Some(mask) = mask {
+        assert!(prod.shape() == mask.shape());
+    }
+
+    for j in 0 .. prod.ncols() {
+        for i in 0 .. prod.nrows() {
+            let check = match mask {
+                None => true,
+                Some(mask) => mask.column(j)[i],
+            };
+            if check && prod.column(j)[i].abs() > 1.0f64 + ZTHRESH {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+

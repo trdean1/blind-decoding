@@ -30,6 +30,8 @@ fn main() {
 
     for v in 0 .. var.len() {
         for t in 0 .. tol.len() {
+            let mut solver = blindsolver::Solver::new( true, tol[t], 100 );
+
             println!("Tolerance: {}", tol[t]);
             eprintln!("Noise variance: {}", var[v]);
             let mut results = TrialResults::new(n,k,var[v]);
@@ -70,7 +72,7 @@ fn main() {
                     let mut y = y_base.clone() + var[v]*e;
                     res.trials += 1;
 
-                    match blindsolver::single_run(&y,true,tol[t]) {
+                    match solver.single_run( &y ) {
                         Err(e) => {
                             match e {
                                 FlexTabError::Runout => {

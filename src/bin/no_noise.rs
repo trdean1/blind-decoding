@@ -32,6 +32,8 @@ fn main() {
         .map(|&d| TrialResults::new(d.0,d.1,0f64))
         .collect::<Vec<_>>();
 
+    let mut solver = blindsolver::Solver::new( false, 0.0, 100 );
+
     for _iter in 0 .. reps_per * dims.len() {
         let which = _iter / reps_per;
         
@@ -63,7 +65,7 @@ fn main() {
         // Obtain A, Y matrices, then run.
         let (a, y) = matrix::y_a_from_x(&x, complex);
         let timer = std::time::Instant::now();
-        match blindsolver::single_run(&y,use_basis, 0f64) {
+        match solver.single_run( &y ) {
             Err(e) => {
                 match e {
                     FlexTabError::Runout => {
