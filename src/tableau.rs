@@ -48,6 +48,7 @@ pub enum FlexTabError { //{@
     URowRedef,
     XVarsBothNonzero,
     StateStackExhausted,
+    Trapped,
     TooManyHops,
     Runout,
 } //@}
@@ -61,6 +62,7 @@ impl error::Error for FlexTabError { //{@
             &FlexTabError::URowRedef => "U row redefinition",
             &FlexTabError::XVarsBothNonzero => "Xvars both nonzero",
             &FlexTabError::StateStackExhausted => "State stack exhausted",
+            &FlexTabError::Trapped => "Found trap case",
             &FlexTabError::TooManyHops => "Too many hops",
             &FlexTabError::Runout => "Ran out of attempts", 
         }
@@ -855,6 +857,9 @@ impl FlexTab { //{@
             if !self.eval_vertex() {
                 debug!("Bad vertex, attempting backtrack");
                 if !self.restore(true) {
+                    if self.visited.len() == 1 {
+                        return Err(FlexTabError::Trapped);
+                    }
                     return Err(FlexTabError::StateStackExhausted);
                 }
                 continue;
