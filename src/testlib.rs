@@ -28,11 +28,14 @@ pub struct TrialResults {
     pub bit_errors: usize,
     pub total_bits: usize,
     pub time_elapsed: f64,
+    pub badstart: usize,
     pub goodcols: usize,
+    pub centerattempts: usize,
     pub linindep: usize,
     pub statestack: usize,
     pub toomanyhops: usize,
-    pub trap: usize
+    pub trap: usize,
+    pub reduced: usize,
 }
 
 impl Default for TrialResults {
@@ -50,11 +53,14 @@ impl Default for TrialResults {
             bit_errors: 0,
             total_bits: 0,
             time_elapsed: 0f64,
+            badstart: 0,
             goodcols: 0,
+            centerattempts: 0,
             linindep: 0,
             statestack: 0,
             toomanyhops: 0,
-            trap: 0
+            trap: 0,
+            reduced: 0,
         }
     }
 }
@@ -73,6 +79,7 @@ impl TrialResults {
                  self.trials, self.goodcols, self.linindep);
         println!("\tStateStack: {}, TooManyHops: {}, Trapped: {}",
                  self.statestack, self.toomanyhops, self.trap);
+        println!("\tReduced: {}", self.reduced);
     }
 
     pub fn clear( &mut self ) {
@@ -88,11 +95,14 @@ impl TrialResults {
             self.bit_errors = 0;
             self.total_bits = 0;
             self.time_elapsed = 0f64;
+            self.badstart = 0;
             self.goodcols = 0;
+            self.centerattempts = 0;
             self.linindep = 0;
             self.statestack = 0;
             self.toomanyhops = 0;
             self.trap = 0;
+            self.reduced = 0;
     }
 }
 
@@ -130,11 +140,14 @@ impl std::ops::AddAssign for TrialResults {
             bit_errors: self.bit_errors + other.bit_errors,
             total_bits: self.total_bits + other.total_bits,
             time_elapsed: self.time_elapsed + other.time_elapsed,
+            badstart: self.badstart + other.badstart,
             goodcols: self.goodcols + other.goodcols,
+            centerattempts: self.centerattempts + other.centerattempts,
             linindep: self.linindep + other.linindep,
             statestack: self.statestack + other.statestack,
             toomanyhops: self.toomanyhops + other.toomanyhops,
-            trap: self.trap + other.trap
+            trap: self.trap + other.trap,
+            reduced: self.reduced + other.reduced,
 
         };
     }

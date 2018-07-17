@@ -28,7 +28,6 @@ const ZTHRESH: f64 = 1e-9;
 
 pub struct Solver {
     stats:          TrialResults,
-    bfs:            na::DMatrix<f64>,
     max_attempts:   usize,
     check_cond:     bool,
     center_tol:     f64,
@@ -39,7 +38,6 @@ impl Default for Solver {
     fn default() -> Solver {
         Solver {
             stats:          TrialResults::new(0,0,0.0),
-            bfs:            na::DMatrix::from_column_slice(0,0,&Vec::new()),
             max_attempts:   100,
             check_cond:     false,
             center_tol:     0.0,
@@ -63,6 +61,9 @@ impl Solver {
     pub fn single_run(&mut self, y: &na::DMatrix<f64>) 
         -> Result<FlexTab, FlexTabError> 
     { 
+        self.stats.trials += 1;
+        self.timer = ::std::time::Instant::now();
+
         let mut attempts = 0;
         let mut ft;
         let mut best: Option<FlexTab> = None;
@@ -81,6 +82,7 @@ impl Solver {
            let r = s.iter().filter(|&elt| *elt > ZTHRESH).count();
            trace!("({})\n",r);
            if r < n {
+                self.stats.time_elapsed += self.time_elapsed();
                 return Err(FlexTabError::SingularInput);
            }
         }
@@ -92,9 +94,16 @@ impl Solver {
             attempts += 1;
             if attempts > self.max_attempts {
                 info!("Ran out of attempts");
+                self.stats.time_elapsed += self.time_elapsed();
+
                 match best {
-                    Some(b) => return Ok(b),
-                    None => return Err(FlexTabError::Runout),
+                    Some(b) => { 
+                        return Ok(b);
+                    },
+                    None => {
+                        self.stats.runout += 1;
+                        return Err(FlexTabError::Runout)
+                    }
                 };
             }
             let mut u_i = matrix::rand_init(&y); // Choose rand init start pt.
@@ -117,6 +126,7 @@ impl Solver {
                         trace!("Singular starting point, retrying");
                         bfs_fail = true;
                         bfs = u_i;
+                        self.stats.badstart += 1;
                         break;
                     },
                 }
@@ -141,6 +151,7 @@ impl Solver {
 
                 trace!("After centering: {:.5}", bfs.clone() * z.clone() );
                 center_attempts += 1;
+                self.stats.centerattempts += 1;
                 if center_attempts >= z.shape().0 { break; }
             }
 
@@ -155,10 +166,15 @@ impl Solver {
                      // Insufficient good cols => retry.
                     FlexTabError::GoodCols => {
                         warn!("Insufficient good cols, retrying...");
+                        self.stats.goodcols += 1;
                         continue;
                     },
                     // Any other error => propogate up.
-                    _ => return Err(e),
+                    _ => {
+                        self.stats.error += 1;
+                        self.stats.time_elapsed += self.time_elapsed();
+                        return Err(e);
+                    },
                 },
             };
 
@@ -174,17 +190,41 @@ impl Solver {
                     FlexTabError::LinIndep 
                         => { 
                             warn!("LinIndep, retrying...");
+                            self.stats.linindep += 1;
                         },
-                    FlexTabError::StateStackExhausted | FlexTabError::TooManyHops
-                        => {
+                    FlexTabError::StateStackExhausted => {
                             best = match best {
                                 Some(b) => if ft.state.obj() > b.state.obj()
                                     { Some(ft) } else { Some(b) },
                                 None => Some(ft),
                             };
                             warn!("{}, retrying...", e);
+                            self.stats.statestack += 1;
                         },
-                    _ => return Err(e),
+                    FlexTabError::TooManyHops => {
+                            best = match best {
+                                Some(b) => if ft.state.obj() > b.state.obj()
+                                    { Some(ft) } else { Some(b) },
+                                None => Some(ft),
+                            };
+                            warn!("{}, retrying...", e);
+                            self.stats.toomanyhops += 1;
+                    }
+                    FlexTabError::Trapped => {
+                            best = match best {
+                                Some(b) => if ft.state.obj() > b.state.obj()
+                                    { Some(ft) } else { Some(b) },
+                                None => Some(ft),
+                            };
+                            warn!("{}, retrying...", e);
+                            self.stats.trap += 1;
+                    }
+
+                    _ => {
+                        self.stats.error += 1;
+                        self.stats.time_elapsed += self.time_elapsed();
+                        return Err(e);
+                    },
                 },
             }
         }
@@ -194,29 +234,50 @@ impl Solver {
 
         // If FlexTab is reduced, we need to do this again starting with a real BFS.
         // Here there is no possibility of insufficient good cols or lin indep cols.
+        let return_val;
         if ft.has_ybad() {
+            self.stats.reduced += 1;
             debug!("Reduced: now need to solve...");
             let mut ftfull = FlexTab::new(&ft.state.get_u(), &z, ZTHRESH)?;
-            match ftfull.solve() {
+            return_val = match ftfull.solve() {
                 Ok(_) => Ok(ftfull),
                 Err(e) => {
                     println!("ftfull from reduced err = {}", e);
                     match e {
                         FlexTabError::StateStackExhausted
                             | FlexTabError::TooManyHops
-                            => return Ok(ftfull),
-                        _ => return Err(e),
+                            => Ok(ftfull),
+                        _ => Err(e),
                     }
                 }
-            }
+            };
         } else {
-            return Ok(ft);
+            return_val = Ok(ft);
         }
+
+        self.stats.time_elapsed += self.time_elapsed();
+        match return_val {
+            Ok(_) => self.stats.complete += 1,
+            Err(_) => self.stats.error += 1,
+        }
+
+        return_val
     }
 
+    pub fn clear_stats( &mut self ) {
+        self.stats.clear();
+    }
 
+    pub fn get_stats( &self ) -> TrialResults {
+        self.stats.clone()
+    }
 
-
+    fn time_elapsed( &self ) -> f64 {
+        let elapsed = self.timer.elapsed();
+        
+        elapsed.as_secs() as f64 + 
+        elapsed.subsec_nanos() as f64 * 1e-9
+    }
 }
 
 #[allow(dead_code)]

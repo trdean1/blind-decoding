@@ -6,7 +6,7 @@ extern crate nalgebra as na;
 
 use blindsolver::matrix;
 use blindsolver::testlib::TrialResults;
-use blindsolver::tableau::FlexTabError;
+//use blindsolver::tableau::FlexTabError;
 
 fn main() {
     env_logger::init();
@@ -35,6 +35,7 @@ fn main() {
     let mut solver = blindsolver::Solver::new( false, 0.0, 100 );
 
     for _iter in 0 .. reps_per * dims.len() {
+        solver.clear_stats();
         let which = _iter / reps_per;
         
         if complex && (dims[which].0 % 2 != 0) {
@@ -64,10 +65,10 @@ fn main() {
 
         // Obtain A, Y matrices, then run.
         let (a, y) = matrix::y_a_from_x(&x, complex);
-        let timer = std::time::Instant::now();
+        //let timer = std::time::Instant::now();
         match solver.single_run( &y ) {
-            Err(e) => {
-                match e {
+            Err(_) => {
+                /*match e {
                     FlexTabError::Runout => {
                         res.runout += 1; // ran out
                         debug!("ran out of attempts");
@@ -76,7 +77,7 @@ fn main() {
                         res.error += 1; // something else -- problem
                         println!("critical error = {}", e);
                     },
-                };
+                };*/
             },
             Ok(ft) => {
                 // Obtained a result: check if UY = X up to an ATM.
@@ -104,10 +105,11 @@ fn main() {
                 }
             },
         };
+        **res += solver.get_stats();
         // Charge elapsed time for this run to its (n, k) dimension.
-        let elapsed = timer.elapsed();
-        res.time_elapsed += elapsed.as_secs() as f64 + 
-                            elapsed.subsec_nanos() as f64 * 1e-9;
+        //let elapsed = timer.elapsed();
+        //res.time_elapsed += elapsed.as_secs() as f64 + 
+        //                    elapsed.subsec_nanos() as f64 * 1e-9;
     }
 
     // Print overall results.
@@ -115,11 +117,12 @@ fn main() {
         let mut output = 
             format!("n = {}, k = {:2}: success = {:4} / {:4}, ",
                     (res.dims).0, (res.dims).1, res.success, res.trials);
-        output += &format!("(runout = {:2}, pm1 = {:2} err = {:2}), ",
-                res.runout, res.not_atm, res.error);
+        output += &format!("(runout = {:2}, pm1 = {:2}, trap={:2}, err = {:2}), ",
+                res.runout, res.not_atm, res.trap, res.error);
         output += &format!("mean_time_per = {:.5e}", 
                            res.time_elapsed / res.trials as f64);
         println!("{}", output);
+        //res.extended_results();
     }
 } //@}
 
