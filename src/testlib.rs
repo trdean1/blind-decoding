@@ -27,7 +27,12 @@ pub struct TrialResults {
     pub error: usize,
     pub bit_errors: usize,
     pub total_bits: usize,
-    pub time_elapsed: f64
+    pub time_elapsed: f64,
+    pub goodcols: usize,
+    pub linindep: usize,
+    pub statestack: usize,
+    pub toomanyhops: usize,
+    pub trap: usize
 }
 
 impl Default for TrialResults {
@@ -44,7 +49,12 @@ impl Default for TrialResults {
             error: 0,
             bit_errors: 0,
             total_bits: 0,
-            time_elapsed: 0f64
+            time_elapsed: 0f64,
+            goodcols: 0,
+            linindep: 0,
+            statestack: 0,
+            toomanyhops: 0,
+            trap: 0
         }
     }
 }
@@ -56,6 +66,33 @@ impl TrialResults {
             var: v,
             ..Default::default() 
         }
+    }
+
+    pub fn extended_results( &self ) {
+        println!("Trials: {}, BFS reruns: {}, LinIndep: {}", 
+                 self.trials, self.goodcols, self.linindep);
+        println!("\tStateStack: {}, TooManyHops: {}, Trapped: {}",
+                 self.statestack, self.toomanyhops, self.trap);
+    }
+
+    pub fn clear( &mut self ) {
+            self.dims = (0,0);
+            self.var = 0f64;
+            self.tol = 0f64;
+            self.trials = 0;
+            self.success = 0;
+            self.not_atm = 0;
+            self.complete = 0;
+            self.runout = 0;
+            self.error = 0;
+            self.bit_errors = 0;
+            self.total_bits = 0;
+            self.time_elapsed = 0f64;
+            self.goodcols = 0;
+            self.linindep = 0;
+            self.statestack = 0;
+            self.toomanyhops = 0;
+            self.trap = 0;
     }
 }
 
@@ -92,7 +129,13 @@ impl std::ops::AddAssign for TrialResults {
             error: self.error + other.error,
             bit_errors: self.bit_errors + other.bit_errors,
             total_bits: self.total_bits + other.total_bits,
-            time_elapsed: self.time_elapsed + other.time_elapsed
+            time_elapsed: self.time_elapsed + other.time_elapsed,
+            goodcols: self.goodcols + other.goodcols,
+            linindep: self.linindep + other.linindep,
+            statestack: self.statestack + other.statestack,
+            toomanyhops: self.toomanyhops + other.toomanyhops,
+            trap: self.trap + other.trap
+
         };
     }
 }
