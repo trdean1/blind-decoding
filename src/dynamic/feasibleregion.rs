@@ -31,25 +31,6 @@ impl fmt::Display for FeasibleRegion {
         let mut s = String::new();
         s += &format!("Y = {:.4}\n", self.y);
 
-        /*
-        s += "b = \n";
-        for i in 0 .. self.b.len() {
-            for j in 0 .. self.b[i].len() {
-                s += "\t[";
-                for k in 0 .. self.dims.0 {
-                    if self.b[i][j][(0,k)] >= 0.0 {
-                        s += " ";
-                    }
-                    s += &format!("{:.4}", self.b[i][j][(0,k)]);
-                    if k != self.dims.0 - 1 {
-                        s += ", ";
-                    }
-                }
-                s += "]\n";
-            }
-        }
-        */
-
         s += "p = \n";
         for i in 0 .. self.p.len() {
             for j in 0 .. self.p[i].len() {
@@ -94,14 +75,6 @@ impl FeasibleRegion {
     pub fn from_copy( fs: &FeasibleRegion ) -> FeasibleRegion {
         let new_y = fs.get_y();
         let (n,k) = new_y.shape();
-        /*let mut new_p = vec![Vec::with_capacity(k); n];
-        let ref old_p = fs.get_p();
-
-        for i in 0 .. n {
-            for row in old_p[i].iter() {
-                new_p[i].push( row.into_owned() );
-            }
-        }*/
 
         FeasibleRegion{ 
             y: new_y,

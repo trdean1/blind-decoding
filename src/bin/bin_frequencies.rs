@@ -47,7 +47,6 @@ fn main() {
             Ok(ft) => {
                 // Obtained a result: check if UY = X up to an ATM.
                 if ft.best_state.uy_equal_atm( &x ) {
-                    debug!("EQUAL ATM");
                     results.success += 1;
                 } else {
                     // UY did +not+ match X, print some results and also
@@ -57,8 +56,6 @@ fn main() {
                         Some(inv) => debug!("UNEQUAL: u = {:.3}a^-1 = {:.3}", 
                                 ft.best_state.get_u(), inv),
                     };
-                    debug!("UNEXPECTED: return non-ATM");
-                    debug!("uy = {:.3}", ft.best_state.get_uy());
                     if ft.best_state.uy_is_pm1(ft.get_zthresh()) {
                         results.not_atm += 1; // UY = \pm 1
                     } else {

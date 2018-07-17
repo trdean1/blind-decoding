@@ -75,12 +75,7 @@ impl Solver {
            let (n,_k) = y.shape();
            let svd = na::SVD::new(y.clone(), false, false);
            let s = svd.singular_values;
-           trace!("Singular values =\n");
-           for ss in s.iter() {
-               trace!("{}", ss);
-           }
            let r = s.iter().filter(|&elt| *elt > ZTHRESH).count();
-           trace!("({})\n",r);
            if r < n {
                 self.stats.time_elapsed += self.time_elapsed();
                 return Err(FlexTabError::SingularInput);
@@ -93,7 +88,6 @@ impl Solver {
         loop {
             attempts += 1;
             if attempts > self.max_attempts {
-                info!("Ran out of attempts");
                 self.stats.time_elapsed += self.time_elapsed();
 
                 match best {
@@ -116,14 +110,12 @@ impl Solver {
             let mut center_attempts = 0;
             let mut bfs_fail = false;
             loop {
-                trace!("y = {:.8}Ui = {:.8}", z, u_i);
                 match dynamic::find_bfs(&u_i, &z) {
                     Some(b) => bfs = b,
                     None => {
                         //This shouldn't really ever happen but does if the input
                         //is poorly conditioned and we run into numerical stability 
                         //issues
-                        trace!("Singular starting point, retrying");
                         bfs_fail = true;
                         bfs = u_i;
                         self.stats.badstart += 1;
@@ -139,9 +131,6 @@ impl Solver {
                     u_i = bfs.clone();
                 }
 
-                trace!("bfs = {:.5}", bfs);
-                trace!("uy = {:.5}", bfs.clone() * z.clone() );
-
                 //Center y.  If this fails (it never should) then just use
                 //the old value of y and try our luck with FlexTab
                 z = match center_y( &bfs, &z, self.center_tol ) {
@@ -149,7 +138,6 @@ impl Solver {
                     None => z,
                 };
 
-                trace!("After centering: {:.5}", bfs.clone() * z.clone() );
                 center_attempts += 1;
                 self.stats.centerattempts += 1;
                 if center_attempts >= z.shape().0 { break; }
@@ -165,7 +153,6 @@ impl Solver {
                 Err(e) => match e {
                      // Insufficient good cols => retry.
                     FlexTabError::GoodCols => {
-                        warn!("Insufficient good cols, retrying...");
                         self.stats.goodcols += 1;
                         continue;
                     },
@@ -181,15 +168,12 @@ impl Solver {
             // Now we have at least n good cols, so try to solve.  If error is that
             // we don't have n linearly independent good cols, then try new u_i.
             // Do same thing if we appear to have been trapped.
-            trace!("num_good_cols = {}", ft.num_good_cols());
-            debug!("initial ft =\n{}", ft);
 
             match ft.solve() {
                 Ok(_) => break,
                 Err(e) => match e {
                     FlexTabError::LinIndep 
                         => { 
-                            warn!("LinIndep, retrying...");
                             self.stats.linindep += 1;
                         },
                     FlexTabError::StateStackExhausted => {
@@ -198,7 +182,6 @@ impl Solver {
                                     { Some(ft) } else { Some(b) },
                                 None => Some(ft),
                             };
-                            warn!("{}, retrying...", e);
                             self.stats.statestack += 1;
                         },
                     FlexTabError::TooManyHops => {
@@ -207,7 +190,6 @@ impl Solver {
                                     { Some(ft) } else { Some(b) },
                                 None => Some(ft),
                             };
-                            warn!("{}, retrying...", e);
                             self.stats.toomanyhops += 1;
                     }
                     FlexTabError::Trapped => {
@@ -216,7 +198,6 @@ impl Solver {
                                     { Some(ft) } else { Some(b) },
                                 None => Some(ft),
                             };
-                            warn!("{}, retrying...", e);
                             self.stats.trap += 1;
                     }
 
@@ -229,15 +210,11 @@ impl Solver {
             }
         }
 
-        debug!("FlexTab (n,k) = {:?}: {}, visited = {}", ft.dims(), 
-                if ft.has_ybad() { "REDUCED" } else { "FULL" }, ft.visited_vertices());
-
         // If FlexTab is reduced, we need to do this again starting with a real BFS.
         // Here there is no possibility of insufficient good cols or lin indep cols.
         let return_val;
         if ft.has_ybad() {
             self.stats.reduced += 1;
-            debug!("Reduced: now need to solve...");
             let mut ftfull = FlexTab::new(&ft.state.get_u(), &z, ZTHRESH)?;
             return_val = match ftfull.solve() {
                 Ok(_) => Ok(ftfull),
@@ -370,7 +347,6 @@ pub fn compute_symbol_errors( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
 
     //If we don't have u and h just return raw error rate
     if u == None || h == None {
-        info!("Row errors: {:?}", row_err_vec);
         return Some( row_err_vec.iter().fold(0,|acc,&e| acc + e) );
     }
 
@@ -423,7 +399,6 @@ fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     
     //Check that p_hat is an ATM
     if is_atm( &p_hat ) == false {
-        info!("P_hat is not ATM");
         return recover_from_non_atm( &x_hat, &x, &p_hat );
     } else { 
         return None;

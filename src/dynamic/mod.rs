@@ -38,15 +38,6 @@ fn objgrad(x: &mut na::DMatrix<f64>) -> Option<na::DMatrix<f64>> { //{@
 //@}
 fn get_active_constraints_bool(prod: &na::DMatrix<f64>,
                                c_bool: &mut na::DMatrix<bool>, zthresh: f64) {
-    /*
-    let prod = match prod_maybe {
-        Some(r) => r,
-        None => {
-            let r = u * y;
-            &r
-        },
-    };*/
-
     let (n, k) = prod.shape();
 
     for j in 0 .. k {
@@ -89,7 +80,6 @@ fn boundary_dist(uy: &na::DMatrix<f64>, dy: &na::DMatrix<f64>,
                  y: &na::DMatrix<f64>, mask: Option<&na::DMatrix<bool>>) -> f64 {
     let mut t_min = std::f64::MAX;
 
-    debug!("uy={}dy={}",uy,dy);
     // Find the lowest value of t such that U + t * V reaches the boundary.
     for j in 0 .. y.shape().1 {
         for i in 0 .. y.shape().0 {
@@ -157,11 +147,6 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
     for _iter in 0 .. (n*n - 1) {
         u.mul_to(&y, &mut uy);
 
-        //Print UY to trace each iteration if debug build
-        if cfg!(build = "debug") {
-            trace!("Iteration {}\nuy = {:.3}\nfs = {:.3}", _iter, uy, fs);
-        }
-
         //TODO: make this more efficient. Not sure the best way yet, but 
         //shouldn't take 2n^2 
         get_active_constraints_bool(&uy, &mut p_bool_iter, ZTHRESH);
@@ -187,31 +172,18 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
             None => break,
         };
 
-        debug!("Iteration {} has {} independent constraints", _iter, fs.get_len_p());
-
         gradmtx = fs.reject_mtx( &gradmtx );
 
-        debug!("norm = {}", gradmtx.norm());
-        if gradmtx.norm() < 1e-9 {
-            debug!("Iteration {} gradmtx.norm negligible", _iter);
+        if gradmtx.norm() < 1e-12 {
             break
         }
 
         gradmtx.mul_to( &y, &mut vy );
         t = boundary_dist(&uy, &vy,
                           &y, Some(&p_bool));
-        //gradmtx.apply(|e| e * t);
 
         u += t*gradmtx.clone();
-        /*
-        for j in 0 .. n {
-            let mut col_u = u.column_mut(j);
-            let col_grad = gradmtx.column(j);
-            for i in 0 .. n {
-                col_u[i] += col_grad[i];
-            }
-        }
-        */
+
     }
 
     //Check if we are in {-1, 0, 1} if not, call find_vertex_on_face
@@ -266,7 +238,6 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
     let mut j = 0;
     let mut norm = na::DMatrix::from_column_slice(1, 1, &vec![0.0; 1]);
     while i < n && j < bad_indices.len() {
-        trace!("\n Fixing ({}, {})", row, bad_indices[j]);
         //This is the corresponding symbol that lead to the bad <u,y>
         let bad_y = y.column( bad_indices[j] );
 
@@ -280,7 +251,6 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
             //If we didn't succeed n times, then there probably is no nullspace
             k -= 1;
             if k == 0 {
-                trace!("Failed to find vector in nullspace!");
                 return Some( u_row );
             }
 
@@ -295,9 +265,6 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
                 continue;
             }
             v /= norm[(0,0)].sqrt();
-            
-
-            //println!("Normalized direction after rejection={:.4}", v);
         }
 
         //Compute values to force to -1 and +1
@@ -341,13 +308,11 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
             u_row.copy_from(&u_minus);
         } else {
             //This face is infeasible, try picking a new target
-            trace!("This face is infeasible!");
             j += 1;
             continue;
         }
 
         //We've found a new constraint.  Update and continue
-        trace!("New row: {:.4}", u_row.clone() * y.clone());
         bad_row = u_row.clone() * y.clone();
 
         i += 1;
@@ -400,8 +365,6 @@ pub fn find_vertex_on_face( u_i : &na::DMatrix<f64>, y: &na::DMatrix<f64>,
     }
     fs.insert_from_vec( &updates );
 
-    trace!("Starting uy = {:.4}", uy);
-
     //Find the first row that is not in {-1, 0, 1}
     for i in 0..n {
         let row = uy.row(i);
@@ -421,8 +384,6 @@ pub fn find_vertex_on_face( u_i : &na::DMatrix<f64>, y: &na::DMatrix<f64>,
             }
         }
     }
-
-    trace!("Ending uy = {:.4}", u.clone() * y.clone() );
 
     Some( u )
 }

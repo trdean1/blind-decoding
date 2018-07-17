@@ -172,7 +172,6 @@ pub fn get_matrix(dims: &[(usize, usize)]) -> na::DMatrix<f64> { //{@
 
 pub fn y_a_from_x(x: &na::DMatrix<f64>, complex: bool) 
     -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
-    trace!("X = {}", x);
     let n = x.nrows();
     let k = x.ncols();
 

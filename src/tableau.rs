@@ -560,10 +560,8 @@ impl FlexTab { //{@
                         constraint[q] = (x_var_base + q, col[q]);
                     }
                 }
-                trace!("adding constraint: i = {}, j = {} c = {:?}", i, j, constraint);
                 self.add_constraint_pair(tab_row, &constraint);
                 tab_row += 2;
-                trace!("ft =\n{}", self);
             }
         }
     } //@}
@@ -616,7 +614,6 @@ impl FlexTab { //{@
         // Zero out any entries in self.x that are solely float imprecision.
         let num_x_from_u = 2 * self.n * self.n;
 
-        trace!("ft = {}", self);
         // There are n groups, each of k equation pairs, and within a group
         // every equation pair uses the same set of x variables.
         for groupnum in 0 .. self.n {
@@ -668,7 +665,6 @@ impl FlexTab { //{@
                     let srcrow = tgtrow ^ 0x1;
                     self.add_row_multiple(tgtrow, srcrow, 1.0);
                 }
-                trace!("ft = {}", self);
             }
         }
         self.tableau_mappings()?;
@@ -718,14 +714,11 @@ impl FlexTab { //{@
             let mut vvars:HashSet<usize> = HashSet::new();
             for row in 2 * self.k * cset .. 2 * self.k * (cset + 1) {
                 let (uvars, slackvars) = self.categorize_row(row);
-                trace!("row = {}, uvars = {:?}, slackvars = {:?}",
-                        row, uvars, slackvars);
 
                 // If there are any uvars, there must be 2, both from same Xvar.
                 if uvars.len() > 0 {
                     if uvars.len() != 2 || uvars[0] >> 1 != uvars[1] >> 1 {
                         // This fails if not enough lin indep cols.
-                        trace!("uvars: row = {}, uvars = {:?}", row, uvars);
                         return Err(FlexTabError::LinIndep);
                     }
                     let uvar = uvars[0] >> 1;
@@ -839,13 +832,11 @@ impl FlexTab { //{@
 
     pub fn solve(&mut self) -> Result<(), FlexTabError> { //{@
         self.to_simplex_form()?;
-        trace!("Initial simplex form:\n{}\n", self);
         self.hop()?;
         Ok(())
     } //@}
     fn hop(&mut self) -> Result<(), FlexTabError> { //{@
         self.mark_visited();
-        debug!("Initial obj = {:.5}, init u =\n{:.3}", self.state.obj, self.state.u);
 
         // Principal vertex hopping loop.
         loop {
@@ -855,7 +846,6 @@ impl FlexTab { //{@
 
             // Check if this vertex is valid: if not, backtrack.
             if !self.eval_vertex() {
-                debug!("Bad vertex, attempting backtrack");
                 if !self.restore(true) {
                     if self.visited.len() == 1 {
                         return Err(FlexTabError::Trapped);
@@ -870,13 +860,9 @@ impl FlexTab { //{@
             }
             // Check if this vertex is a global optimum.
             if self.is_done() {
-                debug!("End obj = {:.5}", self.state.obj);
                 break;
             }
 
-            debug!("obj = {:.5}\nflip_grad =\n{}uy = {:.5}u = {:.5}\n",
-                    self.state.obj, self.print_flip_grad(), self.state.uy,
-                    self.state.u);
             if self.visited.len() >= 2 * self.n * self.n {
                 return Err(FlexTabError::TooManyHops);
             }
@@ -890,7 +876,6 @@ impl FlexTab { //{@
                 },
                 Some(idx) => {
                     // Take snapshot, flip idx, mark new vertex visited.
-                    trace!("flipping vertex: {}", idx);
                     self.snapshot();
                     if self.verbose & VERBOSE_HOP != 0 {
                         println!("Hop {}", if effect > self.zthresh
@@ -947,7 +932,6 @@ impl FlexTab { //{@
         // To exec the pivot, we must pivot each of the (n) u-values.
         let base = (v / self.n) * self.n;
         let top = base + self.n;
-        trace!("IN +flip+ ft =\n{}", self);
         for i in base .. top {
             let (maniprow, xplus, xminus) = self.urows[i].unwrap();
             if self.verbose & VERBOSE_FLIP != 0 {
@@ -986,12 +970,11 @@ impl FlexTab { //{@
         }
 
         // Type 3 constraints.
-        for (row, ref cset) in self.extra_constr.iter().enumerate() {
-            for (cnum, ref c) in cset.iter().enumerate() {
+        for (_row, ref cset) in self.extra_constr.iter().enumerate() {
+            for (_cnum, ref c) in cset.iter().enumerate() {
                 // Constraint contains set of relevant columns.  We need to pass
                 // in the row.
                 if !c.check(&self.state.x, self.zthresh) {
-                    trace!("type 3 check fail: row = {}, cnum = {}", row, cnum);
                     return false;
                 }
             }
