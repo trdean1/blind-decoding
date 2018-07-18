@@ -254,6 +254,7 @@ impl Constraint { //{@
         let total = self.addends.iter().fold(0.0, |total, &(xvar, coeff)| {
             total + coeff * x[xvar]
         });
+        debug!("Difference: {}", (total-self.sum).abs());
         (total - self.sum).abs() < zthresh
     }
 } //@}
@@ -395,6 +396,11 @@ impl fmt::Display for FlexTab { //{@
             s += if i % self.n == self.n - 1 { "\n" } else { " | " };
         }
 
+        if let Some(ref y) = self.ybad {
+            s += &format!("uybad = {:.5}\n", 
+                          self.state.u.clone() * y.clone());
+        }
+
         // current u, y, uy
         s += &format!("u = {:.5}y = {:.5}uy = {:.5}\n", self.state.u, self.y,
                 self.state.uy);
@@ -407,6 +413,7 @@ impl FlexTab { //{@
             -> Result<FlexTab, FlexTabError> { 
         // Find all bad columns.
         let (bad_cols, uyfull) = FlexTab::find_bad_columns(&u, &y, zthresh);
+        debug!("Bad Columns: {:?}", bad_cols);
         let n = y.nrows();
         let k = y.ncols() - bad_cols.len();
 
@@ -846,10 +853,16 @@ impl FlexTab { //{@
 
             // Check if this vertex is valid: if not, backtrack.
             if !self.eval_vertex() {
-                if !self.restore(true) {
-                    if self.visited.len() == 1 {
-                        return Err(FlexTabError::Trapped);
+                debug!("Found infeasible vertex");
+                {
+                    let ref uy = &self.state.uy;
+                    debug!("uy = {:.4}", uy ); 
+                    match self.state.uybad {
+                        Some(ref uybad) => debug!("uybad = {:.4}", uybad),
+                        None => {},
                     }
+                }
+                if !self.restore(true) {
                     return Err(FlexTabError::StateStackExhausted);
                 }
                 continue;
@@ -869,7 +882,6 @@ impl FlexTab { //{@
             let (flip_idx, effect) = self.search_neighbors();
             match flip_idx {
                 None => {
-                    info!("Nowhere at all to go, attempting backtrack");
                     if !self.restore(true) {
                         return Err(FlexTabError::StateStackExhausted);
                     }
@@ -892,10 +904,13 @@ impl FlexTab { //{@
         let mut best_idx = None;
         let mut best_effect = std::f64::MIN;
 
+        debug!("Effects:");
         for i in 0 .. self.n {
             for j in 0 .. self.n {
                 let v = self.n * i + j;
                 let effect = self.state.flip_grad[v];
+                debug!("({},{}): {:.5} (Visited: {})", i, j, effect,
+                        self.is_flip_visited(v));
                 if !self.is_flip_visited(v)
                         && !effect.is_infinite()
                         && effect > best_effect {
@@ -904,7 +919,11 @@ impl FlexTab { //{@
                 }
             }
         }
-
+        if best_idx != None {
+            debug!("Best: ({}), {:.4}\n", best_idx.unwrap(), best_effect);
+        } else {
+            debug!("No good neighbor found\n");
+        }
         (best_idx, best_effect)
     } //@}
 
@@ -966,23 +985,29 @@ impl FlexTab { //{@
     } //@}
     fn eval_vertex(&self) -> bool { //{@
         if self.state.obj < -10.0 || self.state.flip_grad_max > 50.0 {
+            debug!("Vertex is singular");
             return false;
         }
 
         // Type 3 constraints.
-        for (_row, ref cset) in self.extra_constr.iter().enumerate() {
-            for (_cnum, ref c) in cset.iter().enumerate() {
+        /*debug!("Checking Type 3 Constraints");
+        for (row, ref cset) in self.extra_constr.iter().enumerate() {
+            for (cnum, ref c) in cset.iter().enumerate() {
                 // Constraint contains set of relevant columns.  We need to pass
                 // in the row.
                 if !c.check(&self.state.x, self.zthresh) {
+                    debug!("Type 3 failure.  Row: {} Column {}", row, cnum);
                     return false;
                 }
             }
-        }
+        }*/
 
         // Full UY feasibility: check _bad_cols, good enforced by tableau.
         if let Some(ref uybad) = self.state.uybad {
             if uybad.iter().any(|&e| e.abs() > 1.0 + self.zthresh) {
+                let mut error = uybad.clone();
+                error.iter_mut().for_each(|e| *e = (e.abs() - 1.0).abs() );
+                debug!("Error = {:.4}", error);
                 return false;
             }
         }
