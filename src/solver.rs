@@ -177,12 +177,15 @@ impl Solver {
                             self.stats.linindep += 1;
                         },
                     FlexTabError::StateStackExhausted => {
+                            debug!("ft:\n{}", &ft);
+                            debug!("U_i = {}, Y = {}", bfs, z.clone());
                             best = match best {
                                 Some(b) => if ft.state.obj() > b.state.obj()
                                     { Some(ft) } else { Some(b) },
                                 None => Some(ft),
                             };
                             self.stats.statestack += 1;
+
                         },
                     FlexTabError::TooManyHops => {
                             best = match best {

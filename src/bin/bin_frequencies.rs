@@ -13,7 +13,7 @@ fn main() {
     env_logger::init();
 
     let reps_per = 1000;
-    let dims = vec![(4,30)];
+    let dims = vec![(8,16)];
 
     let mut bfs_histogram: HashMap<usize, usize> = HashMap::new(); 
     let mut linindep_histogram: HashMap<usize, usize> = HashMap::new(); 
@@ -27,6 +27,7 @@ fn main() {
 
     println!("Dim = {:?}", dims[0]);
     for iter in 0 .. reps_per {
+        debug!("\n\n--------------------------");
         solver.clear_stats();
 
         if iter != 0 && (iter % (reps_per / 10) == 0) {
@@ -37,10 +38,11 @@ fn main() {
 
         // Select X matrix of one specific set of dimensions (n, k).
         let x  = matrix::get_matrix(&dims[0 .. 1]); 
-
+        debug!("X = {}", x);
 
         // Obtain A, Y matrices, then run.
-        let (a, y) = matrix::y_a_from_x(&x, false);
+        let (_a, y) = matrix::y_a_from_x(&x, false);
+        debug!("Y = {}", y);
 
         match solver.single_run( &y ) {
             Err(_) => {},
@@ -51,11 +53,11 @@ fn main() {
                 } else {
                     // UY did +not+ match X, print some results and also
                     // determine if UY was even a vertex.
-                    match a.try_inverse() {
-                        None => debug!("UNEQUAL: Cannot take a^-1"),
-                        Some(inv) => debug!("UNEQUAL: u = {:.3}a^-1 = {:.3}", 
-                                ft.best_state.get_u(), inv),
-                    };
+                    //match a.try_inverse() {
+                    //    None => debug!("UNEQUAL: Cannot take a^-1"),
+                    //    Some(inv) => debug!("UNEQUAL: u = {:.3}a^-1 = {:.3}", 
+                    //            ft.best_state.get_u(), inv),
+                    //};
                     if ft.best_state.uy_is_pm1(ft.get_zthresh()) {
                         results.not_atm += 1; // UY = \pm 1
                     } else {
