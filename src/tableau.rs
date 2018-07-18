@@ -245,7 +245,6 @@ impl Constraint { //{@
         self.addends.push((xvar, coeff));
     }
 
-    /*
     /// Check if the constraint is still satisfied.
     fn check(&self, x: &Vec<f64>, zthresh: f64) -> bool {
         if self.addends.len() == 0 { return true; }
@@ -256,7 +255,6 @@ impl Constraint { //{@
         debug!("Difference: {}", (total-self.sum).abs());
         (total - self.sum).abs() < zthresh
     }
-    */
 } //@}
 impl Eq for Constraint {} //{@
 impl PartialEq for Constraint {
@@ -845,6 +843,17 @@ impl FlexTab { //{@
     fn hop(&mut self) -> Result<(), FlexTabError> { //{@
         self.mark_visited();
 
+        let mut extra_cols = 0;
+        {
+            match self.state.uybad {
+                Some(ref uybad) => {
+                    debug!("starting uybad = {:.4}", uybad);
+                    extra_cols = uybad.ncols();
+                },
+                None => {},
+            }
+        }
+
         // Principal vertex hopping loop.
         loop {
             if self.verbose & VERBOSE_HOP != 0 {
@@ -854,18 +863,16 @@ impl FlexTab { //{@
             // Check if this vertex is valid: if not, backtrack.
             if !self.eval_vertex() {
                 debug!("Found infeasible vertex");
-                {
-                    let ref uy = &self.state.uy;
-                    debug!("uy = {:.4}", uy ); 
-                    match self.state.uybad {
-                        Some(ref uybad) => debug!("uybad = {:.4}", uybad),
-                        None => {},
-                    }
-                }
                 if !self.restore(true) {
                     return Err(FlexTabError::StateStackExhausted);
                 }
                 continue;
+            } else {
+                debug!("Found feasible vertex");
+                match self.state.uybad {
+                    Some(ref uybad) => debug!("uybad = {:.4}", uybad),
+                    None => {},
+                }
             }
             // Check if this is the best vertex we have seen.
             if self.state.obj > self.best_state.obj {
@@ -876,7 +883,7 @@ impl FlexTab { //{@
                 break;
             }
 
-            if self.visited.len() >= 2 * self.n * self.n {
+            if self.visited.len() >= 2 * self.n * ( self.k + extra_cols ) {
                 return Err(FlexTabError::TooManyHops);
             }
             let (flip_idx, effect) = self.search_neighbors();
@@ -904,13 +911,13 @@ impl FlexTab { //{@
         let mut best_idx = None;
         let mut best_effect = std::f64::MIN;
 
-        debug!("Effects:");
+        //debug!("Effects:");
         for i in 0 .. self.n {
             for j in 0 .. self.n {
                 let v = self.n * i + j;
                 let effect = self.state.flip_grad[v];
-                debug!("({},{}): {:.5} (Visited: {})", i, j, effect,
-                        self.is_flip_visited(v));
+                //debug!("({},{}): {:.5} (Visited: {})", i, j, effect,
+                //        self.is_flip_visited(v));
                 if !self.is_flip_visited(v)
                         && !effect.is_infinite()
                         && effect > best_effect {
@@ -990,24 +997,23 @@ impl FlexTab { //{@
         }
 
         // Type 3 constraints.
-        /*debug!("Checking Type 3 Constraints");
-        for (row, ref cset) in self.extra_constr.iter().enumerate() {
-            for (cnum, ref c) in cset.iter().enumerate() {
-                // Constraint contains set of relevant columns.  We need to pass
-                // in the row.
-                if !c.check(&self.state.x, self.zthresh) {
-                    debug!("Type 3 failure.  Row: {} Column {}", row, cnum);
-                    return false;
+        debug!("Checking Type 3 Constraints");
+        if self.n > 8 {
+            for (row, ref cset) in self.extra_constr.iter().enumerate() {
+                for (cnum, ref c) in cset.iter().enumerate() {
+                    // Constraint contains set of relevant columns.  We need to pass
+                    // in the row.
+                    if !c.check(&self.state.x, self.zthresh) {
+                        debug!("Type 3 failure.  Row: {} Column {}", row, cnum);
+                        return false;
+                    }
                 }
             }
-        }*/
+        }
 
         // Full UY feasibility: check _bad_cols, good enforced by tableau.
         if let Some(ref uybad) = self.state.uybad {
             if uybad.iter().any(|&e| e.abs() > 1.0 + self.zthresh) {
-                let mut error = uybad.clone();
-                error.iter_mut().for_each(|e| *e = (e.abs() - 1.0).abs() );
-                debug!("Error = {:.4}", error);
                 return false;
             }
         }
@@ -1265,4 +1271,5 @@ mod tests {
 
         assert!(passed);
     }
+
 }

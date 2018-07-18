@@ -13,7 +13,7 @@ fn main() {
     env_logger::init();
 
     let reps_per = 1000;
-    let dims = vec![(8,16)];
+    let dims = vec![(8,12)];
 
     let mut bfs_histogram: HashMap<usize, usize> = HashMap::new(); 
     let mut linindep_histogram: HashMap<usize, usize> = HashMap::new(); 

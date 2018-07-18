@@ -27,7 +27,7 @@ fn main() {
             dims.push( (ii, 4*jj) );
         }
     }
-    
+
     let mut results: Vec<TrialResults> = dims.iter()
         .map(|&d| TrialResults::new(d.0,d.1,0f64))
         .collect::<Vec<_>>();
@@ -45,7 +45,7 @@ fn main() {
 
         if _iter % reps_per == 0 {
             eprintln!("Dim = {:?}", dims[which]);
-        } else if _iter % 100 == 0 {
+        } else if _iter % (reps_per / 10) == 0 {
             eprint!("#");
         } else if _iter % reps_per == reps_per - 1 {
             eprint!("\n");

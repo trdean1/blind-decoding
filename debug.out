@@ -1,0 +1,1296 @@
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Bad Columns: [1, 5, 6, 8]
+HOP loop top: visited = 1
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (19), 0.5000
+
+Hop ++
+HOP loop top: visited = 2
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -2.0000  0.0000  3.0000 │
+  │ -0.0000  0.0000  1.0000  0.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 2
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (3), 0.5000
+
+Hop ++
+HOP loop top: visited = 3
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -2.0000 -2.0000  1.0000  2.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -0.0000  0.0000  1.0000  0.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 3
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (30), 0.0000
+
+Hop ==
+HOP loop top: visited = 4
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -0.0000  0.0000  1.0000  0.0000 │
+  │  2.0000 -1.0000 -0.0000  2.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 4
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (26), 0.0000
+
+Hop ==
+HOP loop top: visited = 5
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -1.0000 -0.0000  2.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 5
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (12), 0.0000
+
+Hop ==
+HOP loop top: visited = 6
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  0.0000  0.0000 -1.0000 -2.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -0.0000  0.0000  1.0000  0.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 6
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (35), 0.0000
+
+Hop ==
+HOP loop top: visited = 7
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -0.0000  0.0000  1.0000  0.0000 │
+  │  0.0000  2.0000  1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 7
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (28), 0.0000
+
+Hop ==
+HOP loop top: visited = 8
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  2.0000  1.0000 -0.0000 -0.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 8
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (0), 0.0000
+
+Hop ==
+HOP loop top: visited = 9
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  0.0000 -2.0000  1.0000  2.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -0.0000  0.0000  1.0000  0.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 9
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (22), 0.0000
+
+Hop ==
+HOP loop top: visited = 10
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │ -1.0000 -2.0000  0.0000  1.0000 │
+  │ -0.0000  0.0000  1.0000  0.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 10
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (10), 0.0000
+
+Hop ==
+HOP loop top: visited = 11
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │  1.0000  2.0000 -0.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -0.0000  0.0000  1.0000  0.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 11
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (16), 0.0000
+
+Hop ==
+HOP loop top: visited = 12
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  3.0000  0.0000 -2.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -0.0000  0.0000  1.0000  0.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 12
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (27), -0.0000
+
+Hop ==
+HOP loop top: visited = 13
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (30), 1.0000
+
+Hop ++
+HOP loop top: visited = 14
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │  2.0000 -1.0000 -0.0000  2.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 14
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (3), 0.5000
+
+Hop ++
+HOP loop top: visited = 15
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -2.0000 -2.0000  1.0000  2.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 15
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (7), 0.0000
+
+Hop ==
+HOP loop top: visited = 16
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000 -0.0000  2.0000  1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 16
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (26), 0.0000
+
+Hop ==
+HOP loop top: visited = 17
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -2.0000 -1.0000  2.0000  2.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 17
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (35), 0.0000
+
+Hop ==
+HOP loop top: visited = 18
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │  0.0000  2.0000  1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 18
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (28), 0.0000
+
+Hop ==
+HOP loop top: visited = 19
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (0), 0.5000
+
+Hop ++
+HOP loop top: visited = 20
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  0.0000 -2.0000  1.0000  2.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 20
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (3), 0.5000
+
+Hop ++
+HOP loop top: visited = 21
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -2.0000 -2.0000  1.0000  2.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 21
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (26), 0.0000
+
+Hop ==
+HOP loop top: visited = 22
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  0.0000 -0.0000  1.0000  2.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 22
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (7), 0.0000
+
+Hop ==
+HOP loop top: visited = 23
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000 -0.0000  2.0000  1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 23
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (35), 0.0000
+
+Hop ==
+HOP loop top: visited = 24
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  0.0000  2.0000  1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 24
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (22), 0.0000
+
+Hop ==
+HOP loop top: visited = 25
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │ -1.0000 -2.0000  0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 25
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (10), 0.0000
+
+Hop ==
+HOP loop top: visited = 26
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │  1.0000  2.0000 -0.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 26
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (16), 0.0000
+
+Hop ==
+HOP loop top: visited = 27
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  3.0000  0.0000 -2.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 27
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (19), -0.0000
+
+Hop ==
+HOP loop top: visited = 28
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -2.0000  0.0000  3.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 28
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (13), -0.0000
+
+Hop ==
+HOP loop top: visited = 29
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -2.0000 -0.0000  1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 29
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (29), -0.0000
+
+Hop ==
+HOP loop top: visited = 30
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  2.0000 -2.0000 -1.0000  2.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 30
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (30), -0.0000
+
+Hop ==
+HOP loop top: visited = 31
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  2.0000 -1.0000 -0.0000  2.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 31
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (31), -0.0000
+
+Hop ==
+HOP loop top: visited = 32
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (27), 1.0000
+
+Hop ++
+HOP loop top: visited = 33
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  2.0000  1.0000 -0.0000 -0.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 33
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (0), 0.5000
+
+Hop ++
+HOP loop top: visited = 34
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  0.0000 -2.0000  1.0000  2.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 34
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (26), 0.0000
+
+Hop ==
+HOP loop top: visited = 35
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  0.0000 -0.0000  1.0000  2.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 35
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (7), 0.0000
+
+Hop ==
+HOP loop top: visited = 36
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000 -0.0000  2.0000  1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 36
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (35), 0.0000
+
+Hop ==
+HOP loop top: visited = 37
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -0.0000  3.0000  0.0000 -2.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 37
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (16), 0.0000
+
+Hop ==
+HOP loop top: visited = 38
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  3.0000  0.0000 -2.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 38
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (22), 0.0000
+
+Hop ==
+HOP loop top: visited = 39
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │ -1.0000 -2.0000  0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 39
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (10), -0.0000
+
+Hop ==
+HOP loop top: visited = 40
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │ -1.0000 -1.0000  1.0000  1.0000 │
+  │  1.0000  2.0000 -0.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 40
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (4), -0.0000
+
+Hop ==
+HOP loop top: visited = 41
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (35), 0.5000
+
+Hop ++
+HOP loop top: visited = 42
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -0.0000  3.0000  0.0000 -2.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 42
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (27), 0.5000
+
+Hop ++
+HOP loop top: visited = 43
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  2.0000  1.0000 -0.0000 -0.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 43
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (32), 0.5000
+
+Hop ++
+HOP loop top: visited = 44
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  2.0000  1.0000 -2.0000 -2.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 44
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (0), 0.5000
+
+Hop ++
+HOP loop top: visited = 45
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  2.0000 -1.0000 -0.0000  2.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 45
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (7), 0.0000
+
+Hop ==
+HOP loop top: visited = 46
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000 -0.0000  2.0000  1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 46
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (16), 0.0000
+
+Hop ==
+HOP loop top: visited = 47
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  3.0000  0.0000 -2.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 47
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (22), 0.0000
+
+Hop ==
+HOP loop top: visited = 48
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │ -1.0000 -2.0000  0.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 48
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (10), -0.0000
+
+Hop ==
+HOP loop top: visited = 49
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  2.0000 -0.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 49
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (25), -0.0000
+
+Hop ==
+HOP loop top: visited = 50
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (0), 1.0000
+
+Hop ++
+HOP loop top: visited = 51
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  2.0000 -1.0000 -0.0000  2.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 51
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (27), 0.5000
+
+Hop ++
+HOP loop top: visited = 52
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  2.0000  2.0000 -1.0000 -2.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 52
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (5), 0.0000
+
+Hop ==
+HOP loop top: visited = 53
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  0.0000  2.0000  1.0000  0.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 53
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (32), 0.0000
+
+Hop ==
+HOP loop top: visited = 54
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │  2.0000  1.0000 -2.0000 -2.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 54
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (10), 0.0000
+
+Hop ==
+HOP loop top: visited = 55
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  2.0000 -0.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 55
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (33), 0.0000
+
+Hop ==
+HOP loop top: visited = 56
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (27), 0.5000
+
+Hop ++
+HOP loop top: visited = 57
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  2.0000  2.0000 -1.0000 -2.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 57
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (19), 0.5000
+
+Hop ++
+HOP loop top: visited = 58
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -2.0000  0.0000  3.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 58
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (12), 0.0000
+
+Hop ==
+HOP loop top: visited = 59
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  0.0000  0.0000 -1.0000 -2.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 59
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (5), 0.0000
+
+Hop ==
+HOP loop top: visited = 60
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  0.0000  2.0000  1.0000  0.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 60
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (32), 0.0000
+
+Hop ==
+HOP loop top: visited = 61
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │  1.0000  0.0000 -2.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 61
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (0), 0.0000
+
+Hop ==
+HOP loop top: visited = 62
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  2.0000 -1.0000 -0.0000  2.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 62
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (24), 0.0000
+
+Hop ==
+HOP loop top: visited = 63
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │ -0.0000  2.0000 -1.0000 -2.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 63
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (10), 0.0000
+
+Hop ==
+HOP loop top: visited = 64
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │  1.0000  2.0000 -0.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 64
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (34), 0.0000
+
+Hop ==
+HOP loop top: visited = 65
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -2.0000 -1.0000  0.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 65
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (6), 0.0000
+
+Hop ==
+HOP loop top: visited = 66
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -2.0000  2.0000  1.0000 -2.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 66
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (16), 0.0000
+
+Hop ==
+HOP loop top: visited = 67
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  3.0000  0.0000 -2.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 67
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (22), -0.0000
+
+Hop ==
+HOP loop top: visited = 68
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │ -1.0000 -2.0000  0.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 68
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (35), -0.0000
+
+Hop ==
+HOP loop top: visited = 69
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000 -0.0000 -0.0000  1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -1.0000  2.0000  0.0000 -1.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 69
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (2), -0.0000
+
+Hop ==
+HOP loop top: visited = 70
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  2.0000 -0.0000 -1.0000 -0.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -0.0000  0.0000 -1.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 70
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (1), -0.0000
+
+Hop ==
+HOP loop top: visited = 71
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Best: (34), 1.0000
+
+Hop ++
+HOP loop top: visited = 72
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: Found infeasible vertex
+DEBUG 2018-07-18T20:38:45Z: blindsolver::tableau: uybad = 
+  ┌                                 ┐
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -1.0000  1.0000  1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000 -1.0000 │
+  │  1.0000 -1.0000 -1.0000  1.0000 │
+  │  1.0000  1.0000 -1.0000 -1.0000 │
+  │ -2.0000 -1.0000  0.0000 -0.0000 │
+  └                                 ┘
+
+
+HOP loop top: visited = 72
+Too many hops
+ft = Type 3 Constraints:
+	row: 0
+	row: 1
+	row: 2
+	row: 3
+	row: 4
+	row: 5
+
+
+x_0 = 0.00000 x_1 = 5.45882 x_2 = 0.00000 x_3 = 6.58912
+x_4 = 0.00000 x_5 = 3.59516 x_6 = 0.00000 x_7 = 3.28898
+x_8 = 0.00000 x_9 = 0.48503 x_10 = 0.00000 x_11 = 0.50956
+x_12 = 2.70545 x_13 = 0.00000 x_14 = 2.66376 x_15 = 0.00000
+x_16 = 1.31411 x_17 = 0.00000 x_18 = 1.29714 x_19 = 0.00000
+x_20 = 0.00000 x_21 = 0.24048 x_22 = 0.00000 x_23 = 0.21829
+x_24 = 0.00000 x_25 = 5.84874 x_26 = 0.00000 x_27 = 6.01759
+x_28 = 0.00000 x_29 = 3.18392 x_30 = 0.00000 x_31 = 2.47425
+x_32 = 0.00000 x_33 = 0.38901 x_34 = 0.23054 x_35 = 0.00000
+x_36 = 0.68093 x_37 = 0.00000 x_38 = 1.15484 x_39 = 0.00000
+x_40 = 0.43228 x_41 = 0.00000 x_42 = 0.10370 x_43 = 0.00000
+x_44 = 0.07817 x_45 = 0.00000 x_46 = 0.05546 x_47 = 0.00000
+x_48 = 3.08756 x_49 = 0.00000 x_50 = 3.31346 x_51 = 0.00000
+x_52 = 1.19426 x_53 = 0.00000 x_54 = 1.88499 x_55 = 0.00000
+x_56 = 0.03114 x_57 = 0.00000 x_58 = 0.03368 x_59 = 0.00000
+x_60 = 0.00000 x_61 = 0.70423 x_62 = 0.00000 x_63 = 1.33160
+x_64 = 0.00000 x_65 = 0.85447 x_66 = 0.00000 x_67 = 1.30348
+x_68 = 0.00000 x_69 = 0.14414 x_70 = 0.00000 x_71 = 0.42102
+x_72 = 2.00000 x_73 = 0.00000 x_74 = 0.00000 x_75 = 2.00000
+x_76 = 0.00000 x_77 = 2.00000 x_78 = 0.00000 x_79 = 2.00000
+x_80 = 0.00000 x_81 = 2.00000 x_82 = 2.00000 x_83 = -0.00000
+x_84 = 0.00000 x_85 = 2.00000 x_86 = -0.00000 x_87 = 2.00000
+x_88 = -0.00000 x_89 = 2.00000 x_90 = -0.00000 x_91 = 2.00000
+x_92 = 2.00000 x_93 = -0.00000 x_94 = 0.00000 x_95 = 2.00000
+x_96 = 0.00000 x_97 = 2.00000 x_98 = 0.00000 x_99 = 2.00000
+x_100 = 2.00000 x_101 = 0.00000 x_102 = -0.00000 x_103 = 2.00000
+x_104 = 2.00000 x_105 = 0.00000 x_106 = 2.00000 x_107 = 0.00000
+x_108 = -0.00000 x_109 = 2.00000 x_110 = -0.00000 x_111 = 2.00000
+x_112 = 0.00000 x_113 = 2.00000 x_114 = 2.00000 x_115 = -0.00000
+x_116 = 0.00000 x_117 = 2.00000 x_118 = 2.00000 x_119 = -0.00000
+x_120 = 0.00000 x_121 = 2.00000 x_122 = 0.00000 x_123 = 2.00000
+x_124 = 2.00000 x_125 = -0.00000 x_126 = 2.00000 x_127 = 0.00000
+x_128 = 0.00000 x_129 = 2.00000 x_130 = -0.00000 x_131 = 2.00000
+x_132 = 2.00000 x_133 = -0.00000 x_134 = 0.00000 x_135 = 2.00000
+x_136 = 0.00000 x_137 = 2.00000 x_138 = 2.00000 x_139 = 0.00000
+x_140 = -0.00000 x_141 = 2.00000 x_142 = 2.00000 x_143 = -0.00000
+
+ 1.00x_72 +  1.00x_73 ==  2.00
+-1.00x_0 +  1.00x_1 +  0.69x_73 +  0.54x_74 + -1.54x_76 +  2.38x_78 +  0.65x_80 +  2.74x_83 ==  5.46
+ 1.00x_74 +  1.00x_75 ==  2.00
+-1.00x_2 +  1.00x_3 +  1.24x_73 +  0.96x_74 + -1.63x_76 +  2.63x_78 +  0.67x_80 +  2.71x_83 ==  6.59
+-1.00x_6 +  1.00x_7 +  0.70x_73 +  0.50x_74 + -0.50x_76 +  0.99x_78 +  0.20x_80 +  1.39x_83 ==  3.29
+ 1.00x_76 +  1.00x_77 ==  2.00
+-1.00x_8 +  1.00x_9 +  0.11x_73 +  0.24x_74 + -0.05x_76 +  0.17x_78 + -0.01x_80 +  0.03x_83 ==  0.49
+ 1.00x_78 +  1.00x_79 ==  2.00
+ 1.00x_80 +  1.00x_81 ==  2.00
+-1.00x_10 +  1.00x_11 +  0.24x_73 +  0.21x_74 +  0.11x_76 +  0.04x_78 +  0.03x_80 + -0.12x_83 ==  0.51
+ 1.00x_82 +  1.00x_83 ==  2.00
+-1.00x_4 +  1.00x_5 +  0.64x_73 +  0.70x_74 + -0.93x_76 +  1.37x_78 +  0.50x_80 +  1.32x_83 ==  3.60
+-1.00x_20 +  1.00x_21 + -0.11x_84 +  0.24x_86 + -0.05x_88 +  0.17x_90 +  0.01x_93 + -0.03x_94 ==  0.24
+ 1.00x_84 +  1.00x_85 ==  2.00
+ 1.00x_14 + -1.00x_15 +  1.24x_84 + -0.96x_86 +  1.63x_88 + -2.63x_90 +  0.67x_93 +  2.71x_94 ==  2.66
+ 1.00x_86 +  1.00x_87 ==  2.00
+ 1.00x_12 + -1.00x_13 +  0.69x_84 + -0.54x_86 +  1.54x_88 + -2.38x_90 +  0.65x_93 +  2.74x_94 ==  2.71
+ 1.00x_88 +  1.00x_89 ==  2.00
+ 1.00x_18 + -1.00x_19 +  0.70x_84 + -0.50x_86 +  0.50x_88 + -0.99x_90 +  0.20x_93 +  1.39x_94 ==  1.30
+ 1.00x_90 +  1.00x_91 ==  2.00
+ 1.00x_92 +  1.00x_93 ==  2.00
+ 1.00x_16 + -1.00x_17 +  0.64x_84 + -0.70x_86 +  0.93x_88 + -1.37x_90 +  0.50x_93 +  1.32x_94 ==  1.31
+-1.00x_22 +  1.00x_23 + -0.24x_84 +  0.21x_86 +  0.11x_88 +  0.04x_90 + -0.03x_93 +  0.12x_94 ==  0.22
+ 1.00x_94 +  1.00x_95 ==  2.00
+ 1.00x_34 + -1.00x_35 +  0.24x_96 + -0.21x_98 +  0.11x_101 + -0.04x_102 +  0.03x_105 +  0.12x_107 ==  0.23
+ 1.00x_96 +  1.00x_97 ==  2.00
+-1.00x_26 +  1.00x_27 + -1.24x_96 +  0.96x_98 +  1.63x_101 +  2.63x_102 + -0.67x_105 +  2.71x_107 ==  6.02
+ 1.00x_98 +  1.00x_99 ==  2.00
+ 1.00x_100 +  1.00x_101 ==  2.00
+-1.00x_30 +  1.00x_31 + -0.70x_96 +  0.50x_98 +  0.50x_101 +  0.99x_102 + -0.20x_105 +  1.39x_107 ==  2.47
+-1.00x_32 +  1.00x_33 + -0.11x_96 +  0.24x_98 +  0.05x_101 +  0.17x_102 +  0.01x_105 +  0.03x_107 ==  0.39
+ 1.00x_102 +  1.00x_103 ==  2.00
+ 1.00x_104 +  1.00x_105 ==  2.00
+-1.00x_24 +  1.00x_25 + -0.69x_96 +  0.54x_98 +  1.54x_101 +  2.38x_102 + -0.65x_105 +  2.74x_107 ==  5.85
+ 1.00x_106 +  1.00x_107 ==  2.00
+-1.00x_28 +  1.00x_29 + -0.64x_96 +  0.70x_98 +  0.93x_101 +  1.37x_102 + -0.50x_105 +  1.32x_107 ==  3.18
+ 1.00x_42 + -1.00x_43 +  0.70x_108 + -0.50x_110 +  0.50x_112 +  0.99x_115 + -0.20x_116 + -1.39x_119 ==  0.10
+ 1.00x_108 +  1.00x_109 ==  2.00
+ 1.00x_38 + -1.00x_39 +  1.24x_108 + -0.96x_110 +  1.63x_112 +  2.63x_115 + -0.67x_116 + -2.71x_119 ==  1.15
+ 1.00x_110 +  1.00x_111 ==  2.00
+ 1.00x_44 + -1.00x_45 +  0.11x_108 + -0.24x_110 +  0.05x_112 +  0.17x_115 +  0.01x_116 + -0.03x_119 ==  0.08
+ 1.00x_112 +  1.00x_113 ==  2.00
+ 1.00x_114 +  1.00x_115 ==  2.00
+ 1.00x_36 + -1.00x_37 +  0.69x_108 + -0.54x_110 +  1.54x_112 +  2.38x_115 + -0.65x_116 + -2.74x_119 ==  0.68
+ 1.00x_40 + -1.00x_41 +  0.64x_108 + -0.70x_110 +  0.93x_112 +  1.37x_115 + -0.50x_116 + -1.32x_119 ==  0.43
+ 1.00x_116 +  1.00x_117 ==  2.00
+ 1.00x_118 +  1.00x_119 ==  2.00
+ 1.00x_46 + -1.00x_47 +  0.24x_108 + -0.21x_110 + -0.11x_112 +  0.04x_115 + -0.03x_116 +  0.12x_119 ==  0.06
+ 1.00x_52 + -1.00x_53 +  0.64x_120 + -0.70x_122 + -0.93x_125 +  1.37x_127 + -0.50x_128 +  1.32x_130 ==  1.19
+ 1.00x_120 +  1.00x_121 ==  2.00
+ 1.00x_122 +  1.00x_123 ==  2.00
+ 1.00x_50 + -1.00x_51 +  1.24x_120 + -0.96x_122 + -1.63x_125 +  2.63x_127 + -0.67x_128 +  2.71x_130 ==  3.31
+ 1.00x_124 +  1.00x_125 ==  2.00
+ 1.00x_54 + -1.00x_55 +  0.70x_120 + -0.50x_122 + -0.50x_125 +  0.99x_127 + -0.20x_128 +  1.39x_130 ==  1.88
+ 1.00x_48 + -1.00x_49 +  0.69x_120 + -0.54x_122 + -1.54x_125 +  2.38x_127 + -0.65x_128 +  2.74x_130 ==  3.09
+ 1.00x_126 +  1.00x_127 ==  2.00
+ 1.00x_128 +  1.00x_129 ==  2.00
+ 1.00x_58 + -1.00x_59 +  0.24x_120 + -0.21x_122 +  0.11x_125 +  0.04x_127 + -0.03x_128 + -0.12x_130 ==  0.03
+ 1.00x_56 + -1.00x_57 +  0.11x_120 + -0.24x_122 + -0.05x_125 +  0.17x_127 +  0.01x_128 +  0.03x_130 ==  0.03
+ 1.00x_130 +  1.00x_131 ==  2.00
+ 1.00x_132 +  1.00x_133 ==  2.00
+-1.00x_64 +  1.00x_65 +  0.64x_133 +  0.70x_134 + -0.93x_136 + -1.37x_139 +  0.50x_140 +  1.32x_143 ==  0.85
+ 1.00x_134 +  1.00x_135 ==  2.00
+-1.00x_60 +  1.00x_61 +  0.69x_133 +  0.54x_134 + -1.54x_136 + -2.38x_139 +  0.65x_140 +  2.74x_143 ==  0.70
+-1.00x_66 +  1.00x_67 +  0.70x_133 +  0.50x_134 + -0.50x_136 + -0.99x_139 +  0.20x_140 +  1.39x_143 ==  1.30
+ 1.00x_136 +  1.00x_137 ==  2.00
+-1.00x_62 +  1.00x_63 +  1.24x_133 +  0.96x_134 + -1.63x_136 + -2.63x_139 +  0.67x_140 +  2.71x_143 ==  1.33
+ 1.00x_138 +  1.00x_139 ==  2.00
+-1.00x_70 +  1.00x_71 +  0.24x_133 +  0.21x_134 +  0.11x_136 + -0.04x_139 +  0.03x_140 + -0.12x_143 ==  0.42
+ 1.00x_140 +  1.00x_141 ==  2.00
+ 1.00x_142 +  1.00x_143 ==  2.00
+-1.00x_68 +  1.00x_69 +  0.11x_133 +  0.24x_134 + -0.05x_136 + -0.17x_139 + -0.01x_140 +  0.03x_143 ==  0.14
+
+urows:
+ 0 => (1, 1, 0) |  1 => (3, 3, 2) |  2 => (11, 5, 4) |  3 => (4, 7, 6) |  4 => (6, 9, 8) |  5 => (9, 11, 10)
+ 6 => (16, 12, 13) |  7 => (14, 14, 15) |  8 => (21, 16, 17) |  9 => (18, 18, 19) | 10 => (12, 21, 20) | 11 => (22, 23, 22)
+12 => (33, 25, 24) | 13 => (26, 27, 26) | 14 => (35, 29, 28) | 15 => (29, 31, 30) | 16 => (30, 33, 32) | 17 => (24, 34, 35)
+18 => (43, 36, 37) | 19 => (38, 38, 39) | 20 => (44, 40, 41) | 21 => (36, 42, 43) | 22 => (40, 44, 45) | 23 => (47, 46, 47)
+24 => (54, 48, 49) | 25 => (51, 50, 51) | 26 => (48, 52, 53) | 27 => (53, 54, 55) | 28 => (58, 56, 57) | 29 => (57, 58, 59)
+30 => (63, 61, 60) | 31 => (66, 63, 62) | 32 => (61, 65, 64) | 33 => (64, 67, 66) | 34 => (71, 69, 68) | 35 => (68, 71, 70)
+
+vmap:
+ 0 => 73 |  1 => 74 |  2 => 76 |  3 => 78 |  4 => 80 |  5 => 83
+ 6 => 84 |  7 => 86 |  8 => 88 |  9 => 90 | 10 => 93 | 11 => 94
+12 => 96 | 13 => 98 | 14 => 101 | 15 => 102 | 16 => 105 | 17 => 107
+18 => 108 | 19 => 110 | 20 => 112 | 21 => 115 | 22 => 116 | 23 => 119
+24 => 120 | 25 => 122 | 26 => 125 | 27 => 127 | 28 => 128 | 29 => 130
+30 => 133 | 31 => 134 | 32 => 136 | 33 => 139 | 34 => 140 | 35 => 143
+uybad = 
+  ┌                                     ┐
+  │  1.00000  1.00000 -1.00000 -1.00000 │
+  │ -1.00000  1.00000  1.00000 -1.00000 │
+  │  1.00000 -1.00000 -1.00000 -1.00000 │
+  │  1.00000 -1.00000 -1.00000  1.00000 │
+  │  1.00000  1.00000 -1.00000 -1.00000 │
+  │ -0.00000  0.00000 -1.00000 -0.00000 │
+  └                                     ┘
+
+
+u = 
+  ┌                                                       ┐
+  │ -5.45882 -6.58912 -3.59516 -3.28898 -0.48503 -0.50956 │
+  │  2.70545  2.66376  1.31411  1.29714 -0.24048 -0.21829 │
+  │ -5.84874 -6.01759 -3.18392 -2.47425 -0.38901  0.23054 │
+  │  0.68093  1.15484  0.43228  0.10370  0.07817  0.05546 │
+  │  3.08756  3.31346  1.19426  1.88499  0.03114  0.03368 │
+  │ -0.70423 -1.33160 -0.85447 -1.30348 -0.14414 -0.42102 │
+  └                                                       ┘
+
+y = 
+  ┌                                                       ┐
+  │ -2.57947 -0.29529 -4.15272 -2.56625 -2.26039  0.52618 │
+  │  2.93660  2.21756  3.16858 -0.26858  3.28540 -1.53983 │
+  │ -0.77567 -2.23991  1.57418  2.93750 -3.27793  0.64646 │
+  │  0.15266 -1.42227 -0.14151  2.41330  0.54888  1.98619 │
+  │ -3.92704 -4.17574 -0.71183 -2.27007  5.55486 -0.07852 │
+  │ -0.15196  1.48400 -7.96360 -5.13896 -5.93387 -1.06917 │
+  └                                                       ┘
+
+uy = 
+  ┌                                                       ┐
+  │ -1.00000  1.00000  1.00000  1.00000  1.00000 -1.00000 │
+  │  1.00000  1.00000  1.00000  1.00000 -1.00000  1.00000 │
+  │  1.00000  1.00000 -1.00000  1.00000 -1.00000 -1.00000 │
+  │  1.00000  1.00000  1.00000 -1.00000  1.00000 -1.00000 │
+  │  1.00000  1.00000 -1.00000 -1.00000  1.00000  1.00000 │
+  │ -1.00000  1.00000  1.00000 -1.00000  1.00000 -1.00000 │
+  └                                                       ┘
+
+
+

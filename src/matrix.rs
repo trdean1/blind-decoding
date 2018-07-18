@@ -293,3 +293,21 @@ fn gen_perm(n: usize) -> Vec<Vec<usize>> { //{@
     }
     ret
 } //@}
+
+pub fn to_parsable_vector( m: &na::DMatrix<f64> ) 
+    -> String {
+    let mut string = String::new();
+    
+    string += "\t[";
+
+    let mut ctr = 0;
+    for elt in m.iter() {
+        string += &format!(" {},", elt);
+        ctr += 1;
+        if ctr % 4 == 0 {
+            string += "\n\t";
+        }
+    }
+    string += "]";
+    string
+}

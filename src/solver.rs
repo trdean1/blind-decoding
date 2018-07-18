@@ -177,8 +177,6 @@ impl Solver {
                             self.stats.linindep += 1;
                         },
                     FlexTabError::StateStackExhausted => {
-                            debug!("ft:\n{}", &ft);
-                            debug!("U_i = {}, Y = {}", bfs, z.clone());
                             best = match best {
                                 Some(b) => if ft.state.obj() > b.state.obj()
                                     { Some(ft) } else { Some(b) },
@@ -188,6 +186,9 @@ impl Solver {
 
                         },
                     FlexTabError::TooManyHops => {
+                            warn!("Too many hops!");
+                            warn!("U_i = \n{}\n", matrix::to_parsable_vector( &bfs ) );
+                            warn!("Y = \n{}\n", matrix::to_parsable_vector( &z ) );
                             best = match best {
                                 Some(b) => if ft.state.obj() > b.state.obj()
                                     { Some(ft) } else { Some(b) },
