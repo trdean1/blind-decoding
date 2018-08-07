@@ -216,8 +216,9 @@ impl Solver {
 
         // If FlexTab is reduced, we need to do this again starting with a real BFS.
         // Here there is no possibility of insufficient good cols or lin indep cols.
-        let return_val;
+        let return_val = Ok(ft);
 
+        /*
         if ft.has_ybad() {
             self.stats.reduced += 1;
             let ftfull = FlexTab::new(&ft.state.get_u(), &z, ZTHRESH)?;
@@ -242,6 +243,7 @@ impl Solver {
         } else {
             return_val = Ok(ft);
         }
+        */
 
         self.stats.time_elapsed += self.time_elapsed();
         match return_val {
@@ -293,6 +295,10 @@ pub fn equal_atm(a: &na::DMatrix<f64>, b: &na::DMatrix<f64>) -> bool { //{@
     }
     true
 } 
+
+pub fn is_pm1( a: &na::DMatrix<f64>, zthresh: f64 ) -> bool {
+    a.iter().all(|&e| (e.abs() - 1.0).abs() < zthresh)
+}
 
 
 #[allow(dead_code)]

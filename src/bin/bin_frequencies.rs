@@ -48,7 +48,9 @@ fn main() {
             Err(_) => {},
             Ok(ft) => {
                 // Obtained a result: check if UY = X up to an ATM.
-                if ft.best_state.uy_equal_atm( &x ) {
+                let u = ft.state.get_u();
+                let uy = u * y.clone();
+                if blindsolver::equal_atm( &uy, &x ) {
                     results.success += 1;
                 } else {
                     // UY did +not+ match X, print some results and also
@@ -58,10 +60,11 @@ fn main() {
                     //    Some(inv) => debug!("UNEQUAL: u = {:.3}a^-1 = {:.3}", 
                     //            ft.best_state.get_u(), inv),
                     //};
-                    if ft.best_state.uy_is_pm1(ft.get_zthresh()) {
+                    if blindsolver::is_pm1( &uy, ft.get_zthresh() ) {
                         results.not_atm += 1; // UY = \pm 1
                     } else {
                         results.error += 1; // UY != \pm 1 -- problem
+                        debug!("critical error: uy = {:.3}", uy );
                     }
                 }
             },

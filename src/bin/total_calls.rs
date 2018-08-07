@@ -5,7 +5,7 @@ use blindsolver::matrix;
 
 fn main() {
     let reps_per = 10000;
-    let dims = vec![(2,8)];
+    let dims = vec![(4,18)];
 
     let mut solver = blindsolver::Solver::new( false, 0.0, 100 );
 
@@ -32,7 +32,9 @@ fn main() {
         match solver.single_run( &y ) {
             Err(_) => {},
             Ok(ft) => {
-                if ft.best_state.uy_equal_atm( &x ) {
+                let u = ft.state.get_u();
+                let uy = u * y.clone();
+                if blindsolver::equal_atm( &uy, &x ) {
                     success += 1;
                 }
             },
