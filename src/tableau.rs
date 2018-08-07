@@ -252,7 +252,6 @@ impl Constraint { //{@
         let total = self.addends.iter().fold(0.0, |total, &(xvar, coeff)| {
             total + coeff * x[xvar]
         });
-        debug!("Difference: {}", (total-self.sum).abs());
         (total - self.sum).abs() < zthresh
     }
 } //@}
@@ -337,7 +336,7 @@ impl Default for FlexTab { //{@
             best_state: State { ..Default::default() },
 
             visited: HashSet::new(),
-            statestack: Vec::new(),
+            statestack: Vec::with_capacity(10),
         }
     }
 } //@}
@@ -411,7 +410,6 @@ impl FlexTab { //{@
             -> Result<FlexTab, FlexTabError> { 
         // Find all bad columns.
         let (bad_cols, uyfull) = FlexTab::find_bad_columns(&u, &y, zthresh);
-        debug!("Bad Columns: {:?}", bad_cols);
         let n = y.nrows();
         let k = y.ncols() - bad_cols.len();
 
@@ -489,6 +487,41 @@ impl FlexTab { //{@
         ft.set_constraints();
         Ok(ft)
     } //@}
+
+    //Make uninitialized FlexTab
+    pub fn new_shell(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) //{@
+            -> Result<FlexTab, FlexTabError> {
+        // Find all bad columns.
+        let uyfull = u.clone() * y.clone();
+        let n = y.nrows();
+        let k = y.ncols();
+
+
+        // Initialize mutable state.
+        let state = State::new(u.clone(), uyfull, None);
+        let best_state = state.clone();
+
+        let ft = FlexTab {
+            zthresh: zthresh,
+            verbose: VERBOSE,
+
+            n: n,
+            k: k,
+
+            y: y.clone(),
+            ybad: None,
+
+            urows: vec![None; n * n],
+            extra_constr: vec![Vec::new(); n],
+
+            state: state,
+            best_state: best_state,
+
+            ..Default::default()
+        };
+        Ok(ft)
+    } //@}
+
     //{@
     /// Find the indices of all +bad+ columns, meaning there is at least one
     /// entry that is not \pm 1.
@@ -840,6 +873,7 @@ impl FlexTab { //{@
         self.hop()?;
         Ok(())
     } //@}
+
     fn hop(&mut self) -> Result<(), FlexTabError> { //{@
         self.mark_visited();
 
@@ -847,7 +881,6 @@ impl FlexTab { //{@
         {
             match self.state.uybad {
                 Some(ref uybad) => {
-                    debug!("starting uybad = {:.4}", uybad);
                     extra_cols = uybad.ncols();
                 },
                 None => {},
@@ -862,18 +895,11 @@ impl FlexTab { //{@
 
             // Check if this vertex is valid: if not, backtrack.
             if !self.eval_vertex() {
-                debug!("Found infeasible vertex");
                 if !self.restore(true) {
                     return Err(FlexTabError::StateStackExhausted);
                 }
                 continue;
-            } else {
-                debug!("Found feasible vertex");
-                match self.state.uybad {
-                    Some(ref uybad) => debug!("uybad = {:.4}", uybad),
-                    None => {},
-                }
-            }
+            } 
             // Check if this is the best vertex we have seen.
             if self.state.obj > self.best_state.obj {
                 self.best_state.copy_from(&self.state);
@@ -926,11 +952,7 @@ impl FlexTab { //{@
                 }
             }
         }
-        if best_idx != None {
-            debug!("Best: ({}), {:.4}\n", best_idx.unwrap(), best_effect);
-        } else {
-            debug!("No good neighbor found\n");
-        }
+
         (best_idx, best_effect)
     } //@}
 
@@ -992,19 +1014,16 @@ impl FlexTab { //{@
     } //@}
     fn eval_vertex(&self) -> bool { //{@
         if self.state.obj < -10.0 || self.state.flip_grad_max > 50.0 {
-            debug!("Vertex is singular");
             return false;
         }
 
         // Type 3 constraints.
-        debug!("Checking Type 3 Constraints");
         if self.n > 8 {
-            for (row, ref cset) in self.extra_constr.iter().enumerate() {
-                for (cnum, ref c) in cset.iter().enumerate() {
+            for (_row, ref cset) in self.extra_constr.iter().enumerate() {
+                for (_cnum, ref c) in cset.iter().enumerate() {
                     // Constraint contains set of relevant columns.  We need to pass
                     // in the row.
                     if !c.check(&self.state.x, self.zthresh) {
-                        debug!("Type 3 failure.  Row: {} Column {}", row, cnum);
                         return false;
                     }
                 }
@@ -1020,6 +1039,7 @@ impl FlexTab { //{@
 
         true
     } //@}
+
     fn mark_visited(&mut self) { //{@
         self.set_u();
         self.set_obj();
@@ -1202,7 +1222,7 @@ impl FlexTab { //{@
     pub fn has_ybad(&self) -> bool {
         self.ybad.is_some()
     }
-
+    
     pub fn visited_vertices(&self) -> usize {
         self.visited.len()
     }

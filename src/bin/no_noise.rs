@@ -14,8 +14,8 @@ fn main() {
     let complex = false;
     let use_basis = true; 
     let reps_per = 100;
-    //let dims = vec![(2, 3), (3, 6), (4, 6), (4, 8), (5, 9), (5, 12), (5, 15),
-    //    (6, 12), (6, 18), (6, 24), (8, 20), (8, 28), (8, 36)];
+    //let dims = vec![(2, 8), (3, 13), (4, 18), (5, 13),
+    //    (6, 22), (8, 30)];
 
     //Sweep from n=2 to n=8, skipping n=7 (works but is slow since we don't have an is_done
     //function)
@@ -63,7 +63,7 @@ fn main() {
         let ref mut res = results.iter_mut().find(|ref e| e.dims == x.shape()).unwrap();
 
         // Obtain A, Y matrices, then run.
-        let (a, y) = matrix::y_a_from_x(&x, complex);
+        let (_a, y) = matrix::y_a_from_x(&x, complex);
         //let timer = std::time::Instant::now();
         match solver.single_run( &y ) {
             Err(_) => {
@@ -81,34 +81,25 @@ fn main() {
             Ok(ft) => {
                 // Obtained a result: check if UY = X up to an ATM.
                 if ft.best_state.uy_equal_atm( &x ) {
-                    debug!("EQUAL ATM");
                     res.success += 1;
                 } else {
                     // UY did +not+ match X, print some results and also
                     // determine if UY was even a vertex.
-                    match a.try_inverse() {
-                        None => debug!("UNEQUAL: Cannot take a^-1"),
-                        Some(inv) => debug!("UNEQUAL: u = {:.3}a^-1 = {:.3}", 
-                                ft.best_state.get_u(), inv),
-                    };
-                    debug!("UNEXPECTED: return non-ATM");
-                    debug!("uy = {:.3}", ft.best_state.get_uy());
-                    //if best_state.get_uy().iter().all(|&e|
-                    //        (e.abs() - 1.0).abs() < ft.zthresh) {
+                    //match a.try_inverse() {
+                    //    None => debug!("UNEQUAL: Cannot take a^-1"),
+                    //    Some(inv) => debug!("UNEQUAL: u = {:.3}a^-1 = {:.3}", 
+                    //            ft.best_state.get_u(), inv),
+                    //};
                     if ft.best_state.uy_is_pm1(ft.get_zthresh()) {
                         res.not_atm += 1; // UY = \pm 1
                     } else {
                         res.error += 1; // UY != \pm 1 -- problem
-                        println!("critical error: uy = {:.3}", ft.best_state.get_uy());
+                        debug!("critical error: uy = {:.3}", ft.best_state.get_uy());
                     }
                 }
             },
         };
         **res += solver.get_stats();
-        // Charge elapsed time for this run to its (n, k) dimension.
-        //let elapsed = timer.elapsed();
-        //res.time_elapsed += elapsed.as_secs() as f64 + 
-        //                    elapsed.subsec_nanos() as f64 * 1e-9;
     }
 
     // Print overall results.
@@ -116,33 +107,11 @@ fn main() {
         let mut output = 
             format!("n = {}, k = {:2}: success = {:4} / {:4}, ",
                     (res.dims).0, (res.dims).1, res.success, res.trials);
-        output += &format!("(runout = {:2}, pm1 = {:2}, trap={:2}, err = {:2}), ",
-                res.runout, res.not_atm, res.trap, res.error);
+        output += &format!("(runout = {:2}, pm1 = {:2}, err = {:2}), ",
+                res.runout, res.not_atm, res.error);
         output += &format!("mean_time_per = {:.5e}", 
                            res.time_elapsed / res.trials as f64);
+
         println!("{}", output);
-        //res.extended_results();
     }
-} //@}
-
-/*
-fn main() { //{@
-    // Initialize logger.
-    env_logger::init();
-
-    // Enumeration functions. 
-    //neighbor_det_pattern("./n6_equiv.txt");
-    //neighbor_det_pattern("./n8_equiv.txt");
-    //neighbor_det_pattern_all(5);
-
-    // Run repetitions of the solver.
-    run_reps(); //Tests without noise
-    //test_awgn(); //Tests with AWGN
-    
-    //many_bfs(1000);
-    
-    //let dim = vec![(8,12)];
-    //multiple_dynamic_test( dim, 100, ZTHRESH )
-    
-} //@}
-*/
+} 

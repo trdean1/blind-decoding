@@ -1,7 +1,5 @@
 extern crate blindsolver;
 extern crate env_logger;
-#[macro_use]
-extern crate log;
 extern crate nalgebra as na;
 
 use blindsolver::tableau::FlexTab;

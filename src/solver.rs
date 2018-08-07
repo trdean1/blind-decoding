@@ -148,6 +148,7 @@ impl Solver {
             //starting point. Surprisingly we can often recover from this
             if bfs_fail { continue; }
 
+
             ft = match FlexTab::new(&bfs, &z, ZTHRESH) {
                 Ok(ft) => ft,
                 Err(e) => match e {
@@ -169,6 +170,8 @@ impl Solver {
             // we don't have n linearly independent good cols, then try new u_i.
             // Do same thing if we appear to have been trapped.
 
+            //let starting_bfs = ft.state.get_u();
+
             match ft.solve() {
                 Ok(_) => break,
                 Err(e) => match e {
@@ -186,9 +189,6 @@ impl Solver {
 
                         },
                     FlexTabError::TooManyHops => {
-                            warn!("Too many hops!");
-                            warn!("U_i = \n{}\n", matrix::to_parsable_vector( &bfs ) );
-                            warn!("Y = \n{}\n", matrix::to_parsable_vector( &z ) );
                             best = match best {
                                 Some(b) => if ft.state.obj() > b.state.obj()
                                     { Some(ft) } else { Some(b) },
@@ -217,13 +217,19 @@ impl Solver {
         // If FlexTab is reduced, we need to do this again starting with a real BFS.
         // Here there is no possibility of insufficient good cols or lin indep cols.
         let return_val;
+
         if ft.has_ybad() {
             self.stats.reduced += 1;
-            let mut ftfull = FlexTab::new(&ft.state.get_u(), &z, ZTHRESH)?;
+            let ftfull = FlexTab::new(&ft.state.get_u(), &z, ZTHRESH)?;
+            return_val = Ok(ftfull);
+            /*
             return_val = match ftfull.solve() {
-                Ok(_) => Ok(ftfull),
+                Ok(_) => {
+                    //after = Some( ftfull.state.get_u() * z.clone() );
+                    Ok(ftfull)
+                }
                 Err(e) => {
-                    println!("ftfull from reduced err = {}", e);
+                    warn!("ftfull from reduced err = {}", e);
                     match e {
                         FlexTabError::StateStackExhausted
                             | FlexTabError::TooManyHops
@@ -232,6 +238,7 @@ impl Solver {
                     }
                 }
             };
+            */
         } else {
             return_val = Ok(ft);
         }
