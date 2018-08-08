@@ -16,13 +16,15 @@ fn main() {
     let reps_per = 100;
     //let dims = vec![(2, 8), (3, 13), (4, 18), (5, 13),
     //    (6, 22), (8, 30)];
+    //let dims = vec![(10,45),(12,60)];
 
     //Sweep from n=2 to n=8, skipping n=7 (works but is slow since we don't have an is_done
     //function)
+    
     let mut dims = Vec::new();
     for ii in 2 .. 9 {
         if ii == 7 { continue; }
-        for jj in 0 .. 8 {
+        for jj in 0 .. 9 {
             if 4*jj <= ii { continue; }
             dims.push( (ii, 4*jj) );
         }
@@ -116,4 +118,9 @@ fn main() {
 
         println!("{}", output);
     }
+
+    //println!("\nPer k:");
+    //for ref res in results.iter() {
+    //    println!("({},{:.02e})", (res.dims).1, (res.time_elapsed / res.trials as f64) / (res.dims).1 as f64 ); 
+    //}
 } 

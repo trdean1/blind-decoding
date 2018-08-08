@@ -1076,6 +1076,21 @@ impl FlexTab { //{@
 
         self.state.det_u = self.state.u.determinant().abs();
     } //@}
+
+    //The row containing v is updated so u'^(j) = u^j + return_val
+    fn get_u_row_update(&mut self, v: usize) 
+        -> Vec<f64> {
+        let mut out = vec![0.0; self.n];
+        let row = v / self.n;
+        for i in 0 .. self.state.u.ncols() {
+            let idx = 2 * ( self.n * row + i );
+            let xplus = self.state.x[idx];
+            let xminus = self.state.x[idx+1];
+            out[i] = (xplus - xminus) - self.state.u[(row,i)]; 
+        }
+        out
+    }
+
     fn set_obj(&mut self) { //{@
         if self.state.det_u < self.zthresh {
             self.state.obj = std::f64::NEG_INFINITY;
@@ -1292,4 +1307,46 @@ mod tests {
         assert!(passed);
     }
 
+    #[test]
+    fn update_u_test() {
+        let (n,k) = (4, 5);
+
+        let y = na::DMatrix::from_row_slice( n, k, 
+        &vec![ -2.25618255, -0.76364233,  0.21332705, -0.79431557, -1.00609113,
+                1.03511743, -1.59364483,  0.31220331,  0.17876401, -0.21254404,
+               -1.07825448, -1.07958131, -4.13704779,  0.95486258, -3.62487308,
+                4.07427935, -2.53407635, -0.47711012, -4.48943641,  2.77626464] );
+
+        let u_i = na::DMatrix::from_row_slice( n, n, 
+        &vec![-0.58806518,  0.08746703, -0.24611676, -0.16756277,
+              -0.42312143, -0.95444849,  0.11510976,  0.28408575,
+               0.37128235, -0.72032515, -0.28475255,  0.06780737,
+               0.160262  ,  0.43688946, -0.21952422,  0.16509557] );
+
+        //Initialize
+        let mut ft = FlexTab::new( &u_i, &y, 1e-7 ).unwrap();
+        match ft.to_simplex_form() {
+            Ok(_) => assert!(true),
+            Err(_) => assert!(false, "Tableau construction failed"),
+        }
+        ft.mark_visited();
+        let u1 = ft.state.get_u();
+
+        //Flip an arbitrary entry
+        ft.flip( 9 );
+        let update = ft.get_u_row_update(9);
+        ft.set_u();
+        let u2 = ft.state.get_u();
+
+        //Check we got the same answer
+        let row = 9 / n;
+        let mut cum_error = 0.0;
+        for i in 0 .. n {
+            cum_error += ((u2[(row,i)] - u1[(row,i)]) - update[i]).abs();
+        }
+
+        println!("Error: {}", cum_error);
+
+        assert!( cum_error < 1e-6 );
+    }
 }
