@@ -6,6 +6,8 @@ use std::error;
 use std::error::Error;
 use std::collections::{HashSet};
 
+use super::matrix;
+
 use ZTHRESH;
 use equal_atm;
 
@@ -80,6 +82,7 @@ impl fmt::Display for FlexTabError { //{@
 pub struct State { //{@
     x: Vec<f64>,
     u: na::DMatrix<f64>,
+    uinv: na::DMatrix<f64>,
     uy: na::DMatrix<f64>,
     uybad: Option<na::DMatrix<f64>>,
 
@@ -95,11 +98,31 @@ pub struct State { //{@
     det_u: f64,
     vertex: Vertex,
 } //@}
+
+impl fmt::Display for State { //{@
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut s = String::new();
+
+        s += &format!("U = {:.4}\n", self.u);
+        s += &format!("UY = {:.4}\n", self.uy);
+        if let Some(uybad) = self.uybad.clone() {
+            s += &format!("UY_bad = {:.4}\n", uybad);
+        }
+        s += &format!("grad = {:.4}\n", self.grad);
+        s += &format!("Obj: {:.4}\t Det U: {:.4}\n", self.obj, self.det_u);
+
+        write!(f, "{}", s)
+    }
+} //@}
+
+
+
 impl Default for State { //{@
     fn default() -> State {
         State {
             x: Vec::new(),
             u: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
+            uinv: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
             uy: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
             uybad: None,
             
@@ -123,7 +146,8 @@ impl State { //{@
         let (n, k) = uy.shape();
         State {
             x: vec![0.0; 2 * (n*n + n*k)], 
-            u: u,
+            u: u.clone(),
+            uinv: u.clone().try_inverse().unwrap(),
             uy: uy,
             uybad: uybad,
 
@@ -145,6 +169,7 @@ impl State { //{@
         self.vmap.copy_from_slice(&other.vmap);
         self.rows.copy_from(&other.rows);
         self.u.copy_from(&other.u);
+        self.uinv.copy_from(&other.uinv);
         self.grad.copy_from(&other.grad);
         self.flip_grad.copy_from_slice(&other.flip_grad);
         self.uy.copy_from(&other.uy);
@@ -162,6 +187,10 @@ impl State { //{@
 
     pub fn get_u(&self) -> na::DMatrix<f64> {
         self.u.clone()
+    }
+
+    pub fn get_grad(&self) -> na::DMatrix<f64> {
+        self.grad.clone()
     }
 
     pub fn get_uy(&self) -> na::DMatrix<f64> {
@@ -927,7 +956,8 @@ impl FlexTab { //{@
                                 { "++" } else { "==" });
                     }
                     self.flip(idx);
-                    self.mark_visited();
+                    //self.mark_visited();
+                    self.mark_visited_update(idx);
                 }
             };
         }
@@ -1050,6 +1080,47 @@ impl FlexTab { //{@
         self.visited.insert(self.state.vertex.clone()); // Must be set in +flip+
     } //@}
 
+    fn mark_visited_update(&mut self, idx: usize) {
+        let row = idx / self.n; //This row of U was updated
+        let mut row_update = na::DMatrix::from_column_slice( 1, self.n, &vec![0.0; self.n] );
+
+        //Update u
+        self.get_u_row_update(idx, &mut row_update);
+        for (i,e) in self.state.u.row_mut(row).iter_mut().enumerate() {
+            *e += row_update[i];
+        }
+
+        //Update objective
+        let obj_update = matrix::delta_log_det( &self.state.uinv, &row_update, row);
+        self.state.obj += obj_update;
+
+        //Update det_u
+        self.state.det_u *= obj_update.exp();
+        
+        //Update inverse and gradient
+        matrix::update_inverse( &mut self.state.uinv, row, &row_update.transpose() );
+        self.state.grad.copy_from(&self.state.uinv.transpose());
+
+        //Update uy
+        for (i,e) in self.state.uy.row_mut(row).iter_mut().enumerate() {
+            let p = row_update.clone() * self.y.column(i);
+            *e += p[(0,0)];
+        }
+
+        //Update uy_bad
+        if let Some(ref mut uybad) = self.state.uybad {
+            if let Some(ref ybad) = self.ybad {
+                for (i,e) in uybad.row_mut(row).iter_mut().enumerate() {
+                    let p = row_update.clone() * ybad.column(i);
+                    *e += p[(0,0)];
+                }
+            }
+        }
+
+        self.set_flip_grad();
+        self.visited.insert(self.state.vertex.clone());
+    }
+
     fn add_row_multiple(&mut self, tgtrow: usize, srcrow: usize, mult: f64) { //{@
         for j in 0 .. self.state.rows.ncols() {
             self.state.rows[(tgtrow,j)] += mult * self.state.rows[(srcrow,j)];//self.state.tmp[j];
@@ -1074,11 +1145,16 @@ impl FlexTab { //{@
             }
         }
 
+        if let Some(inv) =  self.state.u.clone().try_inverse() {
+            self.state.uinv = inv;
+        } else {
+            self.state.uinv.iter_mut().for_each(|e| *e = 0.0);
+        }
+
         self.state.det_u = self.state.u.determinant().abs();
     } //@}
 
     //The row containing v is updated so u'^(j) = u^j + return_val
-    #[allow(dead_code)]
     fn get_u_row_update(&mut self, v: usize, out: &mut na::DMatrix<f64>) {
         let row = v / self.n;
         for i in 0 .. self.state.u.ncols() {
@@ -1098,14 +1174,15 @@ impl FlexTab { //{@
     } //@}
 
     fn set_grad(&mut self) { //{@
-        let u = self.state.u.clone();
-        if let Some(inv) = u.try_inverse() {
-            let inv = inv.transpose();
-            self.state.grad.copy_from(&inv);
-        } else {
-            // Some sort of error here / maybe a Result?.
-            self.state.grad.iter_mut().for_each(|e| *e = 0.0);
-        }
+        //let u = self.state.u.clone();
+        //if let Some(inv) = u.try_inverse() {
+        //    let inv = inv.transpose();
+        //    self.state.grad.copy_from(&inv);
+        //} else {
+        //    // Some sort of error here / maybe a Result?.
+        //    self.state.grad.iter_mut().for_each(|e| *e = 0.0);
+        //}
+        self.state.grad.copy_from(&self.state.uinv.transpose());
     } //@}
     
     fn set_uy(&mut self) { //{@
@@ -1349,5 +1426,67 @@ mod tests {
         println!("Error: {}", cum_error);
 
         assert!( cum_error < 1e-6 );
+    }
+
+    #[test]
+    fn mv_update_test() {
+        let (n,k) = (4, 5);
+
+        let y = na::DMatrix::from_row_slice( n, k, 
+        &vec![ -2.25618255, -0.76364233,  0.21332705, -0.79431557, -1.00609113,
+                1.03511743, -1.59364483,  0.31220331,  0.17876401, -0.21254404,
+               -1.07825448, -1.07958131, -4.13704779,  0.95486258, -3.62487308,
+                4.07427935, -2.53407635, -0.47711012, -4.48943641,  2.77626464] );
+
+        let u_i = na::DMatrix::from_row_slice( n, n, 
+        &vec![-0.58806518,  0.08746703, -0.24611676, -0.16756277,
+              -0.42312143, -0.95444849,  0.11510976,  0.28408575,
+               0.37128235, -0.72032515, -0.28475255,  0.06780737,
+               0.160262  ,  0.43688946, -0.21952422,  0.16509557] );
+
+        let mut ft_old = FlexTab::new( &u_i, &y, 1e-7 ).unwrap();
+        match ft_old.to_simplex_form() {
+            Ok(_) => assert!(true),
+            Err(_) => assert!(false, "Tableau construction failed"),
+        }
+        ft_old.mark_visited();
+        ft_old.flip( 9 );
+        ft_old.mark_visited();
+
+        let mut ft_old = FlexTab::new( &u_i, &y, 1e-7 ).unwrap();
+        match ft_old.to_simplex_form() {
+            Ok(_) => assert!(true),
+            Err(_) => assert!(false, "Tableau construction failed"),
+        }
+        ft_old.mark_visited();
+
+        println!("Start:");
+        println!("{}", ft_old.state);
+
+
+        ft_old.flip( 9 );
+        ft_old.mark_visited();
+
+        let mut ft_new = FlexTab::new( &u_i, &y, 1e-7 ).unwrap();
+        match ft_new.to_simplex_form() {
+            Ok(_) => assert!(true),
+            Err(_) => assert!(false, "Tableau construction failed"),
+        }
+
+        ft_new.mark_visited();
+        ft_new.flip( 9 );
+        ft_new.mark_visited_update( 9 );
+
+        println!("Old way:");
+        println!("{}", ft_old.state);
+        println!("New way:");
+        println!("{}", ft_new.state);
+
+        let error_u = ft_old.state.get_u() - ft_new.state.get_u();
+        let error_grad = ft_old.state.get_grad() - ft_new.state.get_grad(); 
+
+        assert!( ft_old.state.obj - ft_new.state.obj < 1e-6 );
+        assert!( error_u.iter().fold(0.0, |acc, &e| acc + e.abs() ) < 1e-6 );
+        assert!( error_grad.iter().fold(0.0, |acc, &e| acc + e.abs() ) < 1e-6 );
     }
 }
