@@ -7,6 +7,7 @@
  *          Thomas Dean (trdean@stanford.edu)
  *
  */
+#![feature(test)]
 
 extern crate nalgebra as na;
 extern crate rand;

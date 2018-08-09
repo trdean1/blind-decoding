@@ -1,8 +1,11 @@
+extern crate test;
+
 extern crate nalgebra as na;
 extern crate rand;
 
 use rand::distributions::{Normal, Distribution};
 use rand::Rng;
+use std;
 
 use is_feasible;
 
@@ -338,4 +341,124 @@ pub fn to_parsable_vector( m: &na::DMatrix<f64> )
     }
     string += "]";
     string
+}
+
+///
+/// Updates A_inv in place according to the Sherman-Morrison formula:
+/// (A + uv^T)-1 = A^-1 - (A^1 uv^T A^-1) / (1 + v^T A^-1 u)
+/// u is just an element of e_j; j is specified as urow
+/// Based on benchmarks, this only seems faster starting at n=5
+///    
+pub fn update_inverse(ainv: &mut na::DMatrix<f64>,  
+                      urow: usize, v: &na::DMatrix<f64>) {
+    //(A + uv^T)-1 = A^-1 -
+    //(A^1 uv^T A^-1) / (1 + v^T A^-1 u)
+    
+    let ac = ainv.clone();
+
+    let ainv_u = ac.column(urow);
+    let mut scale = v.transpose() * ainv_u;
+    scale[(0,0)] += 1.0;
+    let mut p2 = v.transpose() * ainv.clone(); 
+    p2 /= scale[(0,0)];
+
+    *ainv -= ainv_u * p2;
+}
+
+///
+/// Uses matrix determinant lemma to find change in ln |det a| when delta (a row vector)
+/// is added to row corresponding to 'row' of 'a'.  Returns -infty if result is singular
+///
+/// log|det (A + e_i * Delta)| = log|(1 + Delta A^-1 e_i)| + log|det(U)|
+///
+pub fn delta_log_det(ainv: &na::DMatrix<f64>, delta: &na::DMatrix<f64>,
+                     row: usize) -> f64 {
+    let ac = ainv.clone();
+    let ainv_col = ac.column(row);
+    let prod = delta * ainv_col;
+
+    let res = (prod[(0,0)] + 1.0).abs();
+
+    if res > 0.0 {
+        return res.ln();
+    } else {
+        return std::f64::NEG_INFINITY;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use self::test::Bencher;
+
+    #[test]
+    fn update_inverse_test() {
+        for _ in 0 .. 100 {
+            let n = 5;
+            let mut rng = rand::thread_rng();
+            let urow = rng.gen_range(0, n);
+            let a = rand_matrix( n, n );
+            let v = rand_matrix( n, 1 );       
+            let mut u = na::DMatrix::from_column_slice( n, 1, &vec![0.0; n] );
+            u[(urow, 0)] = 1.0;
+
+            //Compute using update formula
+            let mut ainv = a.clone().try_inverse().unwrap();
+            update_inverse( &mut ainv, urow, &v );
+
+            //Compute update directly
+            let a_update = a.clone() + u.clone() * v.transpose();
+            let inv2 = a_update.clone().try_inverse().unwrap();
+
+            let error = ainv - inv2;
+            assert!( 
+                error.iter().fold( 0.0, |acc, &e| acc + e.abs())
+                < 1e-6 
+            );
+        }
+    }
+
+    #[test]
+    fn update_log_det_test() {
+        for _ in 0 .. 100 {
+            let n = 5;
+            let mut rng = rand::thread_rng();
+            let urow = rng.gen_range(0, n);
+            let mut a = rand_matrix( n, n );
+            let v = rand_matrix( n, 1 );       
+            let mut u = na::DMatrix::from_column_slice( n, 1, &vec![0.0; n] );
+            u[(urow, 0)] = 1.0;
+
+            //Update the fast way
+            let ln_det = a.determinant().abs().ln();
+            let ainv = a.clone().try_inverse().unwrap();
+            let delta = delta_log_det( &ainv, &v.transpose(), urow );
+
+            //Compute from scratch
+            a = a.clone() + u.clone() * v.transpose();
+            let ln_det_update = a.clone().determinant().abs().ln();
+
+            assert!( (ln_det_update - ln_det - delta).abs() < 1e-6 );
+        }
+    }
+
+    #[bench]
+    fn bench_update_inverse(b: &mut Bencher) {
+        let n = 5;
+        let mut rng = rand::thread_rng();
+        let urow = rng.gen_range(0, n);
+        let a = rand_matrix( n, n );
+        let v = rand_matrix( n, 1 );
+        let mut ainv = a.try_inverse().unwrap();
+
+        b.iter(|| update_inverse( &mut ainv, urow, &v ) );
+    }
+
+    #[bench]
+    fn bench_direct_inverse(b: &mut Bencher) {
+        let n = 5;
+        let a = rand_matrix( n, n );
+
+        b.iter(|| a.clone().try_inverse() );
+    }
 }
