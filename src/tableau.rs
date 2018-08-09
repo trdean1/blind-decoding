@@ -82,7 +82,6 @@ impl fmt::Display for FlexTabError { //{@
 pub struct State { //{@
     x: Vec<f64>,
     u: na::DMatrix<f64>,
-    uinv: na::DMatrix<f64>,
     uy: na::DMatrix<f64>,
     uybad: Option<na::DMatrix<f64>>,
 
@@ -122,7 +121,6 @@ impl Default for State { //{@
         State {
             x: Vec::new(),
             u: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
-            uinv: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
             uy: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
             uybad: None,
             
@@ -147,7 +145,6 @@ impl State { //{@
         State {
             x: vec![0.0; 2 * (n*n + n*k)], 
             u: u.clone(),
-            uinv: u.clone().try_inverse().unwrap(),
             uy: uy,
             uybad: uybad,
 
@@ -169,7 +166,6 @@ impl State { //{@
         self.vmap.copy_from_slice(&other.vmap);
         self.rows.copy_from(&other.rows);
         self.u.copy_from(&other.u);
-        self.uinv.copy_from(&other.uinv);
         self.grad.copy_from(&other.grad);
         self.flip_grad.copy_from_slice(&other.flip_grad);
         self.uy.copy_from(&other.uy);
@@ -1091,15 +1087,15 @@ impl FlexTab { //{@
         }
 
         //Update objective
-        let obj_update = matrix::delta_log_det( &self.state.uinv, &row_update, row);
+        let obj_update = matrix::delta_log_det( &self.state.grad.transpose(), &row_update, row);
         self.state.obj += obj_update;
 
         //Update det_u
         self.state.det_u *= obj_update.exp();
         
         //Update inverse and gradient
-        matrix::update_inverse( &mut self.state.uinv, row, &row_update.transpose() );
-        self.state.grad.copy_from(&self.state.uinv.transpose());
+        matrix::update_inverse_transpose( &mut self.state.grad, row, &row_update.transpose() );
+        //self.state.grad.copy_from(&self.state.uinv.transpose());
 
         //Update uy
         for (i,e) in self.state.uy.row_mut(row).iter_mut().enumerate() {
@@ -1145,12 +1141,6 @@ impl FlexTab { //{@
             }
         }
 
-        if let Some(inv) =  self.state.u.clone().try_inverse() {
-            self.state.uinv = inv;
-        } else {
-            self.state.uinv.iter_mut().for_each(|e| *e = 0.0);
-        }
-
         self.state.det_u = self.state.u.determinant().abs();
     } //@}
 
@@ -1174,15 +1164,14 @@ impl FlexTab { //{@
     } //@}
 
     fn set_grad(&mut self) { //{@
-        //let u = self.state.u.clone();
-        //if let Some(inv) = u.try_inverse() {
-        //    let inv = inv.transpose();
-        //    self.state.grad.copy_from(&inv);
-        //} else {
-        //    // Some sort of error here / maybe a Result?.
-        //    self.state.grad.iter_mut().for_each(|e| *e = 0.0);
-        //}
-        self.state.grad.copy_from(&self.state.uinv.transpose());
+        let u = self.state.u.clone();
+        if let Some(inv) = u.try_inverse() {
+            let inv = inv.transpose();
+            self.state.grad.copy_from(&inv);
+        } else {
+            // Some sort of error here / maybe a Result?.
+            self.state.grad.iter_mut().for_each(|e| *e = 0.0);
+        }
     } //@}
     
     fn set_uy(&mut self) { //{@

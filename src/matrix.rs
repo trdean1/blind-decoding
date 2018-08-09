@@ -366,6 +366,25 @@ pub fn update_inverse(ainv: &mut na::DMatrix<f64>,
 }
 
 ///
+/// Similar to above but takes in the transpose of the inverse
+///
+pub fn update_inverse_transpose(ainv_trans: &mut na::DMatrix<f64>,  
+                                urow: usize, v: &na::DMatrix<f64>) {
+    //(A + uv^T)-1 = A^-1 -
+    //(A^1 uv^T A^-1) / (1 + v^T A^-1 u)
+    
+    let ac = ainv_trans.transpose().clone();
+
+    let ainv_u = ac.column(urow);
+    let mut scale = v.transpose() * ainv_u;
+    scale[(0,0)] += 1.0;
+    let mut p2 = v.transpose() * ainv_trans.clone().transpose(); 
+    p2 /= scale[(0,0)];
+
+    *ainv_trans -= p2.transpose() * ainv_u.transpose();
+}
+
+///
 /// Uses matrix determinant lemma to find change in ln |det a| when delta (a row vector)
 /// is added to row corresponding to 'row' of 'a'.  Returns -infty if result is singular
 ///
