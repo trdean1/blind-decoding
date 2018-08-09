@@ -1078,7 +1078,8 @@ impl FlexTab { //{@
     } //@}
 
     //The row containing v is updated so u'^(j) = u^j + return_val
-    fn get_u_row_update(&mut self, v: usize, out: &mut [f64]) {
+    #[allow(dead_code)]
+    fn get_u_row_update(&mut self, v: usize, out: &mut na::DMatrix<f64>) {
         let row = v / self.n;
         for i in 0 .. self.state.u.ncols() {
             let idx = 2 * ( self.n * row + i );
@@ -1095,6 +1096,7 @@ impl FlexTab { //{@
             self.state.obj = self.state.det_u.ln();
         }
     } //@}
+
     fn set_grad(&mut self) { //{@
         let u = self.state.u.clone();
         if let Some(inv) = u.try_inverse() {
@@ -1105,6 +1107,7 @@ impl FlexTab { //{@
             self.state.grad.iter_mut().for_each(|e| *e = 0.0);
         }
     } //@}
+    
     fn set_uy(&mut self) { //{@
         self.state.u.mul_to(&self.y, &mut self.state.uy);
     } //@}
@@ -1321,7 +1324,7 @@ mod tests {
                0.160262  ,  0.43688946, -0.21952422,  0.16509557] );
 
         //Initialize
-        let mut update = vec![0.0; n];
+        let mut update = na::DMatrix::from_row_slice( 1, n, &vec![0.0; n] );
         let mut ft = FlexTab::new( &u_i, &y, 1e-7 ).unwrap();
         match ft.to_simplex_form() {
             Ok(_) => assert!(true),
@@ -1332,7 +1335,7 @@ mod tests {
 
         //Flip an arbitrary entry
         ft.flip( 9 );
-        ft.get_u_row_update(9, update.as_mut_slice());
+        ft.get_u_row_update(9, &mut update);
         ft.set_u();
         let u2 = ft.state.get_u();
 
