@@ -371,6 +371,8 @@ pub fn update_inverse(ainv: &mut na::DMatrix<f64>,
 ///
 /// log|det (A + e_i * Delta)| = log|(1 + Delta A^-1 e_i)| + log|det(U)|
 ///
+/// This is faster starting at n=4
+///
 pub fn delta_log_det(ainv: &na::DMatrix<f64>, delta: &na::DMatrix<f64>,
                      row: usize) -> f64 {
     let ac = ainv.clone();
@@ -460,5 +462,26 @@ mod tests {
         let a = rand_matrix( n, n );
 
         b.iter(|| a.clone().try_inverse() );
+    }
+
+    #[bench]
+    fn bench_update_log_det(b: &mut Bencher) {
+        let n = 8;
+        let mut rng = rand::thread_rng();
+        let urow = rng.gen_range(0, n);
+        let a = rand_matrix( n, n );
+        let v = rand_matrix( n, 1 );       
+
+        let ainv = a.clone().try_inverse().unwrap();
+        
+        b.iter( || delta_log_det( &ainv, &v.transpose(), urow ) );       
+    }
+
+    #[bench]
+    fn bench_direct_log_det(b: &mut Bencher) {
+        let n = 8;
+        let a = rand_matrix( n, n );
+        
+        b.iter( || a.determinant().abs().ln() );       
     }
 }
