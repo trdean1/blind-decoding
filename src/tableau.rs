@@ -4,7 +4,7 @@ use std;
 use std::fmt;
 use std::error;
 use std::error::Error;
-use std::collections::{HashSet};
+use std::collections::HashSet;
 
 use super::matrix;
 
@@ -113,8 +113,6 @@ impl fmt::Display for State { //{@
         write!(f, "{}", s)
     }
 } //@}
-
-
 
 impl Default for State { //{@
     fn default() -> State {
@@ -340,7 +338,8 @@ pub struct FlexTab { //{@
     pub best_state: State,
 
     visited: HashSet<Vertex>,
-    statestack: Vec<State>,
+    //statestack: Vec<State>,
+    history: Vec<usize>,
 } //@}
 impl Default for FlexTab { //{@
     fn default() -> FlexTab {
@@ -361,7 +360,8 @@ impl Default for FlexTab { //{@
             best_state: State { ..Default::default() },
 
             visited: HashSet::new(),
-            statestack: Vec::with_capacity(10),
+            //statestack: Vec::with_capacity(10),
+            history: Vec::with_capacity(10),
         }
     }
 } //@}
@@ -673,6 +673,7 @@ impl FlexTab { //{@
     /// that self.X is of length 2 * self.nk.  There are 2 * self.nk overall
     /// constraints in |UY|_\infty \leq 1.
     //@}
+    #[inline(never)]
     fn to_simplex_form(&mut self) -> Result<(), FlexTabError> { //{@
         // Zero out any entries in self.x that are solely float imprecision.
         let num_x_from_u = 2 * self.n * self.n;
@@ -771,6 +772,8 @@ impl FlexTab { //{@
 
         Ok(())
     } //@}
+
+    #[inline(never)]
     fn tableau_mappings(&mut self) -> Result<(), FlexTabError> { //{@
         // Each constraint set corresponds to one row of U.
         for cset in 0 .. self.n {
@@ -872,33 +875,38 @@ impl FlexTab { //{@
         self.extra_constr[csetnum].push(con);
     } //@}
 
-    fn snapshot(&mut self) { //{@
-        self.statestack.push(self.state.clone());
+    #[inline(never)]
+    fn snapshot(&mut self, idx: usize) { //{@
+        //self.statestack.push(self.state.clone());
+        self.history.push( idx );
     } //@}
+
+    #[inline(never)]
     fn restore(&mut self, pop: bool) -> bool { //{@
-        if pop {
-            if let Some(state) = self.statestack.pop() {
-                self.state.copy_from(&state);
-                true
-            } else {
-                false
-            }
-        } else {
-            if let Some(state) = self.statestack.last() {
-                self.state.copy_from(&state);
-                true
-            } else {
-                false
+        //let state_maybe = self.statestack.pop();
+        let last_maybe = self.history.pop();
+        match last_maybe {
+            Some(idx) => { 
+                self.flip(idx);
+                self.mark_visited_update(idx);
+                //This is a weird rust-ism because I already mutably borrowed self
+                if !pop { self.history.push( idx ); }
+                return true;
+            },
+            None => {
+                return false;
             }
         }
     } //@}
 
+    #[inline(never)]
     pub fn solve(&mut self) -> Result<(), FlexTabError> { //{@
         self.to_simplex_form()?;
         self.hop()?;
         Ok(())
     } //@}
 
+    #[inline(never)]
     fn hop(&mut self) -> Result<(), FlexTabError> { //{@
         self.mark_visited();
 
@@ -946,7 +954,7 @@ impl FlexTab { //{@
                 },
                 Some(idx) => {
                     // Take snapshot, flip idx, mark new vertex visited.
-                    self.snapshot();
+                    self.snapshot(idx);
                     if self.verbose & VERBOSE_HOP != 0 {
                         println!("Hop {}", if effect > self.zthresh
                                 { "++" } else { "==" });
@@ -1076,6 +1084,7 @@ impl FlexTab { //{@
         self.visited.insert(self.state.vertex.clone()); // Must be set in +flip+
     } //@}
 
+    #[inline(never)]
     fn mark_visited_update(&mut self, idx: usize) {
         let row = idx / self.n; //This row of U was updated
         let mut row_update = na::DMatrix::from_column_slice( 1, self.n, &vec![0.0; self.n] );

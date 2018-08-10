@@ -9,6 +9,7 @@ rand = "*"
 regex = "*"
 log = "*"
 env_logger = "*"
+fnv = "1.0.3"
 
 [profile.release]
 debug = true
