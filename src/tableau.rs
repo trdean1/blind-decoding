@@ -1,5 +1,5 @@
 extern crate nalgebra as na;
-extern crate fnv;
+//extern crate fnv;
 
 use std;
 use std::fmt;
@@ -7,11 +7,11 @@ use std::error;
 use std::error::Error;
 use std::collections::HashSet;
 
-use std::hash::BuildHasherDefault;
-use self::fnv::FnvHasher;
-use self::fnv::FnvHashSet;
+//use std::hash::BuildHasherDefault;
+//use self::fnv::FnvHasher;
+//use self::fnv::FnvHashSet;
 
-type MyHasher = BuildHasherDefault<FnvHasher>;
+//type MyHasher = BuildHasherDefault<FnvHasher>;
 
 use super::matrix;
 
@@ -518,6 +518,7 @@ impl FlexTab { //{@
         };
         ft.initialize_x();
         ft.set_constraints();
+        debug!("\n\n--------------------New----------------");
         Ok(ft)
     } //@}
 
@@ -891,12 +892,24 @@ impl FlexTab { //{@
 
     #[inline(never)]
     fn restore(&mut self, pop: bool) -> bool { //{@
-        //let state_maybe = self.statestack.pop();
+        /*
+        let state_maybe = self.statestack.pop();
+        match state_maybe {
+            Some(state) => {
+                self.state.copy_from(&state);
+                if !pop { self.statestack.push( state ); }
+                return true;
+            },
+            None => {
+                return false;
+            }
+        }*/
         let last_maybe = self.history.pop();
         match last_maybe {
             Some(idx) => { 
+                debug!("Restoring by flipping {}", idx);
                 self.flip(idx);
-                self.mark_visited_update(idx);
+                self.mark_visited();
                 //This is a weird rust-ism because I already mutably borrowed self
                 if !pop { self.history.push( idx ); }
                 return true;
@@ -932,6 +945,7 @@ impl FlexTab { //{@
         loop {
             if self.verbose & VERBOSE_HOP != 0 {
                 println!("HOP loop top: visited = {}", self.visited.len());
+                println!("Current det U: {:.05e}", self.state.det_u);
             }
 
             // Check if this vertex is valid: if not, backtrack.
@@ -947,6 +961,7 @@ impl FlexTab { //{@
             }
             // Check if this vertex is a global optimum.
             if self.is_done() {
+                debug!("Done with det u = {:.05e}", self.state.det_u);
                 break;
             }
 
@@ -964,8 +979,8 @@ impl FlexTab { //{@
                     // Take snapshot, flip idx, mark new vertex visited.
                     self.snapshot(idx);
                     if self.verbose & VERBOSE_HOP != 0 {
-                        println!("Hop {}", if effect > self.zthresh
-                                { "++" } else { "==" });
+                        println!("Hop {} to {}", if effect > self.zthresh
+                                { "++" } else { "==" }, idx);
                     }
                     self.flip(idx);
                     //self.mark_visited();
