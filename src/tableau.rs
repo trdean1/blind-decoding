@@ -1,10 +1,17 @@
 extern crate nalgebra as na;
+extern crate fnv;
 
 use std;
 use std::fmt;
 use std::error;
 use std::error::Error;
 use std::collections::HashSet;
+
+use std::hash::BuildHasherDefault;
+use self::fnv::FnvHasher;
+use self::fnv::FnvHashSet;
+
+type MyHasher = BuildHasherDefault<FnvHasher>;
 
 use super::matrix;
 
@@ -359,6 +366,7 @@ impl Default for FlexTab { //{@
             state: State { ..Default::default() },
             best_state: State { ..Default::default() },
 
+            //visited: FnvHashSet::default(),
             visited: HashSet::new(),
             //statestack: Vec::with_capacity(10),
             history: Vec::with_capacity(10),
