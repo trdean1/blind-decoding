@@ -153,11 +153,10 @@ impl State { //{@
             uy: uy,
             uybad: uybad,
 
-            rows: na::DMatrix::from_column_slice(2 * n*k, 2 * (n*n + n*k) + 1,
-                    &vec![0.0; (2 * n*k) * (2 * (n*n + n*k) + 1)]),
+            rows: na::DMatrix::zeros(2 * n*k, 2 * (n*n + n*k) + 1),
             vmap: vec![0; n*n],
 
-            grad: na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]),
+            grad: na::DMatrix::zeros(n, n),
             flip_grad: vec![0.0; n*n],
 
             vertex: Vertex::new(n * n),
@@ -465,12 +464,10 @@ impl FlexTab { //{@
 
         } else {
             // Some columns are bad: only used for feasibility restrictions.
-            y_used = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
-            uy = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
-            let mut _ybad = na::DMatrix::from_column_slice(n, bad_cols.len(),
-                    &vec![0.0; n * bad_cols.len()]);
-            let mut _uybad = na::DMatrix::from_column_slice(n, bad_cols.len(),
-                    &vec![0.0; n * bad_cols.len()]);
+            y_used = na::DMatrix::zeros(n, k);
+            uy = na::DMatrix::zeros(n, k);
+            let mut _ybad = na::DMatrix::zeros(n, bad_cols.len());
+            let mut _uybad = na::DMatrix::zeros(n, bad_cols.len());
 
             let mut cur_good = 0;
             let mut cur_bad = 0;
