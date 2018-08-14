@@ -1,17 +1,10 @@
 extern crate nalgebra as na;
-extern crate fnv;
 
 use std;
 use std::fmt;
 use std::error;
 use std::error::Error;
 use std::collections::HashSet;
-
-use std::hash::BuildHasherDefault;
-use self::fnv::FnvHasher;
-use self::fnv::FnvHashSet;
-
-type MyHasher = BuildHasherDefault<FnvHasher>;
 
 use super::matrix;
 
@@ -102,7 +95,7 @@ pub struct State { //{@
 
     obj: f64,
     det_u: f64,
-    vertex: Vertex,
+    vertex: VertexI,
 } //@}
 
 impl fmt::Display for State { //{@
@@ -139,7 +132,7 @@ impl Default for State { //{@
 
             obj: 0.0,
             det_u: 0.0,
-            vertex: Vertex::new(0),
+            vertex: VertexI::new(0),
         }
     }
 } //@}
@@ -159,7 +152,7 @@ impl State { //{@
             grad: na::DMatrix::zeros(n, n),
             flip_grad: vec![0.0; n*n],
 
-            vertex: Vertex::new(n * n),
+            vertex: VertexI::new(n * n),
 
             ..Default::default()
         }
@@ -211,6 +204,7 @@ impl State { //{@
     }
 } //@}
 
+/*
 #[derive(Hash, Eq, Clone)] //{@
 /// Structure for capturing vertices as a simple bool vector for use in
 /// HashSets.
@@ -255,6 +249,59 @@ impl PartialEq for Vertex { //{@
         true
     }
 } //@}
+*/
+
+#[derive(Hash, Eq, Clone, Ord)]
+pub struct VertexI {
+    size: usize,
+    elts: Vec<u64>,
+}
+
+impl VertexI {
+    pub fn new(nsq: usize) -> VertexI {
+        let count = (nsq >> 6) + if nsq & 0x3f != 0 { 1 } else { 0 };
+        VertexI { size: nsq, elts: vec![0_u64; count] }
+    }
+
+    pub fn copy_from(&mut self, other: &VertexI) {
+        self.elts.copy_from_slice(&other.elts);
+    }
+
+    pub fn flip(&mut self, idx: usize) {
+        let elt_num = idx >> 6;
+        let elt_idx = idx & 0x3f;
+        let xor_mask = 1 << elt_idx;
+        self.elts[elt_num] ^= xor_mask;
+    }
+}
+
+impl PartialEq for VertexI {
+    fn eq(&self, other: &VertexI) -> bool {
+        if self.size != other.size { return false; }
+
+        for i in 0 .. self.elts.len() {
+            if self.elts[i] != other.elts[i] {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl PartialOrd for VertexI {
+    fn partial_cmp(&self, other: &VertexI) -> Option<std::cmp::Ordering> {
+        let ord = self.size.cmp(&other.size).then_with(|| {
+            for i in 0 .. self.elts.len() {
+                let ord = self.elts[i].cmp(&other.elts[i]);
+                if ord != std::cmp::Ordering::Equal {
+                    return ord;
+                }
+            }
+            std::cmp::Ordering::Equal
+        });
+        Some(ord)
+    }
+}
 
 #[derive(Clone)] //{@
 /// Structure for constraints that arise from extra "good" columns of Y beyond
@@ -343,7 +390,7 @@ pub struct FlexTab { //{@
     pub state: State,
     pub best_state: State,
 
-    visited: HashSet<Vertex, MyHasher>,
+    visited: HashSet<VertexI>,
     //statestack: Vec<State>,
     history: Vec<usize>,
 } //@}
@@ -365,8 +412,7 @@ impl Default for FlexTab { //{@
             state: State { ..Default::default() },
             best_state: State { ..Default::default() },
 
-            visited: FnvHashSet::default(),
-            //visited: HashSet::new(),
+            visited: HashSet::new(),
             //statestack: Vec::with_capacity(10),
             history: Vec::with_capacity(10),
         }
