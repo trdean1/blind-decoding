@@ -159,8 +159,8 @@ impl FeasibleRegion {
     pub fn reject_mtx( &self, v: &na::DMatrix<f64> )
             -> na::DMatrix<f64> {
         let (m,n) = v.shape();
-        let mut vv: na::DMatrix<f64> = na::DMatrix::from_column_slice(m,n,&vec![0.0;n*m]);
-        let mut tmp: na::RowDVector<f64> = na::RowDVector::from_column_slice(n, &vec![0.0;n]);
+        let mut vv: na::DMatrix<f64> = na::DMatrix::zeros(m,n);
+        let mut tmp: na::RowDVector<f64> = na::RowDVector::zeros(n);
 
         for i in 0 .. m {
             let v_row = v.row( i );

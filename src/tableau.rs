@@ -615,7 +615,7 @@ impl FlexTab { //{@
             zthresh: f64) -> (Vec<usize>, na::DMatrix<f64>) {
         let (n, k) = y.shape();
         let mut bad_cols = Vec::new();
-        let mut uyfull = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
+        let mut uyfull = na::DMatrix::zeros(n, k);
         u.mul_to(&y, &mut uyfull);
         for j in 0 .. uyfull.ncols() {
             if uyfull.column(j).iter().any(|&e| (e.abs() - 1.0).abs() > zthresh) {
@@ -804,6 +804,7 @@ impl FlexTab { //{@
     ///             coefficient set to 1.
     /// OUTPUT: true on success.
     //@}
+    #[inline(never)]
     fn set_basic(&mut self, j: usize, pivot_row: usize) //{@
             -> Result<(), FlexTabError> {
         // basic var = whichever of x_{2j}, x_{2j+1} != 0.
@@ -1160,7 +1161,8 @@ impl FlexTab { //{@
     fn mark_visited_update(&mut self, idx: usize) {
 
         let row = idx / self.n; //This row of U was updated
-        let mut row_update = na::DMatrix::from_column_slice( 1, self.n, &vec![0.0; self.n] );
+        let mut row_update = na::DMatrix::zeros(1, self.n);
+        //let mut row_update = na::DMatrix::from_column_slice( 1, self.n, &vec![0.0; self.n] );
 
         //Update u
         self.get_u_row_update(idx, &mut row_update);
@@ -1206,6 +1208,7 @@ impl FlexTab { //{@
         self.visited.insert(self.state.vertex.clone());
     }
 
+    #[inline(never)]
     fn add_row_multiple(&mut self, tgtrow: usize, srcrow: usize, mult: f64) { //{@
         for j in 0 .. self.state.rows.ncols() {
             self.state.rows[(tgtrow,j)] += mult * self.state.rows[(srcrow,j)];//self.state.tmp[j];

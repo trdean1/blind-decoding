@@ -411,7 +411,8 @@ fn estimate_permutation( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     let (n,_k) = x.shape();
 
     //Initial guess at permutation
-    let mut p_hat = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
+    //let mut p_hat = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
+    let mut p_hat = na::DMatrix::zeros(n, n);
     u.mul_to(&h, &mut p_hat);
     p_hat.apply( |e| e.round() );
     
@@ -438,7 +439,8 @@ fn recover_from_atm( x_hat: &na::DMatrix<f64>, x: &na::DMatrix<f64>,
     let mut p_hat = p_hat.clone();
 
 
-    let mut x_tilde = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
+    //let mut x_tilde = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
+    let mut x_tilde = na::DMatrix::zeros(n, k);
     p_hat.mul_to(&x_hat, &mut x_tilde);
 
     //Get new error vector with permuted rows
@@ -514,7 +516,8 @@ fn center_y( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, tol: f64 ) ->
         return Some( y.clone() );
     }
 
-    let mut uy = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
+    //let mut uy = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
+    let mut uy = na::DMatrix::zeros(n, k); 
     u.mul_to( y, &mut uy );
 
     //Find epsilon

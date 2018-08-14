@@ -138,7 +138,8 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
     v *= t;
     u += v;
 
-    let mut gradmtx = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
+    //let mut gradmtx = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
+    let mut gradmtx = na::DMatrix::zeros(n, n);
     let mut p_bool = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
     let mut p_bool_iter = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
     let mut p_bool_updates = Vec::with_capacity(k);
@@ -222,7 +223,7 @@ fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
     -> Option<na::DMatrix<f64>>
 {
     let (n,_k) = y.shape();
-    let mut u_row = na::DMatrix::from_column_slice( 1,n, &vec![0.0; n] );
+    let mut u_row = na::DMatrix::zeros( 1,n );
     u_row.copy_from( &u.row(row) );
     let mut bad_row = u_row.clone() * y.clone();
 
