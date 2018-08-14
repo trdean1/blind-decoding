@@ -158,6 +158,7 @@ impl State { //{@
         }
     } //@}
 
+    /*
     fn copy_from(&mut self, other: &State) { //{@
         self.x.copy_from_slice(&other.x);
         self.vmap.copy_from_slice(&other.vmap);
@@ -177,6 +178,7 @@ impl State { //{@
         self.det_u = other.det_u;
         self.vertex.copy_from(&other.vertex);
     } //@}
+    */
 
     pub fn get_u(&self) -> na::DMatrix<f64> {
         self.u.clone()
@@ -388,7 +390,8 @@ pub struct FlexTab { //{@
     extra_constr: Vec<Vec<Constraint>>,
 
     pub state: State,
-    pub best_state: State,
+    //best_state: State,
+    best_obj: f64,
 
     visited: HashSet<VertexI>,
     //statestack: Vec<State>,
@@ -410,7 +413,8 @@ impl Default for FlexTab { //{@
             extra_constr: Vec::new(),
 
             state: State { ..Default::default() },
-            best_state: State { ..Default::default() },
+            //best_state: State { ..Default::default() },
+            best_obj:  0.0,
 
             visited: HashSet::new(),
             //statestack: Vec::with_capacity(10),
@@ -539,7 +543,7 @@ impl FlexTab { //{@
 
         // Initialize mutable state.
         let state = State::new(u.clone(), uy, uybad);
-        let best_state = state.clone();
+        //let best_state = state.clone();
 
         let mut ft = FlexTab {
             zthresh: zthresh,
@@ -555,7 +559,8 @@ impl FlexTab { //{@
             extra_constr: vec![Vec::new(); n],
 
             state: state,
-            best_state: best_state,
+            //best_state: best_state,
+            best_obj: 0.0,
 
             ..Default::default()
         };
@@ -575,7 +580,8 @@ impl FlexTab { //{@
 
         // Initialize mutable state.
         let state = State::new(u.clone(), uyfull, None);
-        let best_state = state.clone();
+        //let best_state = state.clone();
+
 
         let ft = FlexTab {
             zthresh: zthresh,
@@ -591,7 +597,8 @@ impl FlexTab { //{@
             extra_constr: vec![Vec::new(); n],
 
             state: state,
-            best_state: best_state,
+            //best_state: best_state,
+            best_obj: 0.0,
 
             ..Default::default()
         };
@@ -1001,8 +1008,9 @@ impl FlexTab { //{@
                 continue;
             } 
             // Check if this is the best vertex we have seen.
-            if self.state.obj > self.best_state.obj {
-                self.best_state.copy_from(&self.state);
+            if self.state.obj > self.best_obj {
+                //self.best_state.copy_from(&self.state);
+                self.best_obj = self.state.obj;
             }
             // Check if this vertex is a global optimum.
             if self.is_done() {

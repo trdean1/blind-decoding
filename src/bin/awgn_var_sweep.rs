@@ -86,7 +86,7 @@ fn main() {
                         Ok(ft) => {
                             res.complete += 1;
                             res.total_bits += n*k;
-                            let mut uy = ft.best_state.get_u() * y_base.clone();
+                            let mut uy = ft.state.get_u() * y_base.clone();
                             uy.apply( |x| x.signum() );
                             if blindsolver::equal_atm(&uy, &x) {
                                 res.success += 1;
@@ -96,11 +96,11 @@ fn main() {
                                 // UY did +not+ match X, print some results and also
                                 // determine if UY was even a vertex.
                                 info!("Non-ATM");
-                                trace!("base_state.uy = {:.2}", ft.best_state.get_uy());
+                                trace!("base_state.uy = {:.2}", ft.state.get_uy());
                                 trace!("uy = {:.2}", uy );
                                 trace!("x = {:.2}", x);
                                 let ser = blindsolver::compute_symbol_errors( &uy, &x, 
-                                                                              Some(&ft.best_state.get_u()), 
+                                                                              Some(&ft.state.get_u()), 
                                                                               Some(&a) );
 
                                 match ser {
