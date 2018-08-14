@@ -123,27 +123,27 @@ impl FeasibleRegion {
             let u = &self.p[row][i];
 
             //uv = (u * v.T)
-            let uv = v.iter()
-                      .enumerate()
-                      .fold(0.0,
-                            |sum, (idx, &e)|
-                            sum + e * u[idx]);
+            let mut uv = 0.0;
+            for j in 0 .. u.len() {
+                uv += u[j] * v[j];
+            }
 
             //u_norm = u * u.T
-            let uu = u.iter()
-                          .fold(0.0,
-                                |sum, &e|
-                                sum + e * e);
+            let mut uu = 0.0;
+            for j in 0 .. u.len() {
+                uu += u[j] * u[j];
+            }
 
             //v = v - ((u * v.T) / (u * u.T)) * u
-            v -= (uv / uu) * u.clone();
+            for j in 0 .. v.len() {
+                v[j] -= (uv / uu) * u[j];
+            }
 
-            //Check if v is orthogonal to u
-            let v_norm = v.iter()
-                          .fold(0.0,
-                                |sum, &e|
-                                sum + e * e)
-                          .sqrt();
+            let mut v_norm = 0.0;
+            for j in 0 .. v.len() {
+                v_norm += v[j] * v[j];
+            }
+            v_norm.sqrt();
 
             if v_norm < self.zthresh { return }
 
@@ -156,6 +156,7 @@ impl FeasibleRegion {
         self.p[row].push( v );
     }
 
+    //TODO: only 60% of this is spent in reject_vec_to...the rest is allocation or copying 
     pub fn reject_mtx( &self, v: &na::DMatrix<f64> )
             -> na::DMatrix<f64> {
         let (m,n) = v.shape();
@@ -208,7 +209,6 @@ impl FeasibleRegion {
         vv.transpose()
     }
 
-    //TODO: This still has allocation going on in it...
     pub fn reject_vec_to( &self, v: &na::RowDVector<f64>, res: &mut na::RowDVector<f64>, 
                           row: usize ) {
         assert!( v.nrows() == res.nrows() );
@@ -217,27 +217,25 @@ impl FeasibleRegion {
 
         for i in 0 .. self.p[row].len() {
             let u = &self.p[row][i];
-
-            //vv.mul_to( &u.transpose(), &mut uv ); 
-            //u.mul_to( &u.transpose(), &mut uu );
             
             //uv = vv.T * u
-            let uv = u.iter()
-                      .enumerate()
-                      .fold(0.0,
-                            |sum, (idx, &e)|
-                            sum + e * res[idx]);
+            let mut uv = 0.0;
+            for j in 0 .. u.len() {
+                uv += u[j] * res[j];
+            }
             
             //uu = u.T * u
-            let uu = u.iter()
-                  .enumerate()
-                  .fold(0.0,
-                        |sum, (idx, &e)|
-                        sum + e * u[idx]);
+            let mut uu = 0.0;
+            for j in 0 .. u.len() {
+                uu += u[j] * u[j];
+            }
 
             assert!(uu > 1e-12);
 
-            *res -= (uv / uu) * u;
+            //*res -= (uv / uu) * u;
+            for j in 0 .. res.len() {
+                res[j] -= (uv / uu) * u[j];
+            }
         }
 }
 

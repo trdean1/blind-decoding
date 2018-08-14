@@ -36,6 +36,7 @@ fn objgrad(x: &mut na::DMatrix<f64>) -> Option<na::DMatrix<f64>> { //{@
 /// Output:  Boolean matrix (n x k) where output[i, j] = true iff the ith row of
 /// u causes the jth constraint of UY to be active, |<u_i, y_j>| = 1.        
 //@}
+#[inline(never)]
 fn get_active_constraints_bool(prod: &na::DMatrix<f64>,
                                c_bool: &mut na::DMatrix<bool>, zthresh: f64) {
     let (n, k) = prod.shape();
