@@ -840,7 +840,11 @@ impl FlexTab { //{@
 
         // Make coeff of pivot_row[tgtvar] = 1.
         let divisor = self.state.rows.row(pivot_row)[tgtvar];
-        self.div_row_float(pivot_row, divisor);
+        if self.n > 3 {
+            self.div_row_float_sparse(pivot_row, divisor);
+        } else {
+            self.div_row_float(pivot_row, divisor);
+        }
 
         // Eliminate tgtvar from every other row.
         let baserow = 2 * (j / self.n * self.k);
@@ -1295,6 +1299,23 @@ impl FlexTab { //{@
             *e /= divisor;
         }
     } //@}
+
+    /// Same as above but use sparse form to skip most entries
+    fn div_row_float_sparse(&mut self, tgtrow: usize, divisor: f64) {
+        let basecol = (tgtrow / (2*self.k)) * 2*self.n;
+        let limcol = basecol + 2*self.n;
+        for j in basecol .. limcol {
+            self.state.rows[(tgtrow,j)] /= divisor;
+        }
+
+        for idx in self.state.row_sparse_form[tgtrow].iter() {
+            self.state.rows[(tgtrow,*idx)] /= divisor;
+        }
+
+        let last = self.state.rows.ncols() - 1;
+        self.state.rows[(tgtrow, last)] /= divisor;
+    }
+
     //{@
     /// Reconstruct U from first 2 * self.n^2 entries of X.
     //@}
