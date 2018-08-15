@@ -13,14 +13,15 @@ fn main() {
 
     let complex = false;
     let use_basis = true; 
-    let reps_per = 100;
-    //let dims = vec![(2, 8), (3, 13), (4, 18), (5, 13),
-    //    (6, 22), (8, 30)];
+    let reps_per = 1000;
+    let dims = vec![(2, 8), (3, 13), (4, 18), (5, 13),
+        (6, 22), (8, 30)];
+    //let dims = vec![(8,30)];
     //let dims = vec![(10,45),(12,60)];
 
     //Sweep from n=2 to n=8, skipping n=7 (works but is slow since we don't have an is_done
     //function)
-    
+    /*
     let mut dims = Vec::new();
     for ii in 2 .. 9 {
         if ii == 7 { continue; }
@@ -28,7 +29,7 @@ fn main() {
             if 4*jj <= ii { continue; }
             dims.push( (ii, 4*jj) );
         }
-    }
+    }*/
 
     let mut results: Vec<TrialResults> = dims.iter()
         .map(|&d| TrialResults::new(d.0,d.1,0f64))
@@ -45,12 +46,14 @@ fn main() {
             continue;
         }
 
-        if _iter % reps_per == 0 {
-            eprintln!("Dim = {:?}", dims[which]);
-        } else if _iter % (reps_per / 10) == 0 {
-            eprint!("#");
-        } else if _iter % reps_per == reps_per - 1 {
-            eprint!("\n");
+        if reps_per > 10 {
+            if _iter % reps_per == 0 {
+                eprintln!("Dim = {:?}", dims[which]);
+            } else if _iter % (reps_per / 10) == 0 {
+                eprint!("#");
+            } else if _iter % reps_per == reps_per - 1 {
+                eprint!("\n");
+            }
         }
 
         // Select X matrix of one specific set of dimensions (n, k).
@@ -66,6 +69,7 @@ fn main() {
 
         // Obtain A, Y matrices, then run.
         let (_a, y) = matrix::y_a_from_x(&x, complex);
+        debug!("Y = {:.02}", y);
         //let timer = std::time::Instant::now();
         match solver.single_run( &y ) {
             Err(_) => {
