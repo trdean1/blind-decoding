@@ -86,6 +86,7 @@ pub struct State { //{@
     uybad: Option<na::DMatrix<f64>>,
 
     rows: na::DMatrix<f64>,
+    row_sparse_form: Vec<HashSet<usize>>,
     vmap: Vec<usize>,
 
     grad: na::DMatrix<f64>,
@@ -123,6 +124,7 @@ impl Default for State { //{@
             uybad: None,
             
             rows: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
+            row_sparse_form: Vec::new(),
             vmap: Vec::new(),
 
             grad: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
@@ -140,6 +142,10 @@ impl State { //{@
     fn new(u: na::DMatrix<f64>, uy: na::DMatrix<f64>, //{@
             uybad: Option<na::DMatrix<f64>>) -> State {
         let (n, k) = uy.shape();
+        let mut sparse_form = vec![HashSet::new(); 2*n*k];
+        for i in 0 .. 2*n*k {
+            sparse_form[i].insert(i + 2*n*n);
+        }
         State {
             x: vec![0.0; 2 * (n*n + n*k)], 
             u: u.clone(),
@@ -147,6 +153,7 @@ impl State { //{@
             uybad: uybad,
 
             rows: na::DMatrix::zeros(2 * n*k, 2 * (n*n + n*k) + 1),
+            row_sparse_form: sparse_form,
             vmap: vec![0; n*n],
 
             grad: na::DMatrix::zeros(n, n),
@@ -785,7 +792,11 @@ impl FlexTab { //{@
                 } else {
                     let tgtrow = zeroslack;
                     let srcrow = tgtrow ^ 0x1;
-                    self.add_row_multiple(tgtrow, srcrow, 1.0);
+                    if self.n > 5 {
+                        self.add_row_multiple_sparse(tgtrow, srcrow, 1.0);
+                    } else {
+                        self.add_row_multiple(tgtrow, srcrow, 1.0);
+                    }
                 }
             }
         }
@@ -826,7 +837,11 @@ impl FlexTab { //{@
         for i in baserow .. limrow {
             if i == pivot_row { continue; }
             let mult = -1.0 * self.state.rows.row(i)[tgtvar];
-            self.add_row_multiple(i, pivot_row, mult);
+            if self.n > 5 {
+                self.add_row_multiple_sparse(i, pivot_row, mult);
+            } else {
+                self.add_row_multiple(i, pivot_row, mult);
+            }
         }
 
         Ok(())
@@ -975,7 +990,9 @@ impl FlexTab { //{@
 
     #[inline(never)]
     pub fn solve(&mut self) -> Result<(), FlexTabError> { //{@
+        debug!("Tableau before: {:.02}", self.state.rows);
         self.to_simplex_form()?;
+        debug!("After: {:.02}", self.state.rows);
         self.hop()?;
         Ok(())
     } //@}
@@ -1214,6 +1231,36 @@ impl FlexTab { //{@
             self.state.rows[(tgtrow,j)] += mult * self.state.rows[(srcrow,j)];//self.state.tmp[j];
         }
     } //@}
+
+    #[inline(never)]
+    fn add_row_multiple_sparse(&mut self, tgtrow: usize, srcrow: usize, mult: f64) {
+        //Add the first portion which is not necessary sparse
+        let basecol = (tgtrow / (2 * self.k)) * 2*self.n;
+        let limcol = basecol + 2*self.n;
+        //If this is false it violates our sparsity assumption
+        assert!( basecol == 2*self.n * (srcrow / (2*self.k)) );
+
+        for j in basecol .. limcol {
+            self.state.rows[(tgtrow,j)] += mult * self.state.rows[(srcrow,j)];
+        }
+
+        //Add the very sparse part and update the sparse structure
+        let mut added_idxs = Vec::with_capacity( self.state.row_sparse_form[srcrow].len() );
+
+        for idx in self.state.row_sparse_form[srcrow].iter() {
+            self.state.rows[(tgtrow,*idx)] += mult * self.state.rows[(srcrow,*idx)];
+            added_idxs.push( *idx );
+        }
+       
+        //Need second loop for memory safety
+        for idx in added_idxs.iter() {
+            self.state.row_sparse_form[tgtrow].insert( *idx );
+        }
+        
+        //Add the column vector at the end
+        let last = self.state.rows.ncols() - 1;
+        self.state.rows[(tgtrow, last)] += mult * self.state.rows[(srcrow,last)];
+    }
 
     fn div_row_float(&mut self, tgtrow: usize, divisor: f64) { //{@
         for e in self.state.rows.row_mut(tgtrow).iter_mut() {
