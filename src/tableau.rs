@@ -928,17 +928,29 @@ impl FlexTab { //{@
         // The 2n U-vars are those from the relevant row.
         let low_u = 2 * self.n * g;
         let high_u = low_u + 2 * self.n;
-        let uvars = (low_u .. high_u)
-            .filter(|&j| row[j].abs() > self.zthresh)
-            .collect::<Vec<_>>();
+        //let uvars = (low_u .. high_u)
+        //    .filter(|&j| row[j].abs() > self.zthresh)
+        //    .collect::<Vec<_>>();
+        let mut uvars = Vec::with_capacity(2*self.n);
+        for j in low_u .. high_u {
+            if row[j].abs() > self.zthresh {
+                uvars.push(j);
+            }
+        }
 
         // The 2k potential slack vars are those involving these same U rows.
         let low_s = (2 * self.n * self.n) + (2 * self.k * g);
         let high_s = low_s + 2 * self.k;
-        let slackvars = (low_s .. high_s)
-            .filter(|&j| row[j].abs() > self.zthresh)
-            .collect::<Vec<_>>();
-
+        //let slackvars = (low_s .. high_s)
+        //    .filter(|&j| row[j].abs() > self.zthresh)
+        //    .collect::<Vec<_>>();
+        let mut slackvars = Vec::with_capacity(2 * self.k);
+        for j in low_s .. high_s {
+            if row[j].abs() > self.zthresh {
+                slackvars.push(j);
+            }
+        }
+        
         (uvars, slackvars)
     } //@}
 
