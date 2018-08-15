@@ -8,7 +8,6 @@ use std::collections::HashSet;
 
 use super::matrix;
 
-use ZTHRESH;
 use equal_atm;
 
 #[allow(unused)]
@@ -146,7 +145,7 @@ impl State { //{@
         //let mut sparse_form = vec![HashSet::new(); 2*n*k];
         let mut sparse_form;
         if n > 3 {
-            sparse_form = vec![Vec::new(); 2*n*k];
+            sparse_form = vec![Vec::with_capacity(2*n); 2*n*k];
             for i in 0 .. 2*n*k {
                 sparse_form[i].push(i + 2*n*n);
                 //sparse_form[i].insert(i + 2*n*n);
@@ -320,6 +319,7 @@ impl PartialOrd for VertexI {
     }
 }
 
+/*
 #[derive(Clone)] //{@
 /// Structure for constraints that arise from extra "good" columns of Y beyond
 /// the first n linearly independent columns.  These are referred to as type 3
@@ -387,6 +387,7 @@ impl fmt::Display for Constraint { //{@
     }
 } //@}
 //@}
+*/
 
 //{@
 /// Principal tableau structure.
@@ -402,7 +403,7 @@ pub struct FlexTab { //{@
     ybad: Option<na::DMatrix<f64>>,
 
     urows: Vec<Option<(usize, usize, usize)>>,
-    extra_constr: Vec<Vec<Constraint>>,
+    //extra_constr: Vec<Vec<Constraint>>,
 
     pub state: State,
     //best_state: State,
@@ -425,7 +426,7 @@ impl Default for FlexTab { //{@
             ybad: None,
 
             urows: Vec::new(),
-            extra_constr: Vec::new(),
+            //extra_constr: Vec::new(),
 
             state: State { ..Default::default() },
             //best_state: State { ..Default::default() },
@@ -462,6 +463,7 @@ impl fmt::Display for FlexTab { //{@
             s += &format!("{} == {:5.2}\n", line, r[r.len() - 1]);
         }
 
+        /*
         // Type 3 constraints.
         println!("Type 3 Constraints:");
         for (rownum, ref cset) in self.extra_constr.iter().enumerate() {
@@ -471,6 +473,7 @@ impl fmt::Display for FlexTab { //{@
             }
         }
         println!("\n");
+        */
 
         // urows
         s += "\nurows:\n";
@@ -571,7 +574,7 @@ impl FlexTab { //{@
             ybad: ybad,
 
             urows: vec![None; n * n],
-            extra_constr: vec![Vec::new(); n],
+            //extra_constr: vec![Vec::new(); n],
 
             state: state,
             //best_state: best_state,
@@ -609,7 +612,7 @@ impl FlexTab { //{@
             ybad: None,
 
             urows: vec![None; n * n],
-            extra_constr: vec![Vec::new(); n],
+            //extra_constr: vec![Vec::new(); n],
 
             state: state,
             //best_state: best_state,
@@ -890,7 +893,7 @@ impl FlexTab { //{@
                     // All of the RHS vars in 2-uvar eqns are "normal" slacks.
                     for v in slackvars { vvars.insert(v); }
 
-                } else {
+                } /* else {
                     // If exactly 2 slackvars and both correspond to same base
                     // eqn, then this is dealt with in vvars.  Otherwise, this
                     // gives us a type 3 constraint.
@@ -900,7 +903,7 @@ impl FlexTab { //{@
                           || slack_eqn(slackvars[0]) != slack_eqn(slackvars[1]) {
                         self.add_extra_constr(cset, row, &slackvars);
                     }
-                }
+                } */
             }
 
             let mut vvars = vvars.iter().map(|&v| v).collect::<Vec<usize>>();
@@ -938,6 +941,8 @@ impl FlexTab { //{@
 
         (uvars, slackvars)
     } //@}
+
+    /*
     fn add_extra_constr(&mut self, csetnum: usize, rownum: usize, //{@
             slackvars: &Vec<usize>) {
         let lastcol = self.state.rows.ncols() - 1;
@@ -956,6 +961,7 @@ impl FlexTab { //{@
         // Add fully formed constraint to relevant extra constraint set.
         self.extra_constr[csetnum].push(con);
     } //@}
+    */
 
     #[inline(never)]
     fn snapshot(&mut self, idx: usize) { //{@
@@ -1150,17 +1156,16 @@ impl FlexTab { //{@
         }
 
         // Type 3 constraints.
-        if self.n > 8 {
-            for (_row, ref cset) in self.extra_constr.iter().enumerate() {
-                for (_cnum, ref c) in cset.iter().enumerate() {
-                    // Constraint contains set of relevant columns.  We need to pass
-                    // in the row.
-                    if !c.check(&self.state.x, self.zthresh) {
-                        return false;
-                    }
+        /*
+        for (_row, ref cset) in self.extra_constr.iter().enumerate() {
+            for (_cnum, ref c) in cset.iter().enumerate() {
+                // Constraint contains set of relevant columns.  We need to pass
+                // in the row.
+                if !c.check(&self.state.x, self.zthresh) {
+                    return false;
                 }
             }
-        }
+        }*/
 
         // Full UY feasibility: check _bad_cols, good enforced by tableau.
         if let Some(ref uybad) = self.state.uybad {
@@ -1256,22 +1261,15 @@ impl FlexTab { //{@
         let mut added_idxs = Vec::with_capacity( self.state.row_sparse_form[srcrow].len() );
 
         for idx in self.state.row_sparse_form[srcrow].iter() {
+            if self.state.rows[(tgtrow,*idx)].abs() < 1e-9 {
+                added_idxs.push( *idx );
+            }
             self.state.rows[(tgtrow,*idx)] += mult * self.state.rows[(srcrow,*idx)];
-            added_idxs.push( *idx );
         }
        
         //Need second loop for memory safety
         for idx in added_idxs.iter() {
-            let mut add = true;
-            for i2 in self.state.row_sparse_form[tgtrow].iter() {
-                if *i2 == *idx {
-                    add = false;
-                    break;
-                }
-            }
-            if add {
-                self.state.row_sparse_form[tgtrow].push( *idx );
-            }
+            self.state.row_sparse_form[tgtrow].push( *idx );
             //self.state.row_sparse_form[tgtrow].insert( *idx );
         }
         
