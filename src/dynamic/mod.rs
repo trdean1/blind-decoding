@@ -42,11 +42,9 @@ fn get_active_constraints_bool(prod: &na::DMatrix<f64>,
     let (n, k) = prod.shape();
 
     for j in 0 .. k {
-        let mut c_bool_col = c_bool.column_mut(j);
-        let prod_col = prod.column(j);
         for i in 0 .. n {
-            let entry = prod_col[i];
-            c_bool_col[i] =  (1.0 - entry).abs() < zthresh 
+            let entry = prod[(i,j)];
+            c_bool[(i,j)] =  (1.0 - entry).abs() < zthresh 
                 || (1.0 + entry).abs() < zthresh;
         }
     }
@@ -154,18 +152,13 @@ pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>)
         get_active_constraints_bool(&uy, &mut p_bool_iter, ZTHRESH);
         p_bool_updates.clear();
         for j in 0 .. k {
-            //let col_iter = p_bool_iter.column(j);
-            //let col_orig = p_bool.column_mut(j);
             for i in 0 .. n {
-                //if col_iter[i] && !col_orig[i] {
                 if p_bool_iter[(i,j)] && !p_bool[(i,j)] {
                     p_bool_updates.push((i, j));
                     p_bool[(i,j)] = true;
                 }
             }
         }
-        //p_bool.copy_from(&p_bool_iter);
-
         fs.insert_from_vec( &p_bool_updates );
 
         gradmtx.copy_from(&u);
@@ -218,6 +211,7 @@ pub fn verify_bfs(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) //{@
 } //@}
 // end BFS finder.@}
 
+#[inline(never)]
 fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, 
                   fs: &mut feasibleregion::FeasibleRegion, row: usize,
                   zthresh: f64)
@@ -352,12 +346,12 @@ pub fn find_vertex_on_face( u_i : &na::DMatrix<f64>, y: &na::DMatrix<f64>,
 {
     let mut u = u_i.clone();
     let uy = u.clone() * y.clone();
-    let (n, _k) = y.shape();
+    let (n, k) = y.shape();
 
     //TODO: probably should just make dynamic a class and then I don't 
     //need to copy this here...
     let mut fs = feasibleregion::FeasibleRegion::from_copy( d_fs );
-    let mut updates: Vec<(usize, usize)> = Vec::new();
+    let mut updates: Vec<(usize, usize)> = Vec::with_capacity(n*k);
     for j in 0 .. uy.ncols() {
         for i in 0 .. uy.nrows() {
             if (uy[(i,j)].abs() - 1.0).abs() < zthresh {
