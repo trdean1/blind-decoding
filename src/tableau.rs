@@ -86,7 +86,8 @@ pub struct State { //{@
     uybad: Option<na::DMatrix<f64>>,
 
     rows: na::DMatrix<f64>,
-    row_sparse_form: Vec<HashSet<usize>>,
+    //row_sparse_form: Vec<HashSet<usize>>,
+    row_sparse_form: Vec<Vec<usize>>,
     vmap: Vec<usize>,
 
     grad: na::DMatrix<f64>,
@@ -142,9 +143,11 @@ impl State { //{@
     fn new(u: na::DMatrix<f64>, uy: na::DMatrix<f64>, //{@
             uybad: Option<na::DMatrix<f64>>) -> State {
         let (n, k) = uy.shape();
-        let mut sparse_form = vec![HashSet::new(); 2*n*k];
+        //let mut sparse_form = vec![HashSet::new(); 2*n*k];
+        let mut sparse_form = vec![Vec::new(); 2*n*k];
         for i in 0 .. 2*n*k {
-            sparse_form[i].insert(i + 2*n*n);
+            sparse_form[i].push(i + 2*n*n);
+            //sparse_form[i].insert(i + 2*n*n);
         }
         State {
             x: vec![0.0; 2 * (n*n + n*k)], 
@@ -792,7 +795,7 @@ impl FlexTab { //{@
                 } else {
                     let tgtrow = zeroslack;
                     let srcrow = tgtrow ^ 0x1;
-                    if self.n > 5 {
+                    if self.n > 3 {
                         self.add_row_multiple_sparse(tgtrow, srcrow, 1.0);
                     } else {
                         self.add_row_multiple(tgtrow, srcrow, 1.0);
@@ -837,7 +840,7 @@ impl FlexTab { //{@
         for i in baserow .. limrow {
             if i == pivot_row { continue; }
             let mult = -1.0 * self.state.rows.row(i)[tgtvar];
-            if self.n > 5 {
+            if self.n > 3 {
                 self.add_row_multiple_sparse(i, pivot_row, mult);
             } else {
                 self.add_row_multiple(i, pivot_row, mult);
@@ -1254,7 +1257,17 @@ impl FlexTab { //{@
        
         //Need second loop for memory safety
         for idx in added_idxs.iter() {
-            self.state.row_sparse_form[tgtrow].insert( *idx );
+            let mut add = true;
+            for i2 in self.state.row_sparse_form[tgtrow].iter() {
+                if *i2 == *idx {
+                    add = false;
+                    break;
+                }
+            }
+            if add {
+                self.state.row_sparse_form[tgtrow].push( *idx );
+            }
+            //self.state.row_sparse_form[tgtrow].insert( *idx );
         }
         
         //Add the column vector at the end
