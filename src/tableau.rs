@@ -144,10 +144,15 @@ impl State { //{@
             uybad: Option<na::DMatrix<f64>>) -> State {
         let (n, k) = uy.shape();
         //let mut sparse_form = vec![HashSet::new(); 2*n*k];
-        let mut sparse_form = vec![Vec::new(); 2*n*k];
-        for i in 0 .. 2*n*k {
-            sparse_form[i].push(i + 2*n*n);
-            //sparse_form[i].insert(i + 2*n*n);
+        let mut sparse_form;
+        if n > 3 {
+            sparse_form = vec![Vec::new(); 2*n*k];
+            for i in 0 .. 2*n*k {
+                sparse_form[i].push(i + 2*n*n);
+                //sparse_form[i].insert(i + 2*n*n);
+            }
+        } else {
+            sparse_form = Vec::new();
         }
         State {
             x: vec![0.0; 2 * (n*n + n*k)], 
