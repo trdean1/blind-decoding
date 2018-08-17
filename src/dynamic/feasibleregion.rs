@@ -148,11 +148,17 @@ impl FeasibleRegion {
             if v_norm < self.zthresh { return }
 
             //Normalize and continue
-            v /= v_norm;
+            //v /= v_norm;
+            v /= v.norm();
         }
         
         //If p already has n entries then we should have returned already
-        assert!( self.p[row].len() < self.dims.0 );
+        if self.p[row].len() >= self.dims.0 {
+            for pp in self.p[row].iter() {
+                debug!("{:.04}norm: {:.04}", pp, pp.norm());
+            }
+            assert!(false, "P already has n entries");
+        }
         self.p[row].push( v );
     }
 
