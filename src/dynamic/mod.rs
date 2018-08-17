@@ -5,6 +5,7 @@ use rand::distributions::{Normal, Distribution};
 use std;
 
 use ZTHRESH;
+use super::matrix;
 
 mod feasibleregion;
 
@@ -15,6 +16,170 @@ pub enum BFSType { //{@
     PM10,
     Wrong,
 } //@}
+
+pub enum BfsError {
+    SingularUi,
+    SingularU,
+}
+
+pub struct BfsFinder {
+    y: na::DMatrix<f64>,
+    active_constraints: Vec<Vec<bool>>,
+    fs: feasibleregion::FeasibleRegion,
+
+    u: na::DMatrix<f64>,
+    v: na::DMatrix<f64>,
+    grad: Option<na::DMatrix<f64>>,
+    uy: na::DMatrix<f64>,
+    vy: na::DMatrix<f64>,
+
+    n: usize,
+    k: usize,
+    zthresh: f64,
+}
+
+impl Default for BfsFinder {
+    fn default() -> BfsFinder {
+        BfsFinder {
+            y: na::DMatrix::from_column_slice( 0, 0, &Vec::new() ),
+            active_constraints: Vec::new(),
+            fs: feasibleregion::FeasibleRegion::default(),
+
+            u: na::DMatrix::from_column_slice( 0, 0, &Vec::new() ),
+            v: na::DMatrix::from_column_slice( 0, 0, &Vec::new() ),
+            grad: None,
+            uy: na::DMatrix::from_column_slice( 0, 0, &Vec::new() ),
+            vy: na::DMatrix::from_column_slice( 0, 0, &Vec::new() ),
+
+            n: 0,
+            k: 0,
+            zthresh: 0.0,
+        }
+    }
+}
+
+impl BfsFinder {
+    fn new( y: &na::DMatrix<f64>, zthresh: f64 ) 
+        -> BfsFinder {
+        let (n, k) = y.shape();
+        BfsFinder {
+            y: y.clone(),
+            active_constraints: vec![ vec![false; k]; n ],
+            fs: feasibleregion::FeasibleRegion::new( y, Some(zthresh) ),
+
+            u: na::DMatrix::zeros( n, n ),
+            v: na::DMatrix::zeros( n, n ),
+            grad: None,
+            uy: na::DMatrix::zeros( n, k ),
+            vy: na::DMatrix::zeros( n, k ),
+
+            n: n,
+            k: k,
+            zthresh: zthresh,
+        }
+    }
+
+    fn update_grad( &mut self ) {
+        self.grad = match self.u.clone().try_inverse() {
+            Some(gr) => Some(gr.transpose()),
+            None => None
+        }
+    }
+
+    /// If update_fs is set to true then this will add newly activated
+    /// constraints to the data structure FeasibleRegion
+    fn update_active_constraints( &mut self, update_fs: bool ) {
+        for i in 0 .. self.n {
+            for j in 0 .. self.k {
+                let entry = self.uy[(i,j)];
+                let old = self.active_constraints[i][j];
+                self.active_constraints[i][j] = (1.0 - entry).abs() < self.zthresh 
+                    || (1.0 + entry).abs() < self.zthresh;
+                if update_fs && 
+                   old == false &&
+                   self.active_constraints[i][j] == true {
+                    self.fs.insert( i, j );
+                }
+            }
+        }
+    }
+
+    fn boundary_dist( &self, mask: Option<&Vec<Vec<bool>>> )
+        -> f64 {
+        let mut t_min = std::f64::MAX;
+
+        for j in 0 .. self.k {
+            for i in 0 .. self.n {
+                if let Some(mask) = mask {
+                    if mask[i][j] { continue; }
+                }
+
+            // Determine value of t s.t. [i, j] constr reaches boundary.
+            match self.vy[(i,j)].partial_cmp(&0.0) {
+                Some(v) => {
+                    let t = match v {
+                        std::cmp::Ordering::Less =>
+                            (-1.0 - self.uy[(i,j)]) / self.vy[(i,j)],
+                        std::cmp::Ordering::Greater =>
+                            (1.0 - self.uy[(i,j)]) / self.vy[(i,j)],
+                        std::cmp::Ordering::Equal => std::f64::MAX,
+                    };
+                    if t.abs() < t_min.abs() { t_min = t; }
+                },
+                None => continue,
+            }
+            }
+        }
+
+        t_min
+    }
+
+    pub fn find_bfs( &mut self, u_i: &na::DMatrix<f64> ) -> Result<na::DMatrix<f64>,BfsError> {
+        assert!( self.n == u_i.shape().0 );
+
+        self.u.copy_from(u_i);
+        self.update_grad();
+        if self.grad.is_none() {
+            return Err(BfsError::SingularUi);
+        }
+
+        //First step...move along gradient until we hit the boundary
+        self.u.mul_to( &self.y, &mut self.uy );
+        self.v.copy_from( self.grad.as_ref().unwrap() );
+        self.v.mul_to( &self.y, &mut self.vy );
+        let mut t = self.boundary_dist( None );
+        self.v *= t;
+        self.u += self.v.clone();
+
+        for _iter in 0 .. (self.n*self.n - 1) {
+            //Update UY
+            self.u.mul_to( &self.y, &mut self.uy );
+
+            //Update active constraints and feasible region
+            self.update_active_constraints( true );
+
+            //Update gradient and find v by rejecting grad from active constraints
+            self.update_grad();
+            if self.grad.is_none() {
+                return Err(BfsError::SingularU);
+            }
+
+            self.v = self.fs.reject_mtx( self.grad.as_ref().unwrap() );
+
+            //If true, then the active constraints are full rank and we have nowhere to go
+            if self.v.norm() < 1e-12 {
+                break
+            }
+
+            self.v.mul_to( &self.y, &mut self.vy );
+            t = self.boundary_dist( Some(&self.active_constraints) );
+
+            self.u += t * self.v.clone();
+        }
+
+        Ok(self.u.clone())
+    }
+}
 
 // BFS finder functions.{@
 
@@ -436,6 +601,22 @@ mod tests {
         }
     }
 
+    #[test]
+    fn new_solver_test() {
+        let dims = vec![(4,8)];
+
+        let x = matrix::get_matrix(&dims[0 .. 1]);
+        let (_a, y) = matrix::y_a_from_x(&x, false );
+        let u_i = matrix::rand_init(&y);
+
+        let mut bfs_finder = BfsFinder::new( &y, 1e-9 );
+        let u = bfs_finder.find_bfs( &u_i );
+
+        if let Ok(u) = u { 
+            println!("UY = {:.04}", u * y );
+        }
+        assert!(false);
+    }
     /*
     /// This was in the old code...not sure what bug this was testing
     fn use_given_matrices() -> (na::DMatrix<f64>, na::DMatrix<f64>) { 
