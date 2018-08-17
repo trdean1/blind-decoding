@@ -25,10 +25,11 @@ fn single_dynamic_test( n : usize, k : usize )
     let (_a, y) = matrix::y_a_from_x( &x, false );
 
     let u_i = matrix::rand_init(&y);
+    let mut dyn = dynamic::BfsFinder::new(&y, ZTHRESH);
 
-    let bfs = match dynamic::find_bfs(&u_i, &y) {
-        Some(r) => r, 
-        None => return None,
+    let bfs = match dyn.find_bfs(&u_i) {
+        Ok(r) => r, 
+        Err(_) => return None,
     };
 
     Some(bfs * y)

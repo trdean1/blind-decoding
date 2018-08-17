@@ -100,6 +100,22 @@ pub fn rand_pm1_matrix(nrows: usize, ncols: usize) -> na::DMatrix<f64> { //{@
     na::DMatrix::from_column_slice(nrows, ncols, &data)
 } //@}
 
+#[allow(dead_code)]
+pub fn rand_unit(n: usize) -> na::DVector<f64> {
+    let mut rng = rand::thread_rng();
+    let mut data = Vec::with_capacity(n);
+    let dist = Normal::new(0.0, 1.0);
+    for _ in 0 .. (n) {
+        data.push(dist.sample(&mut rng));
+    }
+
+    let mut v = na::DVector::from_column_slice(n, &data);
+    let norm = v.norm();
+    v /= norm;
+
+    return v;
+}
+
 //{@
 /// Randomly select one (n, k) value from the array of (n, k) pairs given in
 /// +dims+.  Fill the necessary extra columns (if necessary) with random iid

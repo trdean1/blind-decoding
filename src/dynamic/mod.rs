@@ -1,10 +1,9 @@
 extern crate nalgebra as na;
 extern crate rand;
 
-use rand::distributions::{Normal, Distribution};
 use std;
+use std::fmt;
 
-use ZTHRESH;
 use super::matrix;
 
 mod feasibleregion;
@@ -17,9 +16,20 @@ pub enum BFSType { //{@
     Wrong,
 } //@}
 
+impl fmt::Display for BFSType { //{@
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &BFSType::PM1 => write!(f, "{}", "PM1"),
+            &BFSType::PM10 => write!(f, "{}", "PM10"),
+            &BFSType::Wrong => write!(f, "{}", "Wrong"),
+        }
+    }
+} //@}
+
 pub enum BfsError {
     SingularUi,
     SingularU,
+    RowToVertFailure,
 }
 
 pub struct BfsFinder {
@@ -59,7 +69,7 @@ impl Default for BfsFinder {
 }
 
 impl BfsFinder {
-    fn new( y: &na::DMatrix<f64>, zthresh: f64 ) 
+    pub fn new( y: &na::DMatrix<f64>, zthresh: f64 ) 
         -> BfsFinder {
         let (n, k) = y.shape();
         BfsFinder {
@@ -104,6 +114,13 @@ impl BfsFinder {
         }
     }
 
+    //{@
+    /// Calculate the distance to the problem boundary along a given vector.
+    /// Input:   u = current feasible solution
+    ///          mask = points to consider when calculating feasibility; if None,
+    ///          all points are considered.
+    /// Output: t = maximum distance such that u + t * v remains feasible.
+    //@}
     fn boundary_dist( &self, mask: Option<&Vec<Vec<bool>>> )
         -> f64 {
         let mut t_min = std::f64::MAX;
@@ -134,6 +151,14 @@ impl BfsFinder {
         t_min
     }
 
+    /// 
+    /// Find an initial BFS for the constraints |UY|\_infty <= 1.  Algorithm works
+    /// by moving to the problem boundary, then following the projection of the
+    /// gradient onto the nullspace of active constraints until hittin the boundary
+    /// again.
+    /// Input:   u_i = initial estimate for inverse of channel gain matrix
+    /// Output u = estimated inverse channel gain matrix or an error code
+    ///
     pub fn find_bfs( &mut self, u_i: &na::DMatrix<f64> ) -> Result<na::DMatrix<f64>,BfsError> {
         assert!( self.n == u_i.shape().0 );
 
@@ -151,10 +176,10 @@ impl BfsFinder {
         self.v *= t;
         self.u += self.v.clone();
 
-        for _iter in 0 .. (self.n*self.n - 1) {
-            //Update UY
-            self.u.mul_to( &self.y, &mut self.uy );
+        //Update UY
+        self.u.mul_to( &self.y, &mut self.uy );
 
+        for _iter in 0 .. (self.n*self.n - 1) {
             //Update active constraints and feasible region
             self.update_active_constraints( true );
 
@@ -171,398 +196,211 @@ impl BfsFinder {
                 break
             }
 
+            //Now move in the direction of v until we no longer can
             self.v.mul_to( &self.y, &mut self.vy );
             t = self.boundary_dist( Some(&self.active_constraints) );
 
+            //Update u and uy
             self.u += t * self.v.clone();
+            self.u.mul_to( &self.y, &mut self.uy );
+        }
+
+        if self.verify_bfs() == BFSType::Wrong {
+            match self.find_vertex_on_face() {
+                Ok(_) => return Ok(self.u.clone()),
+                Err(e) => return Err(e),
+            };
         }
 
         Ok(self.u.clone())
     }
-}
-
-// BFS finder functions.{@
-
-//{@
-/// Calculate gradient: (x^-1).transpose.
-//@}
-fn objgrad(x: &mut na::DMatrix<f64>) -> Option<na::DMatrix<f64>> { //{@
-    match x.try_inverse_mut() {
-        true => Some(x.transpose()),
-        false => None,
-    }
-} //@}
-
-//{@
-/// Returns a boolean matrix where each entry tells whether or not the
-/// constraint is active.
-/// Input:   u = feasible solution (n x n)
-///          y = matrix of received symbols (n x k)
-/// Output:  Boolean matrix (n x k) where output[i, j] = true iff the ith row of
-/// u causes the jth constraint of UY to be active, |<u_i, y_j>| = 1.        
-//@}
-#[inline(never)]
-fn get_active_constraints_bool(prod: &na::DMatrix<f64>,
-                               c_bool: &mut na::DMatrix<bool>, zthresh: f64) {
-    let (n, k) = prod.shape();
-
-    for j in 0 .. k {
-        for i in 0 .. n {
-            let entry = prod[(i,j)];
-            c_bool[(i,j)] =  (1.0 - entry).abs() < zthresh 
-                || (1.0 + entry).abs() < zthresh;
+ 
+    /// 
+    /// Returns the type of BFS currently stored in uy,
+    /// i.e. |UY| == 1, or {-1, 0, 1} or other
+    ///
+    pub fn verify_bfs( &self ) -> BFSType {
+        //Not sure if this is needed?
+        if self.u.determinant().abs() < self.zthresh * 1e5 {
+            return BFSType::Wrong;
         }
-    }
-}
 
-/*
-fn update_active_constraints_array(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>,
-                                 out: &Vec<(usize,usize)>, zthresh: f64) {
-    let prod = u * y;
-    let (n,k) = prod.shape();
-
-    for i in 0 .. n {
-        for j in 0 .. k {
-            if (1.0 - prod[(i,j)].abs()).abs() < zthresh {
-                out.push((i,j));
-            }
-        }
-    }
-}
-*/
-
-//{@
-/// Calculate the distance to the problem boundary along a given vector.
-/// Input:   u = current feasible solution
-///          v = vector along which to travel
-///          y = received symbols
-///          mask = points to consider when calculating feasibility; if None,
-///          all points are considered.
-/// Output: t = maximum distance such that u + t * v remains feasible.
-//@}
-fn boundary_dist(uy: &na::DMatrix<f64>, dy: &na::DMatrix<f64>,
-                 y: &na::DMatrix<f64>, mask: Option<&na::DMatrix<bool>>) -> f64 {
-    let mut t_min = std::f64::MAX;
-
-    // Find the lowest value of t such that U + t * V reaches the boundary.
-    for j in 0 .. y.shape().1 {
-        for i in 0 .. y.shape().0 {
-            if let Some(mask) = mask {
-                //if mask.column(j)[i] { continue; }
-                if mask[(i,j)] { continue; }
-            }
-
-            // Determine value of t s.t. [i, j] constr reaches boundary.
-            //match dy.column(j)[i].partial_cmp(&0.0) {
-            match dy[(i,j)].partial_cmp(&0.0) {
-                Some(v) => {
-                    let t = match v {
-                        std::cmp::Ordering::Less =>
-                            //(-1.0 - uy.column(j)[i]) / dy.column(j)[i],
-                            (-1.0 - uy[(i,j)]) / dy[(i,j)],
-                        std::cmp::Ordering::Greater =>
-                            //(1.0 - uy.column(j)[i]) / dy.column(j)[i],
-                            (1.0 - uy[(i,j)]) / dy[(i,j)],
-                        std::cmp::Ordering::Equal => std::f64::MAX,
-                    };
-                    if t.abs() < t_min.abs() { t_min = t; }
-                },
-                None => continue,
-            }
-        }
-    }
-
-    t_min
-} //@}
-//{@
-/// Find an initial BFS for the constraints |UY|\_infty <= 1.  Algorithm works
-/// by moving to the problem boundary, then following the projection of the
-/// gradient onto the nullspace of active constraints until hittin the boundary
-/// again.
-/// Input:   u_i = initial estimate for inverse of channel gain matrix
-///          y = n x k matrix of received symbols
-/// Output:  u = estimated inverse channel gain matrix that forms a BFS
-//@}
-pub fn find_bfs(u_i: &na::DMatrix<f64>, y: &na::DMatrix<f64>) 
-    -> Option<na::DMatrix<f64>> 
-{ //{@
-
-    let mut u = u_i.clone();
-    let mut gradmtx = u.clone();
-    let (n, k) = y.shape();
-    let mut v; 
-    match objgrad(&mut gradmtx) {
-        Some(r) => v = r,
-        None => return None,
-    }
-
-    let mut uy = u.clone() * y.clone();
-    let mut vy = v.clone() * y.clone();
-    let mut t = boundary_dist(&uy, &vy, &y, None);
-    v *= t;
-    u += v;
-
-    //let mut gradmtx = na::DMatrix::from_column_slice(n, n, &vec![0.0; n*n]);
-    let mut gradmtx = na::DMatrix::zeros(n, n);
-    let mut p_bool = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
-    let mut p_bool_iter = na::DMatrix::from_column_slice(n, k, &vec![false; n*k]);
-    let mut p_bool_updates = Vec::with_capacity(k);
-    let mut fs = feasibleregion::FeasibleRegion::new(y, None);
-
-    for _iter in 0 .. (n*n - 1) {
-        u.mul_to(&y, &mut uy);
-
-        //TODO: make this more efficient. Not sure the best way yet, but 
-        //shouldn't take 2n^2 
-        get_active_constraints_bool(&uy, &mut p_bool_iter, ZTHRESH);
-        p_bool_updates.clear();
-        for j in 0 .. k {
-            for i in 0 .. n {
-                if p_bool_iter[(i,j)] && !p_bool[(i,j)] {
-                    p_bool_updates.push((i, j));
-                    p_bool[(i,j)] = true;
+        let mut found_zero = false;
+        for &elt in self.uy.iter() {
+            //Check if {-1, +1}
+            if (elt.abs() - 1.0).abs() > self.zthresh {
+                if elt.abs() < self.zthresh {
+                    found_zero = true;
+                } else {
+                    //If any entry is not in {-1,0,1} then it's wrong
+                    return BFSType::Wrong;
                 }
             }
         }
-        fs.insert_from_vec( &p_bool_updates );
 
-        gradmtx.copy_from(&u);
-        gradmtx = match objgrad(&mut gradmtx) {
-            Some(grad) => grad,
-            None => break,
-        };
+        if found_zero {
+            return BFSType::PM10;
+        } else {
+            return BFSType::PM1;
+        }
+    }
 
-        gradmtx = fs.reject_mtx( &gradmtx );
+    /// If a solution has entries that are not in {-1, 0, 1}, then we will 
+    /// attempt to fix them by going one row at a time, moving in the nullspace
+    /// of the active constraints.
+    fn find_vertex_on_face( &mut self ) -> Result<(), BfsError> {
+        //Find the first row that is not in {-1, 0, 1}
+        for i in 0..self.n {
+            if self.uy.row(i).iter().all(|&elt| (elt.abs() - 1.0).abs() < self.zthresh
+                              || elt.abs() < self.zthresh ) {
+                continue;
+            } else {
+                //Try to move in the nullspace to push to {-1, 0, 1}
+                if let Err(_) = self.row_to_vertex( i ) {
+                    return Err(BfsError::RowToVertFailure);
+                }
 
-        if gradmtx.norm() < 1e-12 {
-            break
+                //If above call put matrix into {-1,0,1} then we are done 
+                if self.verify_bfs() != BFSType::Wrong {
+                    break;
+                }
+            }
         }
 
-        gradmtx.mul_to( &y, &mut vy );
-        t = boundary_dist(&uy, &vy,
-                          &y, Some(&p_bool));
-
-        u += t*gradmtx.clone();
-
+        Ok(()) 
     }
 
-    //Check if we are in {-1, 0, 1} if not, call find_vertex_on_face
-    if verify_bfs( &u, &y, ZTHRESH ) == BFSType::Wrong {
-        u = match find_vertex_on_face( &u, &y, &fs, ZTHRESH ) {
-            Some(r) => r,
-            None => u,
-        };
-    }
+    ///
+    /// Subroutine of find_vertex_on_face.  Attempts to move row to make all entries
+    /// \pm 1.  Greedily picks the best direction (most \pm 1 values)
+    ///
+    fn row_to_vertex( &mut self, row: usize ) -> Result<(), BfsError> 
+    {
+        let zthresh = self.zthresh;
 
-    Some(u)
-} //@}
-//{@
-/// Verify that every entry of |uy| == 1.
-//@}
-#[allow(dead_code)]
-pub fn verify_bfs(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) //{@
-        -> BFSType {
-    if u.determinant().abs() < zthresh * 10e4 {
-        return BFSType::Wrong;
-    }
-    let prod = u * y;
-    if prod.iter().all(|&elt| (elt.abs() - 1.0).abs() < zthresh) {
-        return BFSType::PM1;
-    } else if prod.iter().all(|&elt| (elt.abs() - 1.0).abs() < zthresh
-            || elt.abs() < zthresh) {
-        return BFSType::PM10;
-    }
-    BFSType::Wrong
-} //@}
-// end BFS finder.@}
+        let mut u_row = self.u.row_mut( row );
 
-#[inline(never)]
-fn row_to_vertex( u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, 
-                  fs: &mut feasibleregion::FeasibleRegion, row: usize,
-                  zthresh: f64)
-    -> Option<na::DMatrix<f64>>
-{
-    let (n,_k) = y.shape();
-    let mut u_row = na::DMatrix::zeros( 1,n );
-    u_row.copy_from( &u.row(row) );
-    let mut bad_row = u_row.clone() * y.clone();
+        //Get a list of entries not in -1, 0, 1
+        let mut bad_indices: Vec<usize> = self.uy.row( row ).into_iter()
+                 .enumerate()
+                 .filter(|&(_i,x)| !(x.abs() < zthresh || (x.abs() - 1.0).abs() < zthresh) )
+                 .map(|(i,_x)| i )
+                 .collect();
 
-    //Get a list of entries not in -1, 0, 1
-    let mut bad_indices: Vec<usize> = bad_row.into_iter()
-             .enumerate()
-             .filter(|&(_i,x)| !(x.abs() < zthresh || (x.abs() - 1.0).abs() < zthresh) )
-             .map(|(i,_x)| i )
-             .collect();
+        //Now main loop...don't try moving in more than n subspaces
+        let mut i = 0;
+        let mut j = 0;
+        let mut norm = na::DMatrix::from_column_slice(1, 1, &vec![0.0; 1]);
+        while i < self.n && j < bad_indices.len() {
+            //This is the corresponding symbol that lead to the bad <u,y>
+            let bad_y = self.y.column( bad_indices[j] );
 
-    //Now main loop...don't try moving in more than n subspaces
-    let mut i = 0;
-    let mut j = 0;
-    let mut norm = na::DMatrix::from_column_slice(1, 1, &vec![0.0; 1]);
-    while i < n && j < bad_indices.len() {
-        //This is the corresponding symbol that lead to the bad <u,y>
-        let bad_y = y.column( bad_indices[j] );
+            //This is the direction we are going to move in
+            let mut v = na::RowDVector::zeros(self.n);
+            norm[(0,0)] = 0.0;
 
-        //This is the direction we are going to move in
-        let mut v = na::RowDVector::from_column_slice(n, &vec![0.0; n]);
-        norm[(0,0)] = 0.0;
+            //Attempt to find vector in null space
+            let mut k = self.n;
+            while norm[(0,0)] < self.zthresh {
+                //If we didn't succeed n times, then there probably is no nullspace
+                k -= 1;
+                if k == 0 {
+                    return Ok(());
+                }
 
-        //Attempt to find vector in null space
-        let mut k = n;
-        while norm[(0,0)] < zthresh {
-            //If we didn't succeed n times, then there probably is no nullspace
-            k -= 1;
-            if k == 0 {
-                return Some( u_row );
+                v = matrix::rand_unit( self.n ).transpose();
+                v = self.fs.reject_vec( &v.transpose(), row ).transpose(); 
+
+                //Update norm of projection
+                v.mul_to(&v.transpose(), &mut norm);
+                
+
+                if norm[(0,0)] < 1e-13 {
+                    continue;
+                }
+                v /= norm[(0,0)].sqrt();
             }
 
-            v = rand_unit( n ).transpose();
-            v = fs.reject_vec( &v.transpose(), row ).transpose(); 
-
-            //Update norm of projection
-            v.mul_to(&v.transpose(), &mut norm);
+            //Compute values to force to -1 and +1
+            let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
+            let mut uy_dot = na::DMatrix::from_column_slice(1, 1, &vec![0.0; 1]);
+            u_row.mul_to( &bad_y, &mut uy_dot );
+            v.mul_to( &bad_y, &mut uv);
+            let t_plus = (1.0 - uy_dot[(0,0)]) / uv[(0,0)];
+            let t_minus = (-1.0 - uy_dot[(0,0)]) / uv[(0,0)];
             
+            //Check whether each direction yields something feasible
+            let u_plus  = u_row.clone_owned() + t_plus * v.clone();
+            let u_minus = u_row.clone_owned() + t_minus * v.clone();
 
-            if norm[(0,0)] < 1e-13 {
+            let uy_plus = u_plus.clone_owned() * self.y.clone();
+            let uy_minus = u_minus.clone_owned() * self.y.clone();
+
+            let plus_feasible = uy_plus.iter().all(|&elt| elt.abs() < 1.0 + zthresh );
+            let minus_feasible = uy_minus.iter().all(|&elt| elt.abs() < 1.0 + zthresh );
+
+            let new_uy;
+
+            if plus_feasible && minus_feasible {
+                //If both directions are feasible, be greedy and pick the direction with more
+                //good entries
+                let plus_pm1 = uy_plus.iter()
+                                      .filter(|x| (x.abs() - 1.0).abs() < zthresh )
+                                      .fold(0, |acc, _e| acc + 1);
+
+                let minus_pm1 = uy_minus.iter()
+                                        .filter(|x| (x.abs() - 1.0).abs() < zthresh )
+                                        .fold(0, |acc, _e| acc + 1);
+
+                if minus_pm1 > plus_pm1 {
+                    u_row.copy_from(&u_plus);
+                    new_uy = uy_plus;
+                } else {
+                    u_row.copy_from(&u_minus);
+                    new_uy = uy_minus;
+                }
+            } else if plus_feasible {
+                u_row.copy_from(&u_plus);
+                new_uy = uy_plus;
+            } else if minus_feasible {
+                u_row.copy_from(&u_minus);
+                new_uy = uy_minus;
+            } else {
+                //This face is infeasible, try picking a new target
+                j += 1;
                 continue;
             }
-            v /= norm[(0,0)].sqrt();
-        }
 
-        //Compute values to force to -1 and +1
-        let mut uv = na::DMatrix::from_column_slice(1,1,&vec![0.0;1]);
-        let mut uy_dot = na::DMatrix::from_column_slice(1, 1, &vec![0.0; 1]);
-        u_row.mul_to( &bad_y, &mut uy_dot );
-        v.mul_to( &bad_y, &mut uv);
-        let t_plus = (1.0 - uy_dot[(0,0)]) / uv[(0,0)];
-        let t_minus = (-1.0 - uy_dot[(0,0)]) / uv[(0,0)];
-        
-        //let mut u_row_new = na::DMatrix::from_column_slice(1, n, &vec![0.0; n]);
-
-        let u_plus  = u_row.clone() + t_plus * v.clone();
-        let u_minus = u_row.clone() + t_minus * v.clone();
-
-        let uy_plus = u_plus.clone() * y.clone();
-        let uy_minus = u_minus.clone() * y.clone();
-
-        let plus_feasible = uy_plus.iter().all(|&elt| elt.abs() < 1.0 + zthresh );
-        let minus_feasible = uy_minus.iter().all(|&elt| elt.abs() < 1.0 + zthresh );
-
-        if plus_feasible && minus_feasible {
-            //See which direction has more \pm1 entries.
-
-            let plus_pm1 = uy_plus.iter()
-                                  .filter(|x| (x.abs() - 1.0).abs() < zthresh )
-                                  .fold(0, |acc, _e| acc + 1);
-
-            let minus_pm1 = uy_minus.iter()
-                                    .filter(|x| (x.abs() - 1.0).abs() < zthresh )
-                                    .fold(0, |acc, _e| acc + 1);
-
-            if minus_pm1 > plus_pm1 {
-                u_row.copy_from(&u_plus);
-            } else {
-                u_row.copy_from(&u_minus);
+            //We've found a new constraint.  Update and continue
+            for jj in 0 .. self.k {
+                self.uy[(row, jj)] = new_uy[(0,jj)];
             }
-        } else if plus_feasible {
-            u_row.copy_from(&u_plus);
-        } else if minus_feasible {
-            u_row.copy_from(&u_minus);
-        } else {
-            //This face is infeasible, try picking a new target
+
+            i += 1;
             j += 1;
-            continue;
-        }
 
-        //We've found a new constraint.  Update and continue
-        bad_row = u_row.clone() * y.clone();
-
-        i += 1;
-        j += 1;
-
-        //Check if the row is fixed
-        if bad_row.iter()
-                  .all(|&elt|( (elt.abs() - 1.0).abs() < zthresh || elt.abs() < zthresh )) {
-                    break;
-        }
-
-        //If not update p and bad_indices and continue
-        bad_indices = bad_row.into_iter()
-             .enumerate()
-             .filter(|&(_i,x)| !(x.abs() < zthresh || (x.abs() - 1.0).abs() < zthresh) )
-             .map(|(i,_x)| i )
-             .collect();
-
-        let p_updates = bad_row.into_iter()
-             .enumerate()
-             .filter(|&(_i,x)| x.abs() < zthresh || (x.abs() - 1.0).abs() < zthresh )
-             .map(|(i,_x)| (row,i) )
-             .collect();
-
-
-        fs.insert_from_vec( &p_updates );
-    }
-     
-    Some( u_row )
-}
-
-pub fn find_vertex_on_face( u_i : &na::DMatrix<f64>, y: &na::DMatrix<f64>, 
-                            d_fs: &feasibleregion::FeasibleRegion, zthresh : f64 )
-    -> Option<na::DMatrix<f64>>
-{
-    let mut u = u_i.clone();
-    let uy = u.clone() * y.clone();
-    let (n, k) = y.shape();
-
-    //TODO: probably should just make dynamic a class and then I don't 
-    //need to copy this here...
-    let mut fs = feasibleregion::FeasibleRegion::from_copy( d_fs );
-    let mut updates: Vec<(usize, usize)> = Vec::with_capacity(n*k);
-    for j in 0 .. uy.ncols() {
-        for i in 0 .. uy.nrows() {
-            if (uy[(i,j)].abs() - 1.0).abs() < zthresh {
-                updates.push( (i,j) );
+            //Check if the row is fixed, if not update p and bad_indices and continue
+            //Note we could call update_constraints() but that will check all n*k entries
+            //versus just the k in the row we are fiddling with
+            bad_indices.clear();
+            for (i, x) in new_uy.into_iter().enumerate() {
+                if !(x.abs() < zthresh || (x.abs() - 1.0).abs() < zthresh) {
+                    bad_indices.push( i );
+                } else {
+                    if self.active_constraints[row][i] == false {
+                        self.fs.insert(row, i);
+                        self.active_constraints[row][i] = true;
+                    }
+                }
             }
-        }
-    }
-    fs.insert_from_vec( &updates );
-
-    //Find the first row that is not in {-1, 0, 1}
-    for i in 0..n {
-        let row = uy.row(i);
-        if row.iter().all(|&elt| (elt.abs() - 1.0).abs() < zthresh
-                          || elt.abs() < zthresh ) {
-            continue;
-        } else {
-            let new_row = match row_to_vertex( &u, &y, &mut fs, i, zthresh ) {
-                Some(r) => r,
-                None => return None,
-            };
-            u.row_mut(i).copy_from(&new_row);
-
-            //If above call put matrix into {-1,0,1} then bail
-            if verify_bfs( &u, &y, zthresh ) != BFSType::Wrong {
+            
+            if bad_indices.len() == 0 {
                 break;
             }
         }
+         
+        Ok(()) 
     }
-
-    Some( u )
-}
-
-#[allow(dead_code)]
-pub fn rand_unit(n: usize) -> na::DVector<f64> {
-    let mut rng = rand::thread_rng();
-    let mut data = Vec::with_capacity(n);
-    let dist = Normal::new(0.0, 1.0);
-    for _ in 0 .. (n) {
-        data.push(dist.sample(&mut rng));
-    }
-
-    let mut v = na::DVector::from_column_slice(n, &data);
-    let norm = v.norm();
-    v /= norm;
-
-    return v;
 }
 
 #[cfg(test)]
@@ -590,32 +428,35 @@ mod tests {
                     0.08272422, -0.06683513,  0.05076455,  0.04168607
                    ]);
 
-            let bfs = find_bfs(&ui, &y).unwrap();
+            //let bfs = find_bfs(&ui, &y).unwrap();
+            let mut bfs_finder = BfsFinder::new( &y, 1e-9 );
+            if let Ok(bfs) = bfs_finder.find_bfs( &ui ) {
+                let uy = bfs * y;
+                let feasible = uy.iter().all( |&elt| elt < 1.0 + 1e-6 );
             
-            let uy = bfs * y;
-            let feasible = uy.iter().all( |&elt| elt < 1.0 + 1e-6 );
-            
-            if !feasible{ println!("UY = {:.4}", uy); }
+                if !feasible{ println!("UY = {:.4}", uy); }
 
-            assert!( feasible );
+                assert!( feasible );
+            }
         }
     }
 
     #[test]
-    fn new_solver_test() {
-        let dims = vec![(4,8)];
+    fn new_solver_basic_test() {
+        for _ in 0 .. 100 {
+            let dims = vec![(4,8)];
 
-        let x = matrix::get_matrix(&dims[0 .. 1]);
-        let (_a, y) = matrix::y_a_from_x(&x, false );
-        let u_i = matrix::rand_init(&y);
+            let x = matrix::get_matrix(&dims[0 .. 1]);
+            let (_a, y) = matrix::y_a_from_x(&x, false );
+            let u_i = matrix::rand_init(&y);
 
-        let mut bfs_finder = BfsFinder::new( &y, 1e-9 );
-        let u = bfs_finder.find_bfs( &u_i );
+            let mut bfs_finder = BfsFinder::new( &y, 1e-9 );
+            let u = bfs_finder.find_bfs( &u_i );
 
-        if let Ok(u) = u { 
-            println!("UY = {:.04}", u * y );
+            if let Err(_) = u { 
+                assert!(false, "find_bfs returned error");
+            }
         }
-        assert!(false);
     }
     /*
     /// This was in the old code...not sure what bug this was testing

@@ -83,7 +83,6 @@ impl Solver {
            }
         }
 
-
         let mut z; //Holds centered version of y
         // Loop trying new u_i until we get n linearly independent \pm 1 cols.
         loop {
@@ -113,9 +112,11 @@ impl Solver {
             //let mut z_last;
             loop {
                 debug!("Center attempt: {}", center_attempts);
-                match dynamic::find_bfs(&u_i, &z) {
-                    Some(b) => bfs = b,
-                    None => {
+                let mut bfs_finder = dynamic::BfsFinder::new( &z, ZTHRESH );
+                //match dynamic::find_bfs(&u_i, &z) {
+                match bfs_finder.find_bfs(&u_i) {
+                    Ok(b) => bfs = b,
+                    Err(_) => {
                         //This shouldn't really ever happen but does if the input
                         //is poorly conditioned and we run into numerical stability 
                         //issues

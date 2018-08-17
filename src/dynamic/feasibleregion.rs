@@ -72,6 +72,7 @@ impl FeasibleRegion {
         }
     }
 
+    #[allow(dead_code)]
     pub fn from_copy( fs: &FeasibleRegion ) -> FeasibleRegion {
         let new_y = fs.get_y();
         let (n,k) = new_y.shape();
@@ -87,6 +88,7 @@ impl FeasibleRegion {
         }
     }
 
+    #[allow(dead_code)]
     pub fn insert_from_vec( &mut self, update: &Vec<(usize,usize)> ) {
         for (i,j) in update.iter() {
             self.insert( *i, *j );
@@ -243,8 +245,9 @@ impl FeasibleRegion {
                 res[j] -= (uv / uu) * u[j];
             }
         }
-}
+    }
 
+    #[allow(dead_code)]
     pub fn get_len_p( &self ) -> usize {
         let mut len = 0;
         for row in self.p.iter() {
@@ -254,18 +257,22 @@ impl FeasibleRegion {
         len
     }
 
+    #[allow(dead_code)]
     pub fn get_p( &self ) -> Vec<Vec<na::RowDVector<f64>>> {
         self.p.clone()
     }
 
+    #[allow(dead_code)]
     pub fn get_y( &self ) -> na::DMatrix<f64> {
         self.y.clone()
     }
 
+    #[allow(dead_code)]
     pub fn get_col_map( &self ) -> &Vec<Vec<usize>> {
         &self.col_map
     }
 
+    #[allow(dead_code)]
     pub fn get_zthresh( &self ) -> f64 {
         self.zthresh
     }
