@@ -5,7 +5,7 @@ use blindsolver::matrix;
 
 fn main() {
     let reps_per = 10000;
-    let dims = vec![(4,18)];
+    let dims = vec![(2,8)];
 
     let mut solver = blindsolver::Solver::new( false, 0.0, 100 );
 

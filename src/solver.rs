@@ -110,7 +110,9 @@ impl Solver {
             let mut bfs;
             let mut center_attempts = 0;
             let mut bfs_fail = false;
+            //let mut z_last;
             loop {
+                debug!("Center attempt: {}", center_attempts);
                 match dynamic::find_bfs(&u_i, &z) {
                     Some(b) => bfs = b,
                     None => {
@@ -131,6 +133,7 @@ impl Solver {
                 } else {
                     u_i = bfs.clone();
                 }
+                //z_last = z.clone();
 
                 //Center y.  If this fails (it never should) then just use
                 //the old value of y and try our luck with FlexTab
@@ -138,6 +141,10 @@ impl Solver {
                     Some(yy) => yy,
                     None => z,
                 };
+
+                //if (z.clone() - z_last.clone()).amax() < ZTHRESH {
+                //    break;
+                //}
 
                 center_attempts += 1;
                 self.stats.centerattempts += 1;

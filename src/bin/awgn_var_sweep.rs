@@ -1,5 +1,6 @@
 extern crate nalgebra as na;
 extern crate blindsolver;
+extern crate env_logger;
 #[macro_use]
 extern crate log;
 
@@ -9,14 +10,16 @@ use blindsolver::tableau::FlexTabError;
 
 /// Crude test code to test AWGN performance
 fn main() {
-    let channels = 50;
+    env_logger::init();
+
+    let channels = 10;
     let reps_per = 100;
 
     let n = 4; let k = 30;
     let complex = false;
     
     //This code does a parameter sweep over the following two variables
-    let var = vec![0.001, 0.005, 0.01, 0.05, 0.1]; // Noise variance
+    let var = vec![0.001]; // Noise variance
     let tol = [0.1];
 
     //let var = vec![0.008,0.004,0.002,0.001]; // Noise variance
@@ -40,14 +43,11 @@ fn main() {
 
             //Generate trial and add noise
             for ii in 0 .. channels {
-                if ii % 10 == 0 { eprint!("#"); }
+                if ii % 10 == 0 && ii != 0 { eprint!("#"); }
 
                 let mut res = TrialResults::new(n,k,var[v]);
                 let x = matrix::get_matrix( &dim[0 .. 1] );
                 let (a, y_base) = matrix::y_a_from_x(&x, complex);
-
-                info!("A = {:.4}", a);
-                info!("Y = {:.4}", y_base);
 
                 //Mostly for debugging purposes, display the singular values of the
                 //channel.  

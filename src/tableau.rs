@@ -1020,9 +1020,7 @@ impl FlexTab { //{@
 
     #[inline(never)]
     pub fn solve(&mut self) -> Result<(), FlexTabError> { //{@
-        debug!("Tableau before: {:.02}", self.state.rows);
         self.to_simplex_form()?;
-        debug!("After: {:.02}", self.state.rows);
         self.hop()?;
         Ok(())
     } //@}
