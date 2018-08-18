@@ -83,6 +83,7 @@ impl Solver {
            }
         }
 
+        let mut bfs_finder = dynamic::BfsFinder::new( &y, ZTHRESH );
         let mut z; //Holds centered version of y
         // Loop trying new u_i until we get n linearly independent \pm 1 cols.
         loop {
@@ -112,7 +113,6 @@ impl Solver {
             //let mut z_last;
             loop {
                 debug!("Center attempt: {}", center_attempts);
-                let mut bfs_finder = dynamic::BfsFinder::new( &z, ZTHRESH );
                 //match dynamic::find_bfs(&u_i, &z) {
                 match bfs_finder.find_bfs(&u_i) {
                     Ok(b) => bfs = b,
@@ -150,6 +150,9 @@ impl Solver {
                 center_attempts += 1;
                 self.stats.centerattempts += 1;
                 if center_attempts >= z.shape().0 { break; }
+
+                //XXX Need to write interface to update this
+                bfs_finder = dynamic::BfsFinder::new( &z, ZTHRESH );
             }
 
             //If U was singular (can happen if A is ill-conditioned and we are 

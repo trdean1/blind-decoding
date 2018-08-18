@@ -72,6 +72,13 @@ impl FeasibleRegion {
         }
     }
 
+    pub fn clear( &mut self ) {
+        for i in 0 .. self.dims.0 {
+            self.p[i].clear();
+            self.col_map[i].clear();
+        }
+    }
+
     #[allow(dead_code)]
     pub fn from_copy( fs: &FeasibleRegion ) -> FeasibleRegion {
         let new_y = fs.get_y();
@@ -111,14 +118,7 @@ impl FeasibleRegion {
         let mut v: na::RowDVector<f64> = 
             self.y.column(column).transpose().into_owned();
 
-        //Normalize v
-        let v_norm = v.iter()
-                      .fold(0.0,
-                            |sum, &e|
-                            sum + e * e)
-                      .sqrt();
-
-        v /= v_norm;
+        v /= v.norm();
 
         //Perform matrix rejection, add v to p as long as it is not orthogonal
         for i in 0 .. self.p[row].len() {
@@ -135,23 +135,25 @@ impl FeasibleRegion {
             for j in 0 .. u.len() {
                 uu += u[j] * u[j];
             }
+            //XXX: Oddly, this is slower:
+            //let uu = u.norm_squared();
 
             //v = v - ((u * v.T) / (u * u.T)) * u
             for j in 0 .. v.len() {
                 v[j] -= (uv / uu) * u[j];
             }
 
-            let mut v_norm = 0.0;
-            for j in 0 .. v.len() {
-                v_norm += v[j] * v[j];
-            }
-            v_norm.sqrt();
+            let v_norm = v.norm();
+            
+            //for j in 0 .. v.len() {
+            //    v_norm += v[j] * v[j];
+            //}
+            //v_norm.sqrt();
 
             if v_norm < self.zthresh { return }
 
             //Normalize and continue
-            //v /= v_norm;
-            v /= v.norm();
+            v /= v_norm;
         }
         
         //If p already has n entries then we should have returned already
@@ -164,22 +166,35 @@ impl FeasibleRegion {
         self.p[row].push( v );
     }
 
-    //TODO: only 60% of this is spent in reject_vec_to...the rest is allocation or copying 
-    pub fn reject_mtx( &self, v: &na::DMatrix<f64> )
-            -> na::DMatrix<f64> {
-        let (m,n) = v.shape();
-        let mut vv: na::DMatrix<f64> = na::DMatrix::zeros(m,n);
-        let mut tmp: na::RowDVector<f64> = na::RowDVector::zeros(n);
+    #[inline(never)]
+    pub fn reject_mtx_mut( &self, v: &mut na::DMatrix<f64> ) {
+        let (m,_) = v.shape();
 
-        for i in 0 .. m {
-            let v_row = v.row( i );
-            self.reject_vec_to( &v_row.into_owned(), &mut tmp, i ); 
-            for j in 0 .. n {
-                vv[(i,j)] = tmp[(0,j)];
+        for row in 0 .. m {
+            let mut res_row = v.row_mut( row ); 
+            for i in 0 .. self.p[row].len() {
+                let u = &self.p[row][i];
+                
+                //uv = vv.T * u
+                let mut uv = 0.0;
+                for j in 0 .. u.len() {
+                    uv += u[j] * res_row[j];
+                }
+                
+                //uu = u.T * u
+                let mut uu = 0.0;
+                for j in 0 .. u.len() {
+                    uu += u[j] * u[j];
+                }
+
+                assert!(uu > 1e-12);
+
+                //*res -= (uv / uu) * u;
+                for j in 0 .. res_row.len() {
+                    res_row[j] -= (uv / uu) * u[j];
+                }
             }
         }
-
-        vv
     }
 
     pub fn reject_vec( &self, v: &na::DVector<f64>, row: usize ) 
@@ -215,36 +230,6 @@ impl FeasibleRegion {
         }
         
         vv.transpose()
-    }
-
-    pub fn reject_vec_to( &self, v: &na::RowDVector<f64>, res: &mut na::RowDVector<f64>, 
-                          row: usize ) {
-        assert!( v.nrows() == res.nrows() );
-
-        res.copy_from(v);
-
-        for i in 0 .. self.p[row].len() {
-            let u = &self.p[row][i];
-            
-            //uv = vv.T * u
-            let mut uv = 0.0;
-            for j in 0 .. u.len() {
-                uv += u[j] * res[j];
-            }
-            
-            //uu = u.T * u
-            let mut uu = 0.0;
-            for j in 0 .. u.len() {
-                uu += u[j] * u[j];
-            }
-
-            assert!(uu > 1e-12);
-
-            //*res -= (uv / uu) * u;
-            for j in 0 .. res.len() {
-                res[j] -= (uv / uu) * u[j];
-            }
-        }
     }
 
     #[allow(dead_code)]

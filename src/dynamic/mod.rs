@@ -98,6 +98,7 @@ impl BfsFinder {
 
     /// If update_fs is set to true then this will add newly activated
     /// constraints to the data structure FeasibleRegion
+    #[inline(never)]
     fn update_active_constraints( &mut self, update_fs: bool ) {
         for i in 0 .. self.n {
             for j in 0 .. self.k {
@@ -110,6 +111,14 @@ impl BfsFinder {
                    self.active_constraints[i][j] == true {
                     self.fs.insert( i, j );
                 }
+            }
+        }
+    }
+
+    fn clear_constraints( &mut self ) {
+        for i in 0 .. self.n {
+            for j in 0 .. self.k {
+                self.active_constraints[i][j] = false;
             }
         }
     }
@@ -161,6 +170,8 @@ impl BfsFinder {
     ///
     pub fn find_bfs( &mut self, u_i: &na::DMatrix<f64> ) -> Result<na::DMatrix<f64>,BfsError> {
         assert!( self.n == u_i.shape().0 );
+        self.fs.clear();
+        self.clear_constraints();
 
         self.u.copy_from(u_i);
         self.update_grad();
@@ -189,7 +200,9 @@ impl BfsFinder {
                 return Err(BfsError::SingularU);
             }
 
-            self.v = self.fs.reject_mtx( self.grad.as_ref().unwrap() );
+            //self.v = self.fs.reject_mtx( self.grad.as_ref().unwrap() );
+            self.v.copy_from( self.grad.as_ref().unwrap() );
+            self.fs.reject_mtx_mut( &mut self.v );
 
             //If true, then the active constraints are full rank and we have nowhere to go
             if self.v.norm() < 1e-12 {
@@ -248,6 +261,7 @@ impl BfsFinder {
     /// If a solution has entries that are not in {-1, 0, 1}, then we will 
     /// attempt to fix them by going one row at a time, moving in the nullspace
     /// of the active constraints.
+    #[inline(never)]
     fn find_vertex_on_face( &mut self ) -> Result<(), BfsError> {
         //Find the first row that is not in {-1, 0, 1}
         for i in 0..self.n {
@@ -274,6 +288,7 @@ impl BfsFinder {
     /// Subroutine of find_vertex_on_face.  Attempts to move row to make all entries
     /// \pm 1.  Greedily picks the best direction (most \pm 1 values)
     ///
+    #[inline(never)]
     fn row_to_vertex( &mut self, row: usize ) -> Result<(), BfsError> 
     {
         let zthresh = self.zthresh;
