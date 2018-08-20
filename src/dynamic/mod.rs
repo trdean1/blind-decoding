@@ -95,6 +95,27 @@ impl BfsFinder {
             None => None
         }
     }
+    
+    ///
+    /// Update the urowth-row of grad according to (U + uv^T)^-1
+    /// where u is e_urow (standard basis) and v is the row update 
+    ///
+    fn update_grad_row( &mut self, urow: usize, v: &na::RowDVector<f64> ) 
+        -> Result<(), BfsError> {
+        //We have to unwrap the optional gradient and update the inverse
+        if let Some(mut grad) = self.grad.clone() {
+            //XXX: there's probably a better way to convert from a row vector
+            //to a DMatrix
+            let mut vv = na::DMatrix::<f64>::zeros( 1, self.n );
+            vv.copy_from( v );
+            matrix::update_inverse_transpose( &mut grad, urow, &vv.transpose() );
+            self.grad = Some( grad );
+        } else {
+            return Err(BfsError::SingularU);
+        }
+
+        Ok(())
+    }
 
     /// If update_fs is set to true then this will add newly activated
     /// constraints to the data structure FeasibleRegion
@@ -187,6 +208,12 @@ impl BfsFinder {
         self.v *= t;
         self.u += self.v.clone();
 
+        //Update gradient
+        self.update_grad();
+        if self.grad.is_none() {
+            return Err(BfsError::SingularU);
+        }
+
         //Update UY
         self.u.mul_to( &self.y, &mut self.uy );
 
@@ -194,12 +221,7 @@ impl BfsFinder {
             //Update active constraints and feasible region
             self.update_active_constraints( true );
 
-            //Update gradient and find v by rejecting grad from active constraints
-            self.update_grad();
-            if self.grad.is_none() {
-                return Err(BfsError::SingularU);
-            }
-
+            //find v by rejecting grad from active constraints
             //self.v = self.fs.reject_mtx( self.grad.as_ref().unwrap() );
             self.v.copy_from( self.grad.as_ref().unwrap() );
             self.fs.reject_mtx_mut( &mut self.v );
@@ -216,6 +238,12 @@ impl BfsFinder {
             //Update u and uy
             self.u += t * self.v.clone();
             self.u.mul_to( &self.y, &mut self.uy );
+
+            //Update gradient 
+            self.update_grad();
+            if self.grad.is_none() {
+                return Err(BfsError::SingularU);
+            }
         }
 
         if self.verify_bfs() == BFSType::Wrong {
@@ -270,8 +298,15 @@ impl BfsFinder {
                 continue;
             } else {
                 //Try to move in the nullspace to push to {-1, 0, 1}
-                if let Err(_) = self.row_to_vertex( i ) {
-                    return Err(BfsError::RowToVertFailure);
+                match self.row_to_vertex( i ) {
+                    Ok(res) => {
+                        if let Some(update) = res {
+                            if let Err(_) = self.update_grad_row( i, &update ) {
+                                return Err(BfsError::SingularU);
+                            }
+                        }
+                    },
+                    Err(_) => return Err(BfsError::RowToVertFailure),
                 }
 
                 //If above call put matrix into {-1,0,1} then we are done 
@@ -289,11 +324,13 @@ impl BfsFinder {
     /// \pm 1.  Greedily picks the best direction (most \pm 1 values)
     ///
     #[inline(never)]
-    fn row_to_vertex( &mut self, row: usize ) -> Result<(), BfsError> 
+    fn row_to_vertex( &mut self, row: usize ) 
+        -> Result<Option<na::RowDVector<f64>>, BfsError> 
     {
         let zthresh = self.zthresh;
 
         let mut u_row = self.u.row_mut( row );
+        let mut update = na::RowDVector::<f64>::zeros( self.n );
 
         //Get a list of entries not in -1, 0, 1
         let mut bad_indices: Vec<usize> = self.uy.row( row ).into_iter()
@@ -320,7 +357,7 @@ impl BfsFinder {
                 //If we didn't succeed n times, then there probably is no nullspace
                 k -= 1;
                 if k == 0 {
-                    return Ok(());
+                    return Ok(None);
                 }
 
                 v = matrix::rand_unit( self.n ).transpose();
@@ -370,15 +407,19 @@ impl BfsFinder {
                 if minus_pm1 > plus_pm1 {
                     u_row.copy_from(&u_plus);
                     new_uy = uy_plus;
+                    update = t_plus*v;
                 } else {
                     u_row.copy_from(&u_minus);
                     new_uy = uy_minus;
+                    update = t_minus*v;
                 }
             } else if plus_feasible {
                 u_row.copy_from(&u_plus);
+                update = t_plus*v;
                 new_uy = uy_plus;
             } else if minus_feasible {
                 u_row.copy_from(&u_minus);
+                update = t_minus*v;
                 new_uy = uy_minus;
             } else {
                 //This face is infeasible, try picking a new target
@@ -414,7 +455,7 @@ impl BfsFinder {
             }
         }
          
-        Ok(()) 
+        Ok(Some(update)) 
     }
 }
 
