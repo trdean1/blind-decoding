@@ -341,13 +341,15 @@ mod tests {
         fs.insert( 2, 2 );
         fs.insert( 2, 7 );
 
-        let v = na::DMatrix::from_row_slice( 4, 4, &vec![
+        let mut v = na::DMatrix::from_row_slice( 4, 4, &vec![
             1.0,  1.0,  1.0,  1.0,
             1.0,  1.0, -1.0, -1.0,
             1.0, -1.0,  1.0, -1.0,
             1.0, -1.0, -1.0,  1.0] );
 
-        let res = fs.reject_mtx( &v );
+        //let res = fs.reject_mtx( &v );
+        fs.reject_mtx_mut( &mut v );
+        let res = v.clone();
 
         let p = fs.get_p();
         let mut residual_norms: Vec<f64> = Vec::new();
