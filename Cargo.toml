@@ -17,3 +17,7 @@ debug = true
 [lib]
 name = "blindsolver"
 path = "src/solver.rs"
+
+[features]
+default = []
+sparse = []

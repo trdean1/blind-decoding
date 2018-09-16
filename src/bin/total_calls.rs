@@ -4,8 +4,8 @@ extern crate nalgebra as na;
 use blindsolver::matrix;
 
 fn main() {
-    let reps_per = 10000;
-    let dims = vec![(2,8)];
+    let reps_per = 1000;
+    let dims = vec![(8,30)];
 
     let mut solver = blindsolver::Solver::new( false, 0.0, 100 );
 

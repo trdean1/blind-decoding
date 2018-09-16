@@ -20,6 +20,7 @@ pub mod matrix;
 pub mod testlib;
 pub mod tableau;
 pub mod dynamic;
+pub mod sparsemtx;
 
 use tableau::FlexTabError;
 use tableau::FlexTab;
@@ -190,8 +191,10 @@ impl Solver {
                     FlexTabError::LinIndep 
                         => { 
                             self.stats.linindep += 1;
+                            self.stats.numhops += ft.visited_vertices();
                         },
                     FlexTabError::StateStackExhausted => {
+                            self.stats.numhops += ft.visited_vertices();
                             best = match best {
                                 Some(b) => if ft.state.obj() > b.state.obj()
                                     { Some(ft) } else { Some(b) },
@@ -201,6 +204,7 @@ impl Solver {
 
                         },
                     FlexTabError::TooManyHops => {
+                            self.stats.numhops += ft.visited_vertices();
                             best = match best {
                                 Some(b) => if ft.state.obj() > b.state.obj()
                                     { Some(ft) } else { Some(b) },
@@ -209,6 +213,7 @@ impl Solver {
                             self.stats.toomanyhops += 1;
                     }
                     FlexTabError::Trapped => {
+                            self.stats.numhops += ft.visited_vertices();
                             best = match best {
                                 Some(b) => if ft.state.obj() > b.state.obj()
                                     { Some(ft) } else { Some(b) },
@@ -220,6 +225,7 @@ impl Solver {
                     _ => {
                         self.stats.error += 1;
                         self.stats.time_elapsed += self.time_elapsed();
+                        self.stats.numhops += ft.visited_vertices();
                         return Err(e);
                     },
                 },

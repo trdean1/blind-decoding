@@ -28,6 +28,7 @@ pub struct TrialResults {
     pub bit_errors: usize,
     pub total_bits: usize,
     pub time_elapsed: f64,
+    pub numhops: usize,
     pub badstart: usize,
     pub goodcols: usize,
     pub centerattempts: usize,
@@ -53,6 +54,7 @@ impl Default for TrialResults {
             bit_errors: 0,
             total_bits: 0,
             time_elapsed: 0f64,
+            numhops: 0,
             badstart: 0,
             goodcols: 0,
             centerattempts: 0,
@@ -77,8 +79,8 @@ impl TrialResults {
     pub fn extended_results( &self ) {
         println!("BFS reruns: {},  LinIndep: {},  StateStack: {}", 
                  self.goodcols, self.linindep, self.statestack);
-        println!("TooManyHops: {},  Trapped: {},  Reduced: {}",
-                  self.toomanyhops, self.trap, self.reduced);
+        println!("TooManyHops: {},  Trapped: {},  Reduced: {}, Total Hops: {}",
+                  self.toomanyhops, self.trap, self.reduced, self.numhops);
     }
 
     pub fn clear( &mut self ) {
@@ -94,6 +96,7 @@ impl TrialResults {
             self.bit_errors = 0;
             self.total_bits = 0;
             self.time_elapsed = 0f64;
+            self.numhops = 0;
             self.badstart = 0;
             self.goodcols = 0;
             self.centerattempts = 0;
@@ -139,6 +142,7 @@ impl std::ops::AddAssign for TrialResults {
             bit_errors: self.bit_errors + other.bit_errors,
             total_bits: self.total_bits + other.total_bits,
             time_elapsed: self.time_elapsed + other.time_elapsed,
+            numhops: self.numhops + other.numhops,
             badstart: self.badstart + other.badstart,
             goodcols: self.goodcols + other.goodcols,
             centerattempts: self.centerattempts + other.centerattempts,
