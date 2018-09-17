@@ -85,7 +85,7 @@ impl Solver {
                 Some(u) => u,
                 None => return Err(FlexTabError::SingularInput),
             };
-            let u = u.remove_columns(self.n_tx, self.m_rx - self.n_tx);
+            let u = u.remove_rows(self.n_tx, self.m_rx - self.n_tx);
             y = u * y
         }
         self.stats.trials += 1;

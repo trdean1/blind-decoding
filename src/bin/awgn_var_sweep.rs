@@ -47,7 +47,7 @@ fn main() {
 
                 let mut res = TrialResults::new(n,k,var[v]);
                 let x = matrix::get_matrix(&[(n, k)]);
-                let (a, y_base) = matrix::y_a_from_x(&x, complex);
+                let (a, y_base) = matrix::y_a_from_x(&x, n, complex);
 
                 //Mostly for debugging purposes, display the singular values of the
                 //channel.  

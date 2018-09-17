@@ -26,7 +26,7 @@ fn main() {
             let x  = matrix::get_matrix(&[dim]); 
     
             // Obtain A, Y matrices, then run.
-            let (_a, y) = matrix::y_a_from_x(&x, false);
+            let (_a, y) = matrix::y_a_from_x(&x, dim.0, false);
     
             match solver.solve( &y ) {
                 Err(_) => {},

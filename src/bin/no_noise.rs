@@ -64,7 +64,12 @@ fn main() {
             }
 
             // Obtain A, Y matrices, then run.
-            let (_a, y) = matrix::y_a_from_x(&x, complex);
+            let (_a, y) = matrix::y_a_from_x(&x, dim.0 + 2, complex);
+            let y_reduced = match matrix::rank_reduce( &y, dim.0 ) {
+                Some(y) => y,
+                None => { res.error += 1; continue; }
+            };
+            
             debug!("Y = {:.02}", y);
             //let timer = std::time::Instant::now();
             match solver.solve( &y ) {
@@ -83,7 +88,7 @@ fn main() {
                 Ok(ft) => {
                     // Obtained a result: check if UY = X up to an ATM.
                     let u = ft.state.get_u();
-                    let uy = u * y.clone();
+                    let uy = u * y_reduced.clone();
                     if blindsolver::equal_atm( &uy, &x ) {
                         res.success += 1;
                     } else {

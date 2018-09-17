@@ -22,7 +22,7 @@ fn single_dynamic_test( n : usize, k : usize )
 {
     let dim = vec![(n,k)];
     let x = matrix::get_matrix( &dim[0 .. 1] );
-    let (_a, y) = matrix::y_a_from_x( &x, false );
+    let (_a, y) = matrix::y_a_from_x( &x, n, false );
 
     let u_i = matrix::rand_init(&y);
     let mut dyn = dynamic::BfsFinder::new(&y, ZTHRESH);

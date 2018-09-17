@@ -40,7 +40,7 @@ fn main() {
             debug!("X = {}", x);
     
             // Obtain A, Y matrices, then run.
-            let (_a, y) = matrix::y_a_from_x(&x, false);
+            let (_a, y) = matrix::y_a_from_x(&x, dim.0, false);
             debug!("Y = {}", y);
     
             match solver.solve( &y ) {

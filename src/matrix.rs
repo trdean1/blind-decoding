@@ -26,41 +26,36 @@ pub fn rand_matrix(nrows: usize, ncols: usize) -> na::DMatrix<f64> { //{@
 ///Genreate a random Gaussian(0, 1) complex matrix that is n x n.
 ///represented as [re im; -im re]
 #[allow(dead_code)]
-pub fn rand_complex_matrix( n: usize ) -> na::DMatrix<f64> {
-    let nb = n /2;
+pub fn rand_complex_matrix(n_tx: usize, m_rx: usize) -> na::DMatrix<f64> {
+    let n_tx_b = n_tx / 2;
+    let m_rx_b = m_rx / 2;
+    let count_b = n_tx_b * m_rx_b;
+    let count = n_tx * m_rx;
 
     let mut rng = rand::thread_rng();
-    let mut real_data = Vec::with_capacity(nb * nb);
-    let mut imag_data = Vec::with_capacity(nb * nb);
-    let mut data = Vec::with_capacity(n * n);
+    let mut real_data = Vec::with_capacity(count_b);
+    let mut imag_data = Vec::with_capacity(count_b);
+    let mut data = Vec::with_capacity(count);
 
     let dist = Normal::new(0.0, 1.0);
-    for _ in 0 .. (nb * nb) {
+    for _ in 0 .. count_b {
         real_data.push(dist.sample(&mut rng));
         imag_data.push(dist.sample(&mut rng));
     }
 
-    for i in 0 .. nb {
-        data.extend(&real_data[(nb*i) .. nb*(i+1)]);
-        data.extend(&imag_data[(nb*i) .. nb*(i+1)]);
+    for i in 0 .. m_rx_b {
+        data.extend( &real_data[n_tx_b * i .. n_tx_b * (i+1)] );
+        data.extend( &imag_data[n_tx_b * i .. n_tx_b * (i+1)] );
     }
 
-    for i in 0 .. nb {
-        //v = -1.0 * imag_data[nb*i .. nb*(i+1)]
-        let v = imag_data
-            .iter()
-            .cloned()
-            .map(|x| -1.0 * x)
-            .skip(nb*i)
-            .take(nb)
-            .collect::<Vec<f64>>();
+    imag_data.iter_mut().for_each(|x| *x *= -1.0);
 
-        data.extend(&v);
-
-        data.extend(&real_data[(nb*i) .. nb*(i+1)]);
+    for i in 0 .. m_rx_b {
+        data.extend( &imag_data[n_tx_b * i .. n_tx_b * (i+1)] );
+        data.extend( &real_data[n_tx_b * i .. n_tx_b * (i+1)] );
     }
 
-    na::DMatrix::from_row_slice(n, n, &data)
+    na::DMatrix::from_column_slice(n_tx, m_rx, &data)
 }
 
 //{@
@@ -217,25 +212,44 @@ pub fn get_matrix(dims: &[(usize, usize)]) -> na::DMatrix<f64> { //{@
     x
 } //@}
 
-pub fn y_a_from_x(x: &na::DMatrix<f64>, complex: bool) 
+pub fn y_a_from_x(x: &na::DMatrix<f64>, m_rx: usize, complex: bool) 
     -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
-    let n = x.nrows();
+    let n_tx = x.nrows();
     let k = x.ncols();
 
     // Generate random Gaussian matrix A.
     let a = if complex {
-        assert!( n % 2 == 0 );
-        rand_complex_matrix(n) 
+        assert!( n_tx % 2 == 0 && m_rx % 2 == 0 );
+        rand_complex_matrix(n_tx, m_rx) 
     } else {
-        rand_matrix(n,n)
+        rand_matrix(m_rx,n_tx)
     };
 
     // Compute Y = A * X
-    let mut y = na::DMatrix::from_column_slice(n, k, &vec![0.0; n*k]);
+    let mut y = na::DMatrix::from_column_slice(m_rx, k, &vec![0.0; m_rx*k]);
     a.mul_to(&x, &mut y);
 
     (a, y)
 } //@}
+
+pub fn rank_reduce( y: &na::DMatrix<f64>, m: usize )
+    -> Option<na::DMatrix<f64>> {
+    let (n,_k) = y.shape();
+    assert!( n >= m );
+
+    let svd = na::SVD::new(y.clone(), true, false);
+
+    if n != m {
+        let u = match svd.u {
+            Some(u) => u,
+            None => return None,
+        };
+        let u = u.remove_rows(m, n - m);
+        Some( u * y.clone() )
+    } else {
+        Some( y.clone() )
+    }
+}
 
 #[derive(Clone)]
 struct BaseMatrix { //{@
