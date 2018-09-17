@@ -34,6 +34,8 @@ pub struct Solver {
     check_cond:     bool,
     center_tol:     f64,
     timer:          std::time::Instant,
+    n_tx:           usize,
+    m_rx:           usize,
 }
 
 impl Default for Solver {
@@ -43,14 +45,20 @@ impl Default for Solver {
             max_attempts:   100,
             check_cond:     false,
             center_tol:     0.0,
-            timer:          std::time::Instant::now()
+            timer:          std::time::Instant::now(),
+            n_tx:           0,
+            m_rx:           0,
         }
     }
 }
 
 impl Solver {
-    pub fn new( check_cond: bool, center_tol: f64, attempts: usize ) -> Solver {
+    pub fn new( n_tx: usize, m_rx: usize, check_cond: bool, center_tol: f64, attempts: usize )
+            -> Solver {
+        assert!(m_rx >= n_tx, format!("error: m_rx = {}, n_tx = {}", m_rx, n_tx));
         Solver {
+            n_tx,
+            m_rx,
             max_attempts: attempts,
             check_cond: check_cond,
             center_tol: center_tol,
@@ -58,13 +66,29 @@ impl Solver {
         }
     }
 
-    /// Perform a single run using a given +y+ matrix, which contains k symbols each
-    /// of length n.
-    pub fn single_run(&mut self, y: &na::DMatrix<f64>) 
-        -> Result<FlexTab, FlexTabError> 
-    { 
-        self.stats.trials += 1;
+    /// Perform a single run using a given +y+ matrix, which contains k symbols each of length n.
+    pub fn solve(&mut self, y: &na::DMatrix<f64>) -> Result<FlexTab, FlexTabError>
+    {
+        assert!(y.nrows() == self.m_rx, format!("y.shape = {:?}, m_rx = {}", y.shape(), self.m_rx));
         self.timer = ::std::time::Instant::now();
+        let svd = na::SVD::new(y.clone(), true, false);
+        let s = svd.singular_values;
+        let r = s.iter().filter(|&elt| *elt > ZTHRESH).count();
+        if r < self.n_tx {
+             self.stats.time_elapsed += self.time_elapsed();
+             return Err(FlexTabError::SingularInput);
+        }
+
+        let mut y = y.clone();
+        if self.m_rx > self.n_tx {
+            let u = match svd.u {
+                Some(u) => u,
+                None => return Err(FlexTabError::SingularInput),
+            };
+            let u = u.remove_columns(self.n_tx, self.m_rx - self.n_tx);
+            y = u * y
+        }
+        self.stats.trials += 1;
 
         let mut attempts = 0;
         let mut ft;
@@ -73,16 +97,6 @@ impl Solver {
         //If true, check that y is not singular.
         //Solver should still run if check fails but may be slow and will likely 
         //return garbage
-        if self.check_cond == false {
-           let (n,_k) = y.shape();
-           let svd = na::SVD::new(y.clone(), false, false);
-           let s = svd.singular_values;
-           let r = s.iter().filter(|&elt| *elt > ZTHRESH).count();
-           if r < n {
-                self.stats.time_elapsed += self.time_elapsed();
-                return Err(FlexTabError::SingularInput);
-           }
-        }
 
         let mut bfs_finder = dynamic::BfsFinder::new( &y, ZTHRESH );
         let mut z; //Holds centered version of y

@@ -23,65 +23,65 @@ fn main() {
     
     let mut results = TrialResults::new(dims[0].0,dims[0].1,0f64);
 
-    let mut solver = blindsolver::Solver::new( false, 0.0, 100 );
-
-    println!("Dim = {:?}", dims[0]);
-    for iter in 0 .. reps_per {
-        debug!("\n\n--------------------------");
-        solver.clear_stats();
-
-        if iter != 0 && (iter % (reps_per / 10) == 0) {
-            eprint!("#");
-        } else if iter % reps_per == reps_per - 1 {
-            eprint!("\n");
-        }
-
-        // Select X matrix of one specific set of dimensions (n, k).
-        let x  = matrix::get_matrix(&dims[0 .. 1]); 
-        debug!("X = {}", x);
-
-        // Obtain A, Y matrices, then run.
-        let (_a, y) = matrix::y_a_from_x(&x, false);
-        debug!("Y = {}", y);
-
-        match solver.single_run( &y ) {
-            Err(_) => {},
-            Ok(ft) => {
-                // Obtained a result: check if UY = X up to an ATM.
-                let u = ft.state.get_u();
-                let uy = u * y.clone();
-                if blindsolver::equal_atm( &uy, &x ) {
-                    results.success += 1;
-                } else {
-                    // UY did +not+ match X, print some results and also
-                    // determine if UY was even a vertex.
-                    //match a.try_inverse() {
-                    //    None => debug!("UNEQUAL: Cannot take a^-1"),
-                    //    Some(inv) => debug!("UNEQUAL: u = {:.3}a^-1 = {:.3}", 
-                    //            ft.best_state.get_u(), inv),
-                    //};
-                    if blindsolver::is_pm1( &uy, ft.get_zthresh() ) {
-                        results.not_atm += 1; // UY = \pm 1
+    for &dim in dims.iter() {
+        println!("Dim = {:?}", dims[0]);
+        let mut solver = blindsolver::Solver::new( dim.0, dim.0, false, 0.0, 100 );
+        for iter in 0 .. reps_per {
+            debug!("\n\n--------------------------");
+    
+            if iter != 0 && (iter % (reps_per / 10) == 0) {
+                eprint!("#");
+            } else if iter % reps_per == reps_per - 1 {
+                eprint!("\n");
+            }
+    
+            // Select X matrix of one specific set of dimensions (n, k).
+            let x  = matrix::get_matrix(&[dim]); 
+            debug!("X = {}", x);
+    
+            // Obtain A, Y matrices, then run.
+            let (_a, y) = matrix::y_a_from_x(&x, false);
+            debug!("Y = {}", y);
+    
+            match solver.solve( &y ) {
+                Err(_) => {},
+                Ok(ft) => {
+                    // Obtained a result: check if UY = X up to an ATM.
+                    let u = ft.state.get_u();
+                    let uy = u * y.clone();
+                    if blindsolver::equal_atm( &uy, &x ) {
+                        results.success += 1;
                     } else {
-                        results.error += 1; // UY != \pm 1 -- problem
-                        debug!("critical error: uy = {:.3}", uy );
+                        // UY did +not+ match X, print some results and also
+                        // determine if UY was even a vertex.
+                        //match a.try_inverse() {
+                        //    None => debug!("UNEQUAL: Cannot take a^-1"),
+                        //    Some(inv) => debug!("UNEQUAL: u = {:.3}a^-1 = {:.3}", 
+                        //            ft.best_state.get_u(), inv),
+                        //};
+                        if blindsolver::is_pm1( &uy, ft.get_zthresh() ) {
+                            results.not_atm += 1; // UY = \pm 1
+                        } else {
+                            results.error += 1; // UY != \pm 1 -- problem
+                            debug!("critical error: uy = {:.3}", uy );
+                        }
                     }
-                }
-            },
-        };
-        let new_res = solver.get_stats();
-        results += new_res.clone();
-
-        let bfs_stat = bfs_histogram.entry(new_res.goodcols).or_insert(0);
-        let linindep_stat = linindep_histogram.entry(new_res.linindep).or_insert(0);
-        let statestack_stat = statestack_histogram.entry(new_res.statestack).or_insert(0);
-        let hop_stat = hop_histogram.entry(new_res.toomanyhops).or_insert(0);
-        let trap_stat = trap_histogram.entry(new_res.trap).or_insert(0);
-        *bfs_stat += 1;
-        *linindep_stat += 1;
-        *statestack_stat += 1;
-        *hop_stat += 1;
-        *trap_stat += 1;
+                },
+            };
+            let new_res = solver.get_stats();
+            results += new_res.clone();
+    
+            let bfs_stat = bfs_histogram.entry(new_res.goodcols).or_insert(0);
+            let linindep_stat = linindep_histogram.entry(new_res.linindep).or_insert(0);
+            let statestack_stat = statestack_histogram.entry(new_res.statestack).or_insert(0);
+            let hop_stat = hop_histogram.entry(new_res.toomanyhops).or_insert(0);
+            let trap_stat = trap_histogram.entry(new_res.trap).or_insert(0);
+            *bfs_stat += 1;
+            *linindep_stat += 1;
+            *statestack_stat += 1;
+            *hop_stat += 1;
+            *trap_stat += 1;
+        }
     }
 
     // Print overall results.

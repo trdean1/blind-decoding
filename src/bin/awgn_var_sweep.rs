@@ -26,14 +26,14 @@ fn main() {
     //let tol = [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.11,0.12]; //Centering tolerance
 
 
-    let dim = vec![(n, k)];
+    let _dim = vec![(n, k)];
 
     let mut res_vec = Vec::new();
     //let mut res_wc_vec = Vec::new();
 
     for v in 0 .. var.len() {
         for t in 0 .. tol.len() {
-            let mut solver = blindsolver::Solver::new( true, tol[t], 100 );
+            let mut solver = blindsolver::Solver::new( n, n, true, tol[t], 100 );
 
             println!("Tolerance: {}", tol[t]);
             eprintln!("Noise variance: {}", var[v]);
@@ -46,7 +46,7 @@ fn main() {
                 if ii % 10 == 0 && ii != 0 { eprint!("#"); }
 
                 let mut res = TrialResults::new(n,k,var[v]);
-                let x = matrix::get_matrix( &dim[0 .. 1] );
+                let x = matrix::get_matrix(&[(n, k)]);
                 let (a, y_base) = matrix::y_a_from_x(&x, complex);
 
                 //Mostly for debugging purposes, display the singular values of the
@@ -72,7 +72,7 @@ fn main() {
                     let mut y = y_base.clone() + var[v]*e;
                     res.trials += 1;
 
-                    match solver.single_run( &y ) {
+                    match solver.solve( &y ) {
                         Err(e) => {
                             match e {
                                 FlexTabError::Runout => {
@@ -145,5 +145,3 @@ fn main() {
                  res_vec[i].bit_errors as f64 / res_vec[i].total_bits as f64 );
     }
 }
-
-
