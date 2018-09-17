@@ -226,6 +226,11 @@ impl DiagBlockMatrix { //{@
     pub fn index_block<'a>(&'a self, n: usize, i: usize, j: usize) -> &'a f64 { //{@
         &self.blocks[n][(i, j)] 
     } //@}
+
+    pub fn index_block_mut<'a>(&'a mut self, n: usize, i: usize, j: usize) 
+        -> &'a mut f64 { //{@
+        &mut self.blocks[n][(i, j)] 
+    } //@}
 } //@}
 const ZERO_F64: f64 = 0.0;
 impl Index<(usize, usize)> for DiagBlockMatrix { //{@
@@ -430,6 +435,24 @@ impl SparseTMatrix { //{@
     pub fn index_sparse<'a>(&'a self, n: usize, i: usize, j: usize) -> &'a f64 { //{@
         self.sparse.index_block(n, i, j)
     } //@}
+
+    pub fn index_block_mut<'a>(&'a mut self, n: usize, i: usize, j: usize) 
+        -> &'a mut f64 { //{@
+        self.block.index_block_mut(n, i, j)
+    } //@}
+    pub fn index_sparse_mut<'a>(&'a mut self, n: usize, i: usize, j: usize) 
+        -> &'a mut f64 { //{@
+        self.sparse.index_block_mut(n, i, j)
+    } //@}
+
+    pub fn index_rhs<'a>(&'a self, n: usize, row: usize) -> &'a f64 {
+        &self.rightcol[2*n*self.k + row]
+    }
+
+    pub fn index_rhs_mut<'a>(&'a mut self, n: usize, row: usize) -> &'a mut f64 {
+        &mut self.rightcol[2*n*self.k + row]
+    }
+    
     pub fn to_dmatrix(&self) -> na::DMatrix<f64> { //{@
         // create zeros matrix
         let mut mtx = na::DMatrix::<f64>::zeros(self.nrows, self.ncols);

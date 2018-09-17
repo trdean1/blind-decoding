@@ -86,15 +86,7 @@ pub struct State { //{@
     uy: na::DMatrix<f64>,
     uybad: Option<na::DMatrix<f64>>,
 
-    #[cfg(not(feature = "sparse"))]
-    rows: na::DMatrix<f64>,
-    //row_sparse_form: Vec<HashSet<usize>>,
-    #[cfg(not(feature = "sparse"))]
-    row_sparse_form: Vec<Vec<usize>>,
-
-    #[cfg(feature = "sparse")]
     rows: SparseTMatrix,
-    
     vmap: Vec<usize>,
 
     grad: na::DMatrix<f64>,
@@ -131,13 +123,7 @@ impl Default for State { //{@
             uy: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
             uybad: None,
             
-            #[cfg(not(feature = "sparse"))]
-            rows: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
-            #[cfg(not(feature = "sparse"))]
-            row_sparse_form: Vec::new(),
-            #[cfg(feature = "sparse")]
             rows: SparseTMatrix::new(0, 0),
-
             vmap: Vec::new(),
 
             grad: na::DMatrix::from_column_slice(0, 0, &Vec::new()),
@@ -155,31 +141,14 @@ impl State { //{@
     fn new(u: na::DMatrix<f64>, uy: na::DMatrix<f64>, //{@
             uybad: Option<na::DMatrix<f64>>) -> State {
         let (n, k) = uy.shape();
-        //let mut sparse_form = vec![HashSet::new(); 2*n*k];
-        let mut sparse_form = vec![];
-        
-        if cfg!(not(feature = "sparse")) {
-            if n > 3 {
-                sparse_form = vec![Vec::with_capacity(2*n); 2*n*k];
-                for i in 0 .. 2*n*k {
-                    sparse_form[i].push(i + 2*n*n);
-                    //sparse_form[i].insert(i + 2*n*n);
-                }
-            }
-        }
+
         State {
             x: vec![0.0; 2 * (n*n + n*k)], 
             u: u.clone(),
             uy: uy,
             uybad: uybad,
 
-            #[cfg(not(feature = "sparse"))]
-            rows: na::DMatrix::zeros(2 * n*k, 2 * (n*n + n*k) + 1),
-            #[cfg(not(feature = "sparse"))]
-            row_sparse_form: sparse_form,
-            #[cfg(feature = "sparse")]
             rows: SparseTMatrix::new(n, k),
-
             vmap: vec![0; n*n],
 
             grad: na::DMatrix::zeros(n, n),
@@ -719,36 +688,96 @@ impl FlexTab { //{@
     /// captured in self.extra_constr.
     //@}
     fn set_constraints(&mut self) { //{@
+        let twonsq = 2*self.n*self.n;
         let mut constraint = vec![(0, 0.0); self.n];
-        let mut tab_row = 0;
+        //let mut tab_row = 0;
 
         for i in 0 .. self.n {
-            let x_var_base = i * self.n;
+            //let x_var_base = i * self.n;
             for j in 0 .. self.k {
+                /*
                 {
-                    let col = self.y.column(j);
+                    //let col = self.y.column(j);
                     // The i^th row uses variables in range: i*n .. i*(n+1).
                     // We are constraining |Uy|_\infty <= 1.
                     // Constraints are n-vector fo tuples [(varnum, coeff), ...  ].
                     for q in 0 .. self.n {
-                        constraint[q] = (x_var_base + q, col[q]);
+                        //constraint[q] = (x_var_base + q, col[q]);
+                        constraint[q] = (q, col[q]);
                     }
                 }
-                self.add_constraint_pair(tab_row, &constraint);
-                tab_row += 2;
+                */
+                //self.add_constraint_pair(tab_row, &constraint);
+                //tab_row += 2;
+                //
+                // Setup the two new constraints based on the vars / coeffs given.
+                let col = self.y.column(j);
+                //for &(var, coeff) in constraint.iter() {
+                for idx in 0 .. self.n {
+                    // Example: 3.1x_0 will become:
+                    //     tab_row    :  3.1x'_0 - 3.1x'_1 <= 1.
+                    //     tab_row +1 : -3.1x'_0 + 3.1x'_1 <= 1.
+                    //self.state.rows[(tab_row, 2 * var)] = coeff;
+                    //self.state.rows[(tab_row, 2 * var + 1)] = -coeff;
+                    //self.state.rows[(tab_row + 1, 2 * var)] = -coeff;
+                    //self.state.rows[(tab_row + 1, 2 * var + 1)] = coeff;
+                    *self.state.rows.index_block_mut( i, 2*j, 2*idx ) = col[idx];
+                    *self.state.rows.index_block_mut( i, 2*j, 2*idx+1 ) = -col[idx];
+                    *self.state.rows.index_block_mut( i, 2*j+1, 2*idx ) = -col[idx];
+                    *self.state.rows.index_block_mut( i, 2*j+1, 2*idx+1 ) = col[idx];
+                }
+                //}
+
+                // Slack var coeffs both = 1.0.
+                //let zeroth_slack = 2 * self.n * self.n + tab_row;
+                //let first_slack = zeroth_slack + 1;
+                //self.state.rows[(tab_row, zeroth_slack)] = 1.0;
+                //self.state.rows[(tab_row + 1, first_slack)] = 1.0;
+                *self.state.rows.index_sparse_mut(i, 2*j, 2*j ) = 1.0;
+                *self.state.rows.index_sparse_mut(i, 2*j+1, 2*j+1 ) = 1.0;
+
+                // RHS of both constraints = 1.0.
+                //let rhs = self.state.rows.ncols() - 1;
+                //self.state.rows[(tab_row, rhs)] = 1.0;
+                //self.state.rows[(tab_row + 1, rhs)] = 1.0;
+                *self.state.rows.index_rhs_mut(i, 2*j) = 1.0;
+                *self.state.rows.index_rhs_mut(i, 2*j+1) = 1.0;
+
+                // Need to determine values of the slack variables for this pair of
+                // constraints.  Compute the value of the LHS of the constraint.  One of
+                // the pair will be tight, so slack will be 0; other slack will be 2.
+                // Compute: val = \sum_{2n LHS vars in this constr_set} a_{ij} * x_j.
+                //let x_lowbound = (2 * self.n) * (tab_row / (2 * self.k));
+                let x_lowbound = (2 * self.n) * i;
+                let x_highbound = x_lowbound + 2 * self.n;
+                //let val = (x_lowbound .. x_highbound).fold(0.0, |val, j|
+                //        val + self.state.x[j] * self.state.rows[(tab_row, j)]);
+                let val = (x_lowbound .. x_highbound).fold(0.0, |val, jj|
+                          val + self.state.x[jj] * self.state.rows.index_block(i, 2*j, jj - x_lowbound));
+                // Set slack var values so LHS = 1.0.
+                //self.state.x[zeroth_slack] = 1.0 - val;
+                //self.state.x[first_slack] = 1.0 + val;
+                self.state.x[twonsq+i*2*self.k+2*j] = 1.0 - val;
+                self.state.x[twonsq+i*2*self.k+2*j+1] = 1.0 + val;
             }
         }
+        
+        //debug!("{}", self.state.rows);
     } //@}
     //{@
     /// Add 2 new constraints based on the content of cset, which should be a
     /// slice of 2-tuples of the form (varnum: usize, coeff: f64).
     //@}
     fn add_constraint_pair(&mut self, tab_row: usize, cset: &[(usize, f64)]) { //{@
+        //let groupnum = tab_row / (2*self.k);
+        //let grouprow = tab_row % (2*self.k);
+        //let col_offset = groupnum * 2*self.n;
         // Setup the two new constraints based on the vars / coeffs given.
         for &(var, coeff) in cset.iter() {
             // Example: 3.1x_0 will become:
             //     tab_row    :  3.1x'_0 - 3.1x'_1 <= 1.
             //     tab_row +1 : -3.1x'_0 + 3.1x'_1 <= 1.
+            //*self.state.rows.index_block_mut( groupnum, grouprow, 2*var - col_offset  ) = coeff;
             self.state.rows[(tab_row, 2 * var)] = coeff;
             self.state.rows[(tab_row, 2 * var + 1)] = -coeff;
             self.state.rows[(tab_row + 1, 2 * var)] = -coeff;
@@ -784,7 +813,6 @@ impl FlexTab { //{@
     /// that self.X is of length 2 * self.nk.  There are 2 * self.nk overall
     /// constraints in |UY|_\infty \leq 1.
     //@}
-    #[inline(never)]
     fn to_simplex_form(&mut self) -> Result<(), FlexTabError> { //{@
         // Zero out any entries in self.x that are solely float imprecision.
         let num_x_from_u = 2 * self.n * self.n;
@@ -842,16 +870,7 @@ impl FlexTab { //{@
                 } else {
                     let tgtrow = zeroslack;
                     let srcrow = tgtrow ^ 0x1;
-                    #[cfg(feature = "sparse")]
                     self.state.rows.add_row_multiple(tgtrow, srcrow, 1.0);
-                    #[cfg(not(feature = "sparse"))]
-                    {
-                        if self.n > 3 {
-                            self.add_row_multiple_sparse(tgtrow, srcrow, 1.0);
-                        } else {
-                            self.add_row_multiple(tgtrow, srcrow, 1.0);
-                        }
-                    }
                 }
             }
         }
@@ -870,7 +889,6 @@ impl FlexTab { //{@
     ///             coefficient set to 1.
     /// OUTPUT: true on success.
     //@}
-    #[inline(never)]
     //fn set_basic(&mut self, j: usize, pivot_row: usize) //{@
     fn set_basic(&mut self, groupnum: usize, j: usize, pivot_row: usize) //{@
             -> Result<(), FlexTabError> {
@@ -891,16 +909,7 @@ impl FlexTab { //{@
         let divisor = *self.state.rows.index_block(groupnum, 
                                                   pivot_row - row_shift,
                                                   tgtvar -  col_shift);
-        #[cfg(feature = "sparse")]
         self.state.rows.div_row_float(pivot_row, divisor);
-        #[cfg(not(feature = "sparse"))]
-        {
-            if self.n > 3 {
-                self.div_row_float_sparse(pivot_row, divisor);
-            } else {
-                self.div_row_float(pivot_row, divisor);
-            }
-        }
 
         // Eliminate tgtvar from every other row.
         let baserow = 2 * (j / self.n * self.k);
@@ -911,22 +920,12 @@ impl FlexTab { //{@
             let mult = -1.0 * self.state.rows.index_block(groupnum,
                                                           i - row_shift,
                                                           tgtvar - col_shift);
-            #[cfg(feature = "sparse")]
             self.state.rows.add_row_multiple(i, pivot_row, mult);
-            #[cfg(not(feature = "sparse"))]
-            {
-                if self.n > 3 {
-                    self.add_row_multiple_sparse(i, pivot_row, mult);
-                } else {
-                    self.add_row_multiple(i, pivot_row, mult);
-                }
-            }
         }
 
         Ok(())
     } //@}
 
-    #[inline(never)]
     fn tableau_mappings(&mut self) -> Result<(), FlexTabError> { //{@
         // Each constraint set corresponds to one row of U.
         for cset in 0 .. self.n {
@@ -1043,13 +1042,11 @@ impl FlexTab { //{@
     } //@}
     */
 
-    #[inline(never)]
     fn snapshot(&mut self, idx: usize) { //{@
         //self.statestack.push(self.state.clone());
         self.history.push( idx );
     } //@}
 
-    #[inline(never)]
     fn restore(&mut self, pop: bool) -> bool { //{@
         if self.verbose & VERBOSE_HOP != 0 {
             println!("**************BACKTRACK************");
@@ -1082,14 +1079,12 @@ impl FlexTab { //{@
         }
     } //@}
 
-    #[inline(never)]
     pub fn solve(&mut self) -> Result<(), FlexTabError> { //{@
         self.to_simplex_form()?;
         self.hop()?;
         Ok(())
     } //@}
 
-    #[inline(never)]
     fn hop(&mut self) -> Result<(), FlexTabError> { //{@
         self.mark_visited();
 
@@ -1265,7 +1260,6 @@ impl FlexTab { //{@
         self.visited.insert(self.state.vertex.clone()); // Must be set in +flip+
     } //@}
 
-    #[inline(never)]
     fn mark_visited_update(&mut self, idx: usize) {
 
         let row = idx / self.n; //This row of U was updated
@@ -1314,72 +1308,6 @@ impl FlexTab { //{@
         //The rest...
         self.set_flip_grad();
         self.visited.insert(self.state.vertex.clone());
-    }
-
-    #[cfg(not(feature = "sparse"))]
-    #[inline(never)]
-    fn add_row_multiple(&mut self, tgtrow: usize, srcrow: usize, mult: f64) { //{@
-        for j in 0 .. self.state.rows.ncols() {
-            self.state.rows[(tgtrow,j)] += mult * self.state.rows[(srcrow,j)];//self.state.tmp[j];
-        }
-    } //@}
-
-    #[cfg(not(feature = "sparse"))]
-    #[inline(never)]
-    fn add_row_multiple_sparse(&mut self, tgtrow: usize, srcrow: usize, mult: f64) {
-        //Add the first portion which is not necessary sparse
-        let basecol = (tgtrow / (2 * self.k)) * 2*self.n;
-        let limcol = basecol + 2*self.n;
-        //If this is false it violates our sparsity assumption
-        assert!( basecol == 2*self.n * (srcrow / (2*self.k)) );
-
-        for j in basecol .. limcol {
-            self.state.rows[(tgtrow,j)] += mult * self.state.rows[(srcrow,j)];
-        }
-
-        //Add the very sparse part and update the sparse structure
-        let mut added_idxs = Vec::with_capacity( self.state.row_sparse_form[srcrow].len() );
-
-        for idx in self.state.row_sparse_form[srcrow].iter() {
-            if self.state.rows[(tgtrow,*idx)].abs() < 1e-9 {
-                added_idxs.push( *idx );
-            }
-            self.state.rows[(tgtrow,*idx)] += mult * self.state.rows[(srcrow,*idx)];
-        }
-       
-        //Need second loop for memory safety
-        for idx in added_idxs.iter() {
-            self.state.row_sparse_form[tgtrow].push( *idx );
-            //self.state.row_sparse_form[tgtrow].insert( *idx );
-        }
-        
-        //Add the column vector at the end
-        let last = self.state.rows.ncols() - 1;
-        self.state.rows[(tgtrow, last)] += mult * self.state.rows[(srcrow,last)];
-    }
-
-    #[cfg(not(feature = "sparse"))]
-    fn div_row_float(&mut self, tgtrow: usize, divisor: f64) { //{@
-        for e in self.state.rows.row_mut(tgtrow).iter_mut() {
-            *e /= divisor;
-        }
-    } //@}
-
-    /// Same as above but use sparse form to skip most entries
-    #[cfg(not(feature = "sparse"))]
-    fn div_row_float_sparse(&mut self, tgtrow: usize, divisor: f64) {
-        let basecol = (tgtrow / (2*self.k)) * 2*self.n;
-        let limcol = basecol + 2*self.n;
-        for j in basecol .. limcol {
-            self.state.rows[(tgtrow,j)] /= divisor;
-        }
-
-        for idx in self.state.row_sparse_form[tgtrow].iter() {
-            self.state.rows[(tgtrow,*idx)] /= divisor;
-        }
-
-        let last = self.state.rows.ncols() - 1;
-        self.state.rows[(tgtrow, last)] /= divisor;
     }
 
     //{@

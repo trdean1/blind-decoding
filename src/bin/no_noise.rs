@@ -14,6 +14,7 @@ fn main() {
     let complex = false;
     let use_basis = true; 
     let reps_per = 1000;
+    //let dims = vec![(2,8)];
     let dims = vec![(2, 8), (3, 13), (4, 18), (5, 13),
         (6, 22), (8, 30)];
     //let dims = vec![(8,30)];
