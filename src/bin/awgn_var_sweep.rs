@@ -39,7 +39,7 @@ fn main() {
 
             println!("Tolerance: {}", tol[t]);
             eprintln!("Noise variance: {}", var[v]);
-            let mut results = TrialResults::new(n_tx, k, var[v]);
+            let mut results = TrialResults::new(n_tx, m_rx, k, var[v]);
             results.tol = tol[t];
             //let mut well_cond_results = TrialResults::new(n,k,var[v]);
 
@@ -47,7 +47,7 @@ fn main() {
             for ii in 0 .. channels {
                 if ii % 10 == 0 && ii != 0 { eprint!("#"); }
 
-                let mut res = TrialResults::new(n_tx, k, var[v]);
+                let mut res = TrialResults::new(n_tx, m_rx, k, var[v]);
                 let x = matrix::get_matrix(&[(n_tx, k)]);
                 let (a, y_base) = matrix::y_a_from_x(&x, n_tx, complex);
                 let y_reduced = match matrix::rank_reduce(&y_base, n_tx) {

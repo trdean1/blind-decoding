@@ -22,7 +22,7 @@ fn main() {
     let mut hop_histogram: HashMap<usize, usize> = HashMap::new(); 
     let mut trap_histogram: HashMap<usize, usize> = HashMap::new(); 
     
-    let mut results = TrialResults::new(dims[0].n_tx, dims[0].k, 0f64);
+    let mut results = TrialResults::new(dims[0].n_tx, dims[0].m_rx, dims[0].k, 0f64);
 
     for ref dim in dims.iter() {
         println!("{}", dim);
@@ -92,8 +92,8 @@ fn main() {
 
     // Print overall results.
     let mut output = 
-        format!("n = {}, k = {:2}: success = {:4} / {:4}, ",
-                (results.dims).0, (results.dims).1, results.success, results.trials);
+        format!("{}: success = {:4} / {:4}, ",
+                results.dims, results.success, results.trials);
 
     output += &format!("(runout = {:2}, pm1 = {:2}, trap={:2}, err = {:2}), ",
             results.runout, results.not_atm, results.trap, results.error);

@@ -14,8 +14,16 @@ fn main() {
     let complex = false;
     let use_basis = true; 
     let reps_per = 1000;
-    let dims = vec![(2, 2, 8), (3, 3, 13), (4, 4, 18), (5, 5, 13), (6, 6, 22), (8, 8, 30)];
-    let dims = dims.iter().map(|&(n, m, k)| DimensionSpec::new(n, m, k)).collect::<Vec<_>>();
+    let dims = vec![(2, 2, 8), 
+                    (3, 3, 13), 
+                    (4, 4, 18), 
+                    (5, 5, 13), 
+                    (6, 6, 22), 
+                    (8, 8, 30)]; 
+    //let dims = dims.iter().map(|&(n, m, k)| DimensionSpec::new(n, m, k)).collect::<Vec<_>>();
+    //let dims = (0 .. 10).map( |i| DimensionSpec::new(8, 8 + 2*i, 30) )
+    //                    .filter(|ref dim| dim.k >= dim.m_rx )
+    //                    .collect::<Vec<_>>();
 
     //Sweep from n=2 to n=8, skipping n=7 (works but is slow since we don't have an is_done
     //function)
@@ -31,7 +39,7 @@ fn main() {
     }*/
 
     let mut results: Vec<TrialResults> = dims.iter()
-        .map(|ref d| TrialResults::new(d.n_tx, d.k, 0f64))
+        .map(|ref d| TrialResults::new(d.n_tx, d.m_rx, d.k, 0f64))
         .collect::<Vec<_>>();
 
     for ref dim in dims.iter() {
@@ -55,7 +63,7 @@ fn main() {
 
         trace!("selected x = {}", x);
         // Get pointer to relevant results tuple for this dimension.
-        let ref mut res = results.iter_mut().find(|ref e| e.dims == x.shape()).unwrap();
+        let ref mut res = results.iter_mut().find(|ref e| e.dims == **dim).unwrap();
 
         for _iter in 0 .. reps_per {
             if reps_per > 10 {
@@ -117,8 +125,8 @@ fn main() {
 
     // Print overall results.
     for ref res in results.iter() {
-        let mut output = format!("n = {}, k = {:2}: success = {:4} / {:4}, ",
-                (res.dims).0, (res.dims).1, res.success, res.trials);
+        let mut output = format!("{}: success = {:4} / {:4}, ",
+                res.dims, res.success, res.trials);
         output += &format!("(runout = {:2}, pm1 = {:2}, err = {:2}), ",
                 res.runout, res.not_atm, res.error);
         output += &format!("mean_time_per = {:.5e}", res.time_elapsed / res.trials as f64);

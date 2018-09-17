@@ -40,7 +40,7 @@ pub struct Solver {
 impl Default for Solver {
     fn default() -> Solver {
         Solver {
-            stats:          TrialResults::new(0,0,0.0),
+            stats:          TrialResults::new(0,0,0,0.0),
             max_attempts:   100,
             center_tol:     0.0,
             timer:          std::time::Instant::now(),

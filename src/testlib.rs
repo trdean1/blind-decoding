@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct TrialResults {
-    pub dims: (usize,usize),
+    pub dims: DimensionSpec,
     pub var: f64,
     pub tol: f64,
     pub trials: usize,
@@ -42,7 +42,7 @@ pub struct TrialResults {
 impl Default for TrialResults {
     fn default() -> TrialResults {
         TrialResults {
-            dims: (0,0),
+            dims: DimensionSpec::new(0,0,0),
             var: 0f64,
             tol: 0f64,
             trials: 0,
@@ -68,9 +68,9 @@ impl Default for TrialResults {
 }
 
 impl TrialResults {
-    pub fn new( n: usize, k: usize, v: f64 ) -> TrialResults { 
+    pub fn new( n: usize, m: usize, k: usize, v: f64 ) -> TrialResults { 
         TrialResults {
-            dims: (n, k),
+            dims: DimensionSpec::new(n, m, k),
             var: v,
             ..Default::default() 
         }
@@ -84,7 +84,7 @@ impl TrialResults {
     }
 
     pub fn clear( &mut self ) {
-            self.dims = (0,0);
+            self.dims = DimensionSpec::new(0,0,0);
             self.var = 0f64;
             self.tol = 0f64;
             self.trials = 0;
@@ -130,7 +130,7 @@ impl fmt::Display for TrialResults {
 impl std::ops::AddAssign for TrialResults {
     fn add_assign(&mut self, other: TrialResults) {
         *self = TrialResults {
-            dims: self.dims,
+            dims: self.dims.clone(),
             var: self.var,
             tol: self.tol,
             trials: self.trials + other.trials,
@@ -156,6 +156,7 @@ impl std::ops::AddAssign for TrialResults {
     }
 }
 
+#[derive(Clone)]
 pub struct DimensionSpec {
     pub n_tx: usize,
     pub m_rx: usize,
@@ -172,6 +173,14 @@ impl fmt::Display for DimensionSpec {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = format!("Dim: n_tx = {}, m_rx = {}, k = {}", self.n_tx, self.m_rx, self.k);
         write!(f, "{}", s)
+    }
+}
+
+impl PartialEq for DimensionSpec {
+    fn eq(&self, other: &DimensionSpec) -> bool {
+        self.n_tx == other.n_tx && 
+        self.m_rx == other.m_rx && 
+        self.k == other.k
     }
 }
 
