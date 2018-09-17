@@ -156,6 +156,25 @@ impl std::ops::AddAssign for TrialResults {
     }
 }
 
+pub struct DimensionSpec {
+    pub n_tx: usize,
+    pub m_rx: usize,
+    pub k: usize,
+}
+
+impl DimensionSpec {
+    pub fn new(n_tx: usize, m_rx: usize, k: usize) -> DimensionSpec {
+        DimensionSpec { n_tx, m_rx, k, }
+    }
+}
+
+impl fmt::Display for DimensionSpec {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = format!("Dim: n_tx = {}, m_rx = {}, k = {}", self.n_tx, self.m_rx, self.k);
+        write!(f, "{}", s)
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////////////
 ///
 /// This code was used to test the n=4 and n=5 claims

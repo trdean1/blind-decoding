@@ -31,7 +31,6 @@ const ZTHRESH: f64 = 1e-9;
 pub struct Solver {
     stats:          TrialResults,
     max_attempts:   usize,
-    check_cond:     bool,
     center_tol:     f64,
     timer:          std::time::Instant,
     n_tx:           usize,
@@ -43,7 +42,6 @@ impl Default for Solver {
         Solver {
             stats:          TrialResults::new(0,0,0.0),
             max_attempts:   100,
-            check_cond:     false,
             center_tol:     0.0,
             timer:          std::time::Instant::now(),
             n_tx:           0,
@@ -53,14 +51,13 @@ impl Default for Solver {
 }
 
 impl Solver {
-    pub fn new( n_tx: usize, m_rx: usize, check_cond: bool, center_tol: f64, attempts: usize )
+    pub fn new( n_tx: usize, m_rx: usize, center_tol: f64, attempts: usize )
             -> Solver {
         assert!(m_rx >= n_tx, format!("error: m_rx = {}, n_tx = {}", m_rx, n_tx));
         Solver {
             n_tx,
             m_rx,
             max_attempts: attempts,
-            check_cond: check_cond,
             center_tol: center_tol,
             ..Default::default()
         }

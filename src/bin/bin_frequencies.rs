@@ -5,7 +5,7 @@ extern crate log;
 extern crate nalgebra as na;
 
 use blindsolver::matrix;
-use blindsolver::testlib::TrialResults;
+use blindsolver::testlib::{TrialResults, DimensionSpec};
 
 use std::collections::HashMap; 
 
@@ -13,7 +13,8 @@ fn main() {
     env_logger::init();
 
     let reps_per = 1000;
-    let dims = vec![(8,30)];
+    let dims = vec![(8, 8, 30)];
+    let dims = dims.iter().map(|&(n, m, k)| DimensionSpec::new(n, m, k)).collect::<Vec<_>>();
 
     let mut bfs_histogram: HashMap<usize, usize> = HashMap::new(); 
     let mut linindep_histogram: HashMap<usize, usize> = HashMap::new(); 
@@ -21,11 +22,11 @@ fn main() {
     let mut hop_histogram: HashMap<usize, usize> = HashMap::new(); 
     let mut trap_histogram: HashMap<usize, usize> = HashMap::new(); 
     
-    let mut results = TrialResults::new(dims[0].0,dims[0].1,0f64);
+    let mut results = TrialResults::new(dims[0].n_tx, dims[0].k, 0f64);
 
-    for &dim in dims.iter() {
-        println!("Dim = {:?}", dims[0]);
-        let mut solver = blindsolver::Solver::new( dim.0, dim.0, false, 0.0, 100 );
+    for ref dim in dims.iter() {
+        println!("{}", dim);
+        let mut solver = blindsolver::Solver::new(dim.n_tx, dim.m_rx, 0.0, 100);
         for iter in 0 .. reps_per {
             debug!("\n\n--------------------------");
     
@@ -36,11 +37,15 @@ fn main() {
             }
     
             // Select X matrix of one specific set of dimensions (n, k).
-            let x  = matrix::get_matrix(&[dim]); 
+            let x  = matrix::get_matrix( &[(dim.n_tx, dim.k)] ); 
             debug!("X = {}", x);
     
             // Obtain A, Y matrices, then run.
-            let (_a, y) = matrix::y_a_from_x(&x, dim.0, false);
+            let (_a, y) = matrix::y_a_from_x(&x, dim.m_rx, false);
+            let y_reduced = match matrix::rank_reduce(&y, dim.n_tx) {
+                Some(y) => y,
+                None => { results.error += 1; continue; }
+            };
             debug!("Y = {}", y);
     
             match solver.solve( &y ) {
@@ -48,7 +53,8 @@ fn main() {
                 Ok(ft) => {
                     // Obtained a result: check if UY = X up to an ATM.
                     let u = ft.state.get_u();
-                    let uy = u * y.clone();
+                    //let uy = u * y.clone();
+                    let uy = u * y_reduced.clone();
                     if blindsolver::equal_atm( &uy, &x ) {
                         results.success += 1;
                     } else {

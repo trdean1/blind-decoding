@@ -2,20 +2,21 @@ extern crate blindsolver;
 extern crate nalgebra as na;
 
 use blindsolver::matrix;
+use blindsolver::testlib::DimensionSpec;
 
 fn main() {
     let reps_per = 1000;
-    let dims = vec![(8,30)];
+    let dims = vec![(8, 8, 30)];
+    let dims = dims.iter().map(|&(n, m, k)| DimensionSpec::new(n, m, k)).collect::<Vec<_>>();
 
     let mut bfs_total = 0;
     let mut ft_total = 0;
     let mut success = 0;
 
-    for &dim in dims.iter() {
-        let mut solver = blindsolver::Solver::new( dim.0, dim.0, false, 0.0, 100 );
-        println!("Dim = {:?}", dim);
+    for ref dim in dims.iter() {
+        let mut solver = blindsolver::Solver::new(dim.n_tx, dim.m_rx, 0.0, 100);
+        println!("{}", dim);
         for iter in 0 .. reps_per {
-    
             if iter != 0 && (iter % (reps_per / 10) == 0) {
                 eprint!("#");
             } else if iter % reps_per == reps_per - 1 {
@@ -23,16 +24,21 @@ fn main() {
             }
     
             // Select X matrix of one specific set of dimensions (n, k).
-            let x  = matrix::get_matrix(&[dim]); 
+            let x  = matrix::get_matrix( &[(dim.n_tx, dim.k)] ); 
     
             // Obtain A, Y matrices, then run.
-            let (_a, y) = matrix::y_a_from_x(&x, dim.0, false);
+            let (_a, y) = matrix::y_a_from_x(&x, dim.m_rx, false);
+            let y_reduced = match matrix::rank_reduce(&y, dim.n_tx) {
+                Some(y) => y,
+                None => { /* res.error += 1; */ continue; }
+            };
     
             match solver.solve( &y ) {
                 Err(_) => {},
                 Ok(ft) => {
                     let u = ft.state.get_u();
-                    let uy = u * y.clone();
+                    //let uy = u * y.clone();
+                    let uy = u * y_reduced.clone();
                     if blindsolver::equal_atm( &uy, &x ) {
                         success += 1;
                     }

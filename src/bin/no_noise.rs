@@ -5,7 +5,7 @@ extern crate log;
 extern crate nalgebra as na;
 
 use blindsolver::matrix;
-use blindsolver::testlib::TrialResults;
+use blindsolver::testlib::{TrialResults, DimensionSpec};
 //use blindsolver::tableau::FlexTabError;
 
 fn main() {
@@ -14,10 +14,8 @@ fn main() {
     let complex = false;
     let use_basis = true; 
     let reps_per = 1000;
-    //let dims = vec![(2,8)];
-    let dims = vec![(2, 8), (3, 13), (4, 18), (5, 13), (6, 22), (8, 30)];
-    //let dims = vec![(8,30)];
-    //let dims = vec![(10,45)];
+    let dims = vec![(2, 2, 8), (3, 3, 13), (4, 4, 18), (5, 5, 13), (6, 6, 22), (8, 8, 30)];
+    let dims = dims.iter().map(|&(n, m, k)| DimensionSpec::new(n, m, k)).collect::<Vec<_>>();
 
     //Sweep from n=2 to n=8, skipping n=7 (works but is slow since we don't have an is_done
     //function)
@@ -33,21 +31,26 @@ fn main() {
     }*/
 
     let mut results: Vec<TrialResults> = dims.iter()
-        .map(|&d| TrialResults::new(d.0,d.1,0f64))
+        .map(|ref d| TrialResults::new(d.n_tx, d.k, 0f64))
         .collect::<Vec<_>>();
 
-    for &dim in dims.iter() {
-        eprintln!("Dim = {:?}", dim);
-        if complex && (dim.0 % 2 != 0) {
+    for ref dim in dims.iter() {
+        eprintln!("{}", dim);
+        if complex && (dim.n_tx & 1 != 0 || dim.m_rx & 1 != 0) {
             warn!("Complex case must have even n");
             continue;
         }
-        let mut solver = blindsolver::Solver::new( dim.0, dim.0 + 2, false, 0.0, 100 );
+        if dim.n_tx > dim.m_rx {
+            warn!("Must have at least as many receivers as transmitters");
+            continue;
+        }
+
+        let mut solver = blindsolver::Solver::new(dim.n_tx, dim.m_rx, 0.0, 100);
         // Select X matrix of one specific set of dimensions (n, k).
         let x = if use_basis {
-            matrix::get_matrix(&[dim])
+            matrix::get_matrix( &[(dim.n_tx, dim.k)] )
         } else {
-            matrix::rand_pm1_matrix(dim.0, dim.1)
+            matrix::rand_pm1_matrix(dim.n_tx, dim.k)
         };
 
         trace!("selected x = {}", x);
@@ -64,8 +67,8 @@ fn main() {
             }
 
             // Obtain A, Y matrices, then run.
-            let (_a, y) = matrix::y_a_from_x(&x, dim.0 + 2, complex);
-            let y_reduced = match matrix::rank_reduce( &y, dim.0 ) {
+            let (_a, y) = matrix::y_a_from_x(&x, dim.m_rx, complex);
+            let y_reduced = match matrix::rank_reduce(&y, dim.n_tx) {
                 Some(y) => y,
                 None => { res.error += 1; continue; }
             };
@@ -127,4 +130,4 @@ fn main() {
     for ref res in results.iter() {
         println!("({},{:.02e})", (res.dims).1, (res.time_elapsed / res.trials as f64) / (res.dims).1 as f64 ); 
     }*/
-} 
+}

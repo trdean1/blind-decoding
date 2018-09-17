@@ -15,7 +15,9 @@ fn main() {
     let channels = 10;
     let reps_per = 100;
 
-    let n = 4; let k = 30;
+    let n_tx = 4;
+    let m_rx = 4;
+    let k = 30;
     let complex = false;
     
     //This code does a parameter sweep over the following two variables
@@ -26,18 +28,18 @@ fn main() {
     //let tol = [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.11,0.12]; //Centering tolerance
 
 
-    let _dim = vec![(n, k)];
+    let _dim = vec![(n_tx, k)];
 
     let mut res_vec = Vec::new();
     //let mut res_wc_vec = Vec::new();
 
     for v in 0 .. var.len() {
         for t in 0 .. tol.len() {
-            let mut solver = blindsolver::Solver::new( n, n, true, tol[t], 100 );
+            let mut solver = blindsolver::Solver::new(n_tx, m_rx, tol[t], 100);
 
             println!("Tolerance: {}", tol[t]);
             eprintln!("Noise variance: {}", var[v]);
-            let mut results = TrialResults::new(n,k,var[v]);
+            let mut results = TrialResults::new(n_tx, k, var[v]);
             results.tol = tol[t];
             //let mut well_cond_results = TrialResults::new(n,k,var[v]);
 
@@ -45,9 +47,14 @@ fn main() {
             for ii in 0 .. channels {
                 if ii % 10 == 0 && ii != 0 { eprint!("#"); }
 
-                let mut res = TrialResults::new(n,k,var[v]);
-                let x = matrix::get_matrix(&[(n, k)]);
-                let (a, y_base) = matrix::y_a_from_x(&x, n, complex);
+                let mut res = TrialResults::new(n_tx, k, var[v]);
+                let x = matrix::get_matrix(&[(n_tx, k)]);
+                let (a, y_base) = matrix::y_a_from_x(&x, n_tx, complex);
+                let y_reduced = match matrix::rank_reduce(&y_base, n_tx) {
+                    Some(y) => y,
+                    None => { res.error += 1; continue; }
+                };
+
 
                 //Mostly for debugging purposes, display the singular values of the
                 //channel.  
@@ -68,7 +75,7 @@ fn main() {
                 //Main loop
                 for _ in 0 .. reps_per {
                     //Generate noise
-                    let e = matrix::rand_matrix(n, k);
+                    let e = matrix::rand_matrix(n_tx, k);
                     let mut y = y_base.clone() + var[v]*e;
                     res.trials += 1;
 
@@ -85,8 +92,9 @@ fn main() {
 
                         Ok(ft) => {
                             res.complete += 1;
-                            res.total_bits += n*k;
-                            let mut uy = ft.state.get_u() * y_base.clone();
+                            res.total_bits += n_tx * k;
+                            //let mut uy = ft.state.get_u() * y_base.clone();
+                            let mut uy = ft.state.get_u() * y_reduced.clone();
                             uy.apply( |x| x.signum() );
                             if blindsolver::equal_atm(&uy, &x) {
                                 res.success += 1;
