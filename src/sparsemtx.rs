@@ -1,49 +1,10 @@
 // includes {@
 extern crate nalgebra as na;
 
-use std::collections::{HashMap};
 use std::ops::{Index, IndexMut};
 use std::fmt;
-use std::cmp::Ordering;
 // end @}
 
-#[derive(Clone)]
-pub struct RowMatrix { //{@
-    nrows: usize,
-    ncols: usize,
-    elts: Vec<Vec<f64>>,
-} //@}
-impl RowMatrix { //{@
-    fn zeros(nrows: usize, ncols: usize) -> RowMatrix {
-        RowMatrix {
-            nrows,
-            ncols,
-            elts: vec![ vec![0.0; ncols]; nrows],
-        }
-    }
-} //@}
-impl Index<usize> for RowMatrix { //{@
-    type Output = Vec<f64>;
-    fn index<'a>(&'a self, i: usize) -> &'a Vec<f64> {
-        &self.elts[i]
-    }
-} //@}
-impl IndexMut<usize> for RowMatrix { //{@
-    fn index_mut<'a>(&'a mut self, i: usize) -> &'a mut Vec<f64> {
-        &mut self.elts[i]
-    }
-} //@}
-impl Index<(usize, usize)> for RowMatrix { //{@
-    type Output = f64;
-    fn index<'a>(&'a self, ij: (usize, usize)) -> &'a f64 {
-        &self.elts[ij.0][ij.1]
-    }
-} //@}
-impl IndexMut<(usize, usize)> for RowMatrix { //{@
-    fn index_mut<'a>(&'a mut self, ij: (usize, usize)) -> &'a mut f64 {
-        &mut self.elts[ij.0][ij.1]
-    }
-} //@}
 //{@
 // Matrix structures as a set of blocks along its diagonal, where each block is n x k, so that
 // entire matrix is qn x qk for some q \in Z.  Each block is assumed to be dense.  Each
@@ -72,61 +33,8 @@ impl DiagBlockMatrix { //{@
             inv_block_ncols: 1.0 / block_ncols as f64,
         }
     } //@}
-    fn xlat_calc(&self, mut i: usize, mut j: usize) //{@
-            -> Result<Option<(usize, usize, usize)>, String>
-    {
-        if i >= self.nrows || j >= self.ncols {
-            return Err(format!("DiagBlockMatrix: i = {}, nrows = {}, j = {}, ncols = {}",
-                    i, self.nrows, j, self.ncols));
-        }
-        // determine which block the i and j indices correspond to
-        /*
-        /*
-        let i_block = i / self.block_nrows;
-        let j_block = j / self.block_ncols;
-        */
-        let i_block = (i as f64 * self.inv_block_nrows) as usize;
-        let j_block = (j as f64 * self.inv_block_ncols) as usize;
 
-        // if i and j don't correspond to same block, then this entry is off-diagonal
-        if i_block != j_block {
-            return Ok(None); 
-        }
-        // return the entry from within the dense block
-        let i_idx = i % self.block_nrows;
-        let j_idx = j % self.block_ncols;
-        Ok(Some((i_block, i_idx, j_idx)))
-        */
-        let mut i_block = 0;
-        while i >= self.block_nrows {
-            i_block += 1;
-            i -= self.block_nrows;
-        }
-        let mut j_block = 0;
-        while j >= self.block_ncols {
-            j_block += 1;
-            j -= self.block_ncols;
-        }
-
-        if i_block != j_block {
-            Ok(None)
-        } else {
-            Ok(Some((i_block, i, j)))
-        }
-    } //@}
-    fn xlat<'a>(&'a self, i: usize, j: usize) -> Result<Option<&'a f64>, String> { //{@
-        match self.xlat_calc(i, j)? {
-            Some((b_idx, i_idx, j_idx)) => Ok(Some(&self.blocks[b_idx][(i_idx, j_idx)])),
-            None => Ok(None),
-        }
-    } //@}
-    fn xlat_mut<'a>(&'a mut self, i: usize, j: usize) -> Result<Option<&'a mut f64>, String> { //{@
-        match self.xlat_calc(i, j)? {
-            Some((b_idx, i_idx, j_idx)) => Ok(Some(&mut self.blocks[b_idx][(i_idx, j_idx)])),
-            None => Ok(None),
-        }
-    } //@}
-    fn xlat_2<'a>(&'a self, mut i: usize, mut j: usize) -> (usize, usize, usize, usize) { //{@
+    fn xlat<'a>(&'a self, mut i: usize, mut j: usize) -> (usize, usize, usize, usize) { //{@
         let mut i_block = 0;
         while i >= self.block_nrows {
             i_block += 1;
@@ -157,30 +65,16 @@ impl DiagBlockMatrix { //{@
             src_block += 1;
             src_row_idx -= self.block_nrows;
         }
-        let mut dst_block = 0;
         let mut dst_row_idx = dst;
         while dst_row_idx >= self.block_nrows {
-            dst_block += 1;
             dst_row_idx -= self.block_nrows;
         }
         let block = &mut self.blocks[src_block];
 
-        //let addend = block.row(src_row_idx) * mult;
-        //let mut tgt = block.row_mut(dst_row_idx);
-        //tgt += addend;
         for j in 0 .. self.block_ncols {
             block[(dst_row_idx,j)] += mult * block[(src_row_idx,j)];
         }
 
-        /*
-        for j in 0 .. self.block_ncols {
-            if mult != 1.0 {
-                block[(dst_row_idx, j)] += block[(src_row_idx, j)] * mult;
-            } else {
-                block[(dst_row_idx, j)] += block[(src_row_idx, j)];
-            }
-        }
-        */
     } //@}
     pub fn div_row_float(&mut self, row: usize, divisor: f64) { //{@
         assert!(row < self.nrows, "DiagBlockMatrix: row index bad");
@@ -246,7 +140,7 @@ impl Index<(usize, usize)> for DiagBlockMatrix { //{@
             Err(e) => panic!(e),
         }
         */
-        let (i_block, j_block, i, j) = self.xlat_2(ij.0, ij.1);
+        let (i_block, j_block, i, j) = self.xlat(ij.0, ij.1);
 
         if i_block != j_block {
             &ZERO_F64
@@ -266,7 +160,7 @@ impl IndexMut<(usize, usize)> for DiagBlockMatrix { //{@
             Err(e) => panic!(e),
         }
         */
-        let (i_block, j_block, i, j) = self.xlat_2(ij.0, ij.1);
+        let (i_block, j_block, i, j) = self.xlat(ij.0, ij.1);
 
         if i_block != j_block {
             panic!("DiagBlockMatrix: index mut off diagonal");
@@ -276,107 +170,6 @@ impl IndexMut<(usize, usize)> for DiagBlockMatrix { //{@
     }
 } //@}
 impl fmt::Display for DiagBlockMatrix { //{@
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mtx = self.to_dmatrix();
-        write!(f, "{:.3}", mtx)
-    }
-} //@}
-
-#[derive(Clone)]
-pub struct SparseVecMatrix { //{@
-    pub nrows: usize,
-    pub ncols: usize,
-    pub entries: Vec<Vec<(usize, f64)>>,
-} //@}
-impl SparseVecMatrix { //{@
-    pub fn new(nrows: usize, ncols: usize) -> SparseVecMatrix { //{@
-        SparseVecMatrix {
-            nrows,
-            ncols,
-            entries: vec![vec![]; nrows],
-        }
-    } //@}
-    fn get_unchecked<'a>(&'a self, i: usize, j: usize) -> &'a f64 { //{@
-        match self.entries[i].binary_search_by(|&(elt_j, _)| elt_j.cmp(&j)) {
-            Ok(phys_j) => &self.entries[i][phys_j].1,
-            Err(_) => &0.0,
-        }
-    } //@}
-    fn get_mut_unchecked<'a>(&'a mut self, i: usize, j: usize) -> &'a mut f64 { //{@
-        match self.entries[i].binary_search_by(|&(elt_j, _)| elt_j.cmp(&j)) {
-            Ok(phys_j) => &mut self.entries[i][phys_j].1,
-            Err(phys_j) => {
-                self.entries[i].insert(phys_j, (j, 0.0));
-                &mut self.entries[i][phys_j].1
-            },
-        }
-    } //@}
-    pub fn add_row_multiple(&mut self, dst: usize, src: usize, mult: f64) { //{@
-        assert!(dst < self.nrows && src < self.nrows,
-                "SparseVecMatrix: add_row_multiple bad index");
-        let mut new_row = vec![];
-        let mut src_phys_j = 0;
-        let mut dst_phys_j = 0;
-        let non_ident_mult = mult != 1.0;
-        while src_phys_j < self.entries[src].len() && dst_phys_j < self.entries[dst].len() {
-            let &(src_virt_j, src_val) = &self.entries[src][src_phys_j];
-            let &(dst_virt_j, dst_val) = &self.entries[dst][dst_phys_j];
-            match src_virt_j.cmp(&dst_virt_j) {
-                Ordering::Equal => {
-                    let v = dst_val + if non_ident_mult { mult * src_val } else { src_val };
-                    new_row.push((dst_virt_j, v));
-                    src_phys_j += 1;
-                    dst_phys_j += 1;
-                },
-                Ordering::Less => {
-                    let v = if non_ident_mult { mult * src_val } else { src_val };
-                    new_row.push((src_virt_j, v));
-                    src_phys_j += 1;
-                },
-                Ordering::Greater => {
-                    new_row.push((dst_virt_j, dst_val));
-                    dst_phys_j += 1;
-                },
-            }
-        }
-        for &(virt_j, src_val) in self.entries[src][src_phys_j..].iter() {
-            let v = if non_ident_mult { mult * src_val } else { src_val };
-            new_row.push((virt_j, v));
-        }
-        new_row.extend_from_slice(&self.entries[dst][dst_phys_j..]);
-
-        self.entries[dst] = new_row;
-    } //@}
-    pub fn div_row_float(&mut self, row: usize, divisor: f64) { //{@
-        assert!(row < self.nrows, "DiagBlockMatrix: row index bad");
-        for (_virt_j, val) in self.entries[row].iter_mut() {
-            *val /= divisor;
-        }
-    } //@}
-    pub fn to_dmatrix(&self) -> na::DMatrix<f64> { //{@
-        let mut mtx = na::DMatrix::<f64>::zeros(self.nrows, self.ncols);
-        for i in 0 .. self.nrows {
-            for &(virt_j, val) in self.entries[i].iter() {
-                mtx[(i, virt_j)] = val;
-            }
-        }
-        mtx
-    } //@}
-} //@}
-impl Index<(usize, usize)> for SparseVecMatrix { //{@
-    type Output = f64;
-    fn index<'a>(&'a self, ij: (usize, usize)) -> &'a f64 {
-        assert!(ij.0 < self.nrows && ij.1 < self.ncols, "SparseVecMatrix index out of range");
-        self.get_unchecked(ij.0, ij.1)
-    }
-} //@}
-impl IndexMut<(usize, usize)> for SparseVecMatrix { //{@
-    fn index_mut<'a>(&'a mut self, ij: (usize, usize)) -> &'a mut f64 {
-        assert!(ij.0 < self.nrows && ij.1 < self.ncols, "SparseVecMatrix index out of range");
-        self.get_mut_unchecked(ij.0, ij.1)
-    }
-} //@}
-impl fmt::Display for SparseVecMatrix { //{@
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mtx = self.to_dmatrix();
         write!(f, "{:.3}", mtx)
@@ -456,10 +249,6 @@ impl SparseTMatrix { //{@
     pub fn to_dmatrix(&self) -> na::DMatrix<f64> { //{@
         // create zeros matrix
         let mut mtx = na::DMatrix::<f64>::zeros(self.nrows, self.ncols);
-
-        // get copies of block and spare matrices
-        let block_full = self.block.to_dmatrix();
-        let sparse_full = self.sparse.to_dmatrix();
 
         // copy in block, sparse, rightcol
         for j in 0 .. self.block.ncols {

@@ -689,27 +689,10 @@ impl FlexTab { //{@
     //@}
     fn set_constraints(&mut self) { //{@
         let twonsq = 2*self.n*self.n;
-        let mut constraint = vec![(0, 0.0); self.n];
-        //let mut tab_row = 0;
 
         for i in 0 .. self.n {
             //let x_var_base = i * self.n;
             for j in 0 .. self.k {
-                /*
-                {
-                    //let col = self.y.column(j);
-                    // The i^th row uses variables in range: i*n .. i*(n+1).
-                    // We are constraining |Uy|_\infty <= 1.
-                    // Constraints are n-vector fo tuples [(varnum, coeff), ...  ].
-                    for q in 0 .. self.n {
-                        //constraint[q] = (x_var_base + q, col[q]);
-                        constraint[q] = (q, col[q]);
-                    }
-                }
-                */
-                //self.add_constraint_pair(tab_row, &constraint);
-                //tab_row += 2;
-                //
                 // Setup the two new constraints based on the vars / coeffs given.
                 let col = self.y.column(j);
                 //for &(var, coeff) in constraint.iter() {
@@ -717,10 +700,6 @@ impl FlexTab { //{@
                     // Example: 3.1x_0 will become:
                     //     tab_row    :  3.1x'_0 - 3.1x'_1 <= 1.
                     //     tab_row +1 : -3.1x'_0 + 3.1x'_1 <= 1.
-                    //self.state.rows[(tab_row, 2 * var)] = coeff;
-                    //self.state.rows[(tab_row, 2 * var + 1)] = -coeff;
-                    //self.state.rows[(tab_row + 1, 2 * var)] = -coeff;
-                    //self.state.rows[(tab_row + 1, 2 * var + 1)] = coeff;
                     *self.state.rows.index_block_mut( i, 2*j, 2*idx ) = col[idx];
                     *self.state.rows.index_block_mut( i, 2*j, 2*idx+1 ) = -col[idx];
                     *self.state.rows.index_block_mut( i, 2*j+1, 2*idx ) = -col[idx];
@@ -729,17 +708,11 @@ impl FlexTab { //{@
                 //}
 
                 // Slack var coeffs both = 1.0.
-                //let zeroth_slack = 2 * self.n * self.n + tab_row;
-                //let first_slack = zeroth_slack + 1;
-                //self.state.rows[(tab_row, zeroth_slack)] = 1.0;
-                //self.state.rows[(tab_row + 1, first_slack)] = 1.0;
                 *self.state.rows.index_sparse_mut(i, 2*j, 2*j ) = 1.0;
                 *self.state.rows.index_sparse_mut(i, 2*j+1, 2*j+1 ) = 1.0;
 
                 // RHS of both constraints = 1.0.
                 //let rhs = self.state.rows.ncols() - 1;
-                //self.state.rows[(tab_row, rhs)] = 1.0;
-                //self.state.rows[(tab_row + 1, rhs)] = 1.0;
                 *self.state.rows.index_rhs_mut(i, 2*j) = 1.0;
                 *self.state.rows.index_rhs_mut(i, 2*j+1) = 1.0;
 
@@ -747,66 +720,17 @@ impl FlexTab { //{@
                 // constraints.  Compute the value of the LHS of the constraint.  One of
                 // the pair will be tight, so slack will be 0; other slack will be 2.
                 // Compute: val = \sum_{2n LHS vars in this constr_set} a_{ij} * x_j.
-                //let x_lowbound = (2 * self.n) * (tab_row / (2 * self.k));
                 let x_lowbound = (2 * self.n) * i;
                 let x_highbound = x_lowbound + 2 * self.n;
-                //let val = (x_lowbound .. x_highbound).fold(0.0, |val, j|
-                //        val + self.state.x[j] * self.state.rows[(tab_row, j)]);
                 let val = (x_lowbound .. x_highbound).fold(0.0, |val, jj|
                           val + self.state.x[jj] * self.state.rows.index_block(i, 2*j, jj - x_lowbound));
                 // Set slack var values so LHS = 1.0.
-                //self.state.x[zeroth_slack] = 1.0 - val;
-                //self.state.x[first_slack] = 1.0 + val;
                 self.state.x[twonsq+i*2*self.k+2*j] = 1.0 - val;
                 self.state.x[twonsq+i*2*self.k+2*j+1] = 1.0 + val;
             }
         }
-        
-        //debug!("{}", self.state.rows);
     } //@}
-    //{@
-    /// Add 2 new constraints based on the content of cset, which should be a
-    /// slice of 2-tuples of the form (varnum: usize, coeff: f64).
-    //@}
-    fn add_constraint_pair(&mut self, tab_row: usize, cset: &[(usize, f64)]) { //{@
-        //let groupnum = tab_row / (2*self.k);
-        //let grouprow = tab_row % (2*self.k);
-        //let col_offset = groupnum * 2*self.n;
-        // Setup the two new constraints based on the vars / coeffs given.
-        for &(var, coeff) in cset.iter() {
-            // Example: 3.1x_0 will become:
-            //     tab_row    :  3.1x'_0 - 3.1x'_1 <= 1.
-            //     tab_row +1 : -3.1x'_0 + 3.1x'_1 <= 1.
-            //*self.state.rows.index_block_mut( groupnum, grouprow, 2*var - col_offset  ) = coeff;
-            self.state.rows[(tab_row, 2 * var)] = coeff;
-            self.state.rows[(tab_row, 2 * var + 1)] = -coeff;
-            self.state.rows[(tab_row + 1, 2 * var)] = -coeff;
-            self.state.rows[(tab_row + 1, 2 * var + 1)] = coeff;
-        }
 
-        // Slack var coeffs both = 1.0.
-        let zeroth_slack = 2 * self.n * self.n + tab_row;
-        let first_slack = zeroth_slack + 1;
-        self.state.rows[(tab_row, zeroth_slack)] = 1.0;
-        self.state.rows[(tab_row + 1, first_slack)] = 1.0;
-
-        // RHS of both constraints = 1.0.
-        let rhs = self.state.rows.ncols() - 1;
-        self.state.rows[(tab_row, rhs)] = 1.0;
-        self.state.rows[(tab_row + 1, rhs)] = 1.0;
-
-        // Need to determine values of the slack variables for this pair of
-        // constraints.  Compute the value of the LHS of the constraint.  One of
-        // the pair will be tight, so slack will be 0; other slack will be 2.
-        // Compute: val = \sum_{2n LHS vars in this constr_set} a_{ij} * x_j.
-        let x_lowbound = (2 * self.n) * (tab_row / (2 * self.k));
-        let x_highbound = x_lowbound + 2 * self.n;
-        let val = (x_lowbound .. x_highbound).fold(0.0, |val, j|
-                val + self.state.x[j] * self.state.rows[(tab_row, j)]);
-        // Set slack var values so LHS = 1.0.
-        self.state.x[zeroth_slack] = 1.0 - val;
-        self.state.x[first_slack] = 1.0 + val;
-    } //@}
 
     //{@
     /// Create simplex-style tableau, which will be stored in self.rows.  Note
@@ -865,8 +789,7 @@ impl FlexTab { //{@
                     avail_basic.remove(&uvar);
                     let x_basic = zeroslack;
                     let _n = self.n;
-                    //self.set_basic(uvar + groupnum * _n, x_basic)?;
-                    self.set_basic(groupnum, uvar + groupnum * _n, x_basic);
+                    self.set_basic(groupnum, uvar + groupnum * _n, x_basic)?;
                 } else {
                     let tgtrow = zeroslack;
                     let srcrow = tgtrow ^ 0x1;
