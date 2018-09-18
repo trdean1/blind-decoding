@@ -20,7 +20,7 @@ fn main() {
                     (5, 5, 13), 
                     (6, 6, 22), 
                     (8, 8, 30)]; 
-    //let dims = dims.iter().map(|&(n, m, k)| DimensionSpec::new(n, m, k)).collect::<Vec<_>>();
+    let dims = dims.iter().map(|&(n, m, k)| DimensionSpec::new(n, m, k)).collect::<Vec<_>>();
     //let dims = (0 .. 10).map( |i| DimensionSpec::new(8, 8 + 2*i, 30) )
     //                    .filter(|ref dim| dim.k >= dim.m_rx )
     //                    .collect::<Vec<_>>();

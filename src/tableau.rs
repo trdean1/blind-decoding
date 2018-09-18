@@ -395,7 +395,7 @@ pub struct FlexTab { //{@
 
     pub state: State,
     //best_state: State,
-    best_obj: f64,
+    pub best_obj: f64,
 
     visited: HashSet<VertexI>,
     //statestack: Vec<State>,
@@ -1336,8 +1336,8 @@ impl FlexTab { //{@
             }
         }
     } //@}
-    #[allow(dead_code)]
-    fn print_flip_grad(&self) -> String { //{@
+
+    pub fn print_flip_grad(&self) -> String { //{@
         let mut s = String::new();
         for (i, &e) in self.state.flip_grad.iter().enumerate() {
             s += &format!("{:-3}: {:.3}\n", i, e);

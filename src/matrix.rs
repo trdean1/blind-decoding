@@ -220,13 +220,28 @@ pub fn y_a_from_x(x: &na::DMatrix<f64>, m_rx: usize, complex: bool)
     // Generate random Gaussian matrix A.
     let a = if complex {
         assert!( n_tx % 2 == 0 && m_rx % 2 == 0 );
-        rand_complex_matrix(n_tx, m_rx) 
+        rand_complex_matrix(m_rx, n_tx) 
     } else {
         rand_matrix(m_rx,n_tx)
     };
 
     // Compute Y = A * X
     let mut y = na::DMatrix::from_column_slice(m_rx, k, &vec![0.0; m_rx*k]);
+    a.mul_to(&x, &mut y);
+
+    (a, y)
+} //@}
+
+pub fn ortho_y_a_from_x(x: &na::DMatrix<f64>) 
+    -> (na::DMatrix<f64>, na::DMatrix<f64>) { //{@
+    let n_tx = x.nrows();
+    let k = x.ncols();
+
+    // Generate random orthogonal matrix A.
+    let a = random_orthogonal(n_tx);
+
+    // Compute Y = A * X
+    let mut y = na::DMatrix::from_column_slice(n_tx, k, &vec![0.0; n_tx*k]);
     a.mul_to(&x, &mut y);
 
     (a, y)
