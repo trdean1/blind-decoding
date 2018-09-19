@@ -15,7 +15,7 @@ use blindsolver::testlib::TrialResults;
 fn main() {
     env_logger::init();
 
-    let reps = 8;
+    let reps = 5000;
     let n = 10;
 
     let mut results = TrialResults::new(n, n, n, 0f64);
@@ -46,14 +46,18 @@ fn main() {
 
             },
             Ok(ft) => {
-                println!("{}", ft.print_flip_grad());
                 // Obtained a result: check if UY = X up to an ATM.
                 let u = ft.state.get_u();
                 let uy = u * y.clone();
-                println!("uy = {:.03}", uy);
                 let found_det = uy.determinant().abs();
-                println!("{} vs {}\n", found_det, x_det);
-                println!("{} vs {}\n", ft.best_obj, ft.state.obj());
+
+                //if ft.state.obj() > -0.001 {
+                //    println!("{}", ft.print_flip_grad());
+                //    println!("uy = {:.03}", uy);
+                //    println!("Found: {} vs Start: {}\n", found_det, x_det);
+                //    println!("Best: {} vs Current: {}\n", ft.best_obj, ft.state.obj());
+                //}
+
                 if (found_det - x_det).abs() < 1.0 {
                     results.success += 1;
                 }

@@ -1358,6 +1358,7 @@ impl FlexTab { //{@
                 6 => self.is_done_6(),
                 7 => self.is_done_7(),
                 8 => self.is_done_8(),
+                10 => self.is_done_10(),
                 _ => false,
             }
         }
@@ -1392,7 +1393,6 @@ impl FlexTab { //{@
     /// 128, 128, 128, 128, 128, 128, 128, 128, 128
     //@}
     fn is_done_6(&self) -> bool { //{@
-        
         // Done iff a fraction of 5.
         let g = self.state.flip_grad[0] * 5.0;
         (g - g.round()).abs() < 1e-5
@@ -1407,6 +1407,21 @@ impl FlexTab { //{@
         (self.state.flip_grad_max + 0.25).abs() < 1e-2
             && (self.state.flip_grad_min + 0.25).abs() < 1e-2
     } //@}
+
+    // 20/100 neighbors are det 96*2^9, remainder is 120*2^9
+    fn is_done_10(&self) -> bool {
+        let mut num3rd = 0;
+        let mut num6th = 0;
+        for g in self.state.flip_grad.iter() {
+            if (1.0 + 6.0*g).abs() < 0.001 {
+                num6th += 1;
+            } else if (1.0 + 3.0*g).abs() < 0.001 {
+                num3rd += 1;
+            }
+        }
+
+        num6th == 80 && num3rd == 20
+    }
 
     pub fn dims(&self) -> (usize, usize) {
         (self.n, self.k)
