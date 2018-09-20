@@ -29,6 +29,7 @@ impl fmt::Display for BFSType { //{@
 pub enum BfsError {
     SingularUi,
     SingularU,
+    UnstableRejection,
     RowToVertFailure,
 }
 
@@ -119,8 +120,7 @@ impl BfsFinder {
 
     /// If update_fs is set to true then this will add newly activated
     /// constraints to the data structure FeasibleRegion
-    #[inline(never)]
-    fn update_active_constraints( &mut self, update_fs: bool ) {
+    fn update_active_constraints( &mut self, update_fs: bool ) -> Result<(),()> {
         for i in 0 .. self.n {
             for j in 0 .. self.k {
                 let entry = self.uy[(i,j)];
@@ -130,10 +130,12 @@ impl BfsFinder {
                 if update_fs && 
                    old == false &&
                    self.active_constraints[i][j] == true {
-                    self.fs.insert( i, j );
+                    self.fs.insert( i, j )?;
                 }
             }
         }
+
+        Ok(())
     }
 
     fn clear_constraints( &mut self ) {
@@ -219,7 +221,9 @@ impl BfsFinder {
 
         for _iter in 0 .. (self.n*self.n - 1) {
             //Update active constraints and feasible region
-            self.update_active_constraints( true );
+            if Err(()) == self.update_active_constraints( true ) {
+                return Err(BfsError::UnstableRejection);
+            }
 
             //find v by rejecting grad from active constraints
             //self.v = self.fs.reject_mtx( self.grad.as_ref().unwrap() );
@@ -289,7 +293,6 @@ impl BfsFinder {
     /// If a solution has entries that are not in {-1, 0, 1}, then we will 
     /// attempt to fix them by going one row at a time, moving in the nullspace
     /// of the active constraints.
-    #[inline(never)]
     fn find_vertex_on_face( &mut self ) -> Result<(), BfsError> {
         //Find the first row that is not in {-1, 0, 1}
         for i in 0..self.n {
@@ -323,7 +326,6 @@ impl BfsFinder {
     /// Subroutine of find_vertex_on_face.  Attempts to move row to make all entries
     /// \pm 1.  Greedily picks the best direction (most \pm 1 values)
     ///
-    #[inline(never)]
     fn row_to_vertex( &mut self, row: usize ) 
         -> Result<Option<na::RowDVector<f64>>, BfsError> 
     {
@@ -444,7 +446,9 @@ impl BfsFinder {
                     bad_indices.push( i );
                 } else {
                     if self.active_constraints[row][i] == false {
-                        self.fs.insert(row, i);
+                        if Err(()) == self.fs.insert(row, i) {
+                            return Err(BfsError::RowToVertFailure);
+                        }
                         self.active_constraints[row][i] = true;
                     }
                 }

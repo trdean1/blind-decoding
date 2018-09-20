@@ -96,16 +96,18 @@ impl FeasibleRegion {
     }
 
     #[allow(dead_code)]
-    pub fn insert_from_vec( &mut self, update: &Vec<(usize,usize)> ) {
+    pub fn insert_from_vec( &mut self, update: &Vec<(usize,usize)> ) -> Result<(),()> {
         for (i,j) in update.iter() {
-            self.insert( *i, *j );
+            self.insert( *i, *j )?;
         }
+
+        Ok(())
     }
 
-    pub fn insert( &mut self, row: usize, column: usize ) {
+    pub fn insert( &mut self, row: usize, column: usize ) -> Result<(),()> {
         //Check to see if we have already added this entry
         if self.col_map[row].iter().any( |&x| x == column ) {
-            return;
+            return Ok(());
         }
 
         //Copy column of y and insert into b
@@ -150,7 +152,7 @@ impl FeasibleRegion {
             //}
             //v_norm.sqrt();
 
-            if v_norm < self.zthresh { return }
+            if v_norm < self.zthresh { return Ok(()) }
 
             //Normalize and continue
             v /= v_norm;
@@ -161,9 +163,12 @@ impl FeasibleRegion {
             for pp in self.p[row].iter() {
                 debug!("{:.04}norm: {:.04}", pp, pp.norm());
             }
-            assert!(false, "P already has n entries");
+            return Err(());
+            //assert!(false, "P already has n entries");
         }
         self.p[row].push( v );
+
+        Ok(())
     }
 
     #[inline(never)]
