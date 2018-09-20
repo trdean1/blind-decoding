@@ -7,11 +7,6 @@ extern crate nalgebra as na;
 use blindsolver::matrix;
 use blindsolver::testlib::TrialResults;
 
-//TODO: SparseTMatrix copy from
-//TODO: Best state copy from
-//TODO: state copy from
-//TODO: pub flextab revert to best state
-
 fn main() {
     env_logger::init();
 
@@ -47,19 +42,27 @@ fn main() {
             },
             Ok(mut ft) => {
                 // Obtained a result: check if UY = X up to an ATM.
-                ft.restore_best_state();
+                //ft.restore_best_state();
                 let u = ft.state.get_u();
                 let uy = u * y.clone();
                 let found_det = uy.determinant().abs();
 
-                //println!("{}", ft.print_flip_grad());
-                //println!("uy = {:.03}", uy);
-                //println!("Found: {:.01} vs Start: {:.01}\n", found_det, x_det);
-                //println!("Best: {:.03} vs Current: {:.03}\n", ft.best_obj, ft.state.obj());
-                //println!("--------------------------------------------\n");
+                /*
+                println!("{}", ft.print_flip_grad());
+                println!("uy = {:.03}", uy);
+                println!("Found: {:.01} vs Start: {:.01}\n", found_det, x_det);
+                println!("Best: {:.03} vs Current: {:.03}\n", ft.best_obj, ft.state.obj());
+                println!("--------------------------------------------\n");
+                */
 
                 if (found_det - x_det).abs() < 1.0 {
                     results.success += 1;
+                } else {
+                    println!("{}", ft.print_flip_grad());
+                    println!("uy = {:.03}", uy);
+                    println!("Found: {:.01} vs Start: {:.01}\n", found_det, x_det);
+                    println!("Best: {:.03} vs Current: {:.03}\n", ft.best_obj, ft.state.obj());
+                    println!("--------------------------------------------\n");
                 }
 
                 if blindsolver::is_pm1( &uy, ft.get_zthresh() ) {

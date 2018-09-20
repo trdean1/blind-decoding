@@ -1333,6 +1333,7 @@ impl FlexTab { //{@
                 8 => self.is_done_8(),
                 10 => self.is_done_10(),
                 12 => self.is_done_12(),
+                16 => self.is_done_16(),
                 _ => false,
             }
         }
@@ -1400,6 +1401,11 @@ impl FlexTab { //{@
     fn is_done_12(&self) -> bool {
         self.state.flip_grad.iter()
                             .all( |&x| (0.167 + x).abs() < 0.001 )
+    }
+
+    fn is_done_16(&self) -> bool {
+        self.state.flip_grad.iter()
+                            .all( |&x| (0.125 + x).abs() < 0.001 )
     }
 
     pub fn dims(&self) -> (usize, usize) {
