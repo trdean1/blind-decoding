@@ -17,8 +17,6 @@ pub struct DiagBlockMatrix { //{@
     pub nrows: usize,
     pub ncols: usize,
     pub blocks: Vec<na::DMatrix<f64>>, /*Vec<RowMatrix>,*/
-    pub inv_block_nrows: f64,
-    pub inv_block_ncols: f64,
 } //@}
 impl DiagBlockMatrix { //{@
     pub fn new(block_nrows: usize, block_ncols: usize, num_blocks: usize) -> DiagBlockMatrix { //{@
@@ -29,10 +27,19 @@ impl DiagBlockMatrix { //{@
             ncols: block_ncols * num_blocks,
             blocks: vec![na::DMatrix::<f64>::zeros(block_nrows, block_ncols); num_blocks],
             //blocks: vec![RowMatrix::zeros(block_nrows, block_ncols); num_blocks],
-            inv_block_nrows: 1.0 / block_nrows as f64,
-            inv_block_ncols: 1.0 / block_ncols as f64,
         }
     } //@}
+
+    pub fn copy_from( &mut self, other: &DiagBlockMatrix ) {
+        self.block_nrows = other.block_nrows;
+        self.block_ncols = other.block_ncols;
+        self.nrows = other.nrows;
+        self.ncols = other.ncols;
+        self.blocks.resize( other.blocks.len(), na::DMatrix::<f64>::zeros(0, 0) );
+        for (i, block) in self.blocks.iter_mut().enumerate() {
+            block.copy_from( &other.blocks[i] ); 
+        }
+    }
 
     fn xlat<'a>(&'a self, mut i: usize, mut j: usize) -> (usize, usize, usize, usize) { //{@
         let mut i_block = 0;
@@ -197,12 +204,25 @@ impl SparseTMatrix { //{@
         let rightcol = vec![1.0; nrows];
         SparseTMatrix { n, k, nrows, ncols, block, sparse, rightcol }
     } //@}
+
+    pub fn copy_from(&mut self, other: &SparseTMatrix) {
+        self.n = other.n;
+        self.k = other.k;
+        self.nrows = other.nrows;
+        self.ncols = other.ncols;
+        self.block.copy_from( &other.block );
+        self.sparse.copy_from( &other.sparse );
+        self.rightcol = other.rightcol.to_vec();
+    }
+
     pub fn nrows(&self) -> usize { //{@
         self.nrows
     } //@}
+
     pub fn ncols(&self) -> usize { //{@
         self.ncols
     } //@}
+
     pub fn add_row_multiple(&mut self, dst: usize, src: usize, mult: f64) { //{@
         assert!(dst < self.nrows && src < self.nrows, "SparseTMatrix: bad row index");
         self.block.add_row_multiple(dst, src, mult);
@@ -213,6 +233,7 @@ impl SparseTMatrix { //{@
             self.rightcol[dst] += self.rightcol[src];
         }
     } //@}
+
     pub fn div_row_float(&mut self, row: usize, divisor: f64) { //{@
         assert!(row < self.nrows, "SparseTMatrix: bad row index");
         self.block.div_row_float(row, divisor);
@@ -221,10 +242,12 @@ impl SparseTMatrix { //{@
             self.rightcol[row] /= divisor;
         }
     } //@}
+
     // TODO: Some sort of fmt_constraints that returns a String
     pub fn index_block<'a>(&'a self, n: usize, i: usize, j: usize) -> &'a f64 { //{@
         self.block.index_block(n, i, j)
     } //@}
+
     pub fn index_sparse<'a>(&'a self, n: usize, i: usize, j: usize) -> &'a f64 { //{@
         self.sparse.index_block(n, i, j)
     } //@}
@@ -269,6 +292,7 @@ impl SparseTMatrix { //{@
     // TODO: Maybe some means of initializing from a DMatrix?  Or anything else that makes sense
     // for the larger program?
 } //@}
+
 impl fmt::Display for SparseTMatrix { //{@
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mtx = self.to_dmatrix();

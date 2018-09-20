@@ -20,24 +20,14 @@ fn main() {
                     (5, 5, 13), 
                     (6, 6, 22), 
                     (8, 8, 30),
-                    (10,10, 100)]; 
+                    (10,10, 100)//,
+                    //(12,12, 144)
+                    ]; 
     let dims = dims.iter().map(|&(n, m, k)| DimensionSpec::new(n, m, k)).collect::<Vec<_>>();
     //let dims = (0 .. 10).map( |i| DimensionSpec::new(8, 8 + 2*i, 30) )
     //                    .filter(|ref dim| dim.k >= dim.m_rx )
     //                    .collect::<Vec<_>>();
 
-    //Sweep from n=2 to n=8, skipping n=7 (works but is slow since we don't have an is_done
-    //function)
-    
-    /*
-    let mut dims = Vec::new();
-    for ii in 2 .. 9 {
-        if ii == 7 { continue; }
-        for jj in 0 .. 9 {
-            if 4*jj <= ii { continue; }
-            dims.push( (ii, 4*jj) );
-        }
-    }*/
 
     let mut results: Vec<TrialResults> = dims.iter()
         .map(|ref d| TrialResults::new(d.n_tx, d.m_rx, d.k, 0f64))

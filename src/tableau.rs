@@ -160,14 +160,9 @@ impl State { //{@
         }
     } //@}
 
-    /*
-    fn copy_from(&mut self, other: &State) { //{@
+    pub fn copy_from(&mut self, other: &State) { //{@
         self.x.copy_from_slice(&other.x);
-        self.vmap.copy_from_slice(&other.vmap);
-        self.rows.copy_from(&other.rows);
         self.u.copy_from(&other.u);
-        self.grad.copy_from(&other.grad);
-        self.flip_grad.copy_from_slice(&other.flip_grad);
         self.uy.copy_from(&other.uy);
         match self.uybad {
             None => (),
@@ -176,11 +171,19 @@ impl State { //{@
                 None => panic!("Attempted copy from empty state uybad"),
             },
         }
+
+        self.rows.copy_from(&other.rows);
+        self.vmap.copy_from_slice(&other.vmap);
+
+        self.grad.copy_from(&other.grad);
+        self.flip_grad.copy_from_slice(&other.flip_grad);
+        self.flip_grad_max = other.flip_grad_max;
+        self.flip_grad_min = other.flip_grad_min;
+
         self.obj = other.obj;
         self.det_u = other.det_u;
         self.vertex.copy_from(&other.vertex);
     } //@}
-    */
 
     pub fn get_u(&self) -> na::DMatrix<f64> {
         self.u.clone()
@@ -394,7 +397,7 @@ pub struct FlexTab { //{@
     //extra_constr: Vec<Vec<Constraint>>,
 
     pub state: State,
-    //best_state: State,
+    best_state: State,
     pub best_obj: f64,
 
     visited: HashSet<VertexI>,
@@ -417,8 +420,8 @@ impl Default for FlexTab { //{@
             //extra_constr: Vec::new(),
 
             state: State { ..Default::default() },
-            //best_state: State { ..Default::default() },
-            best_obj:  0.0,
+            best_state: State { ..Default::default() },
+            best_obj:  std::f64::MIN,
 
             visited: HashSet::new(),
             //statestack: Vec::with_capacity(10),
@@ -565,7 +568,7 @@ impl FlexTab { //{@
 
         // Initialize mutable state.
         let state = State::new(u.clone(), uy, uybad);
-        //let best_state = state.clone();
+        let best_state = state.clone();
 
         let mut ft = FlexTab {
             zthresh: zthresh,
@@ -581,8 +584,8 @@ impl FlexTab { //{@
             //extra_constr: vec![Vec::new(); n],
 
             state: state,
-            //best_state: best_state,
-            best_obj: 0.0,
+            best_state: best_state,
+            best_obj: std::f64::MIN,
 
             ..Default::default()
         };
@@ -591,41 +594,11 @@ impl FlexTab { //{@
         Ok(ft)
     } //@}
 
-    //Make uninitialized FlexTab
-    pub fn new_shell(u: &na::DMatrix<f64>, y: &na::DMatrix<f64>, zthresh: f64) //{@
-            -> Result<FlexTab, FlexTabError> {
-        // Find all bad columns.
-        let uyfull = u.clone() * y.clone();
-        let n = y.nrows();
-        let k = y.ncols();
-
-
-        // Initialize mutable state.
-        let state = State::new(u.clone(), uyfull, None);
-        //let best_state = state.clone();
-
-
-        let ft = FlexTab {
-            zthresh: zthresh,
-            verbose: VERBOSE,
-
-            n: n,
-            k: k,
-
-            y: y.clone(),
-            ybad: None,
-
-            urows: vec![None; n * n],
-            //extra_constr: vec![Vec::new(); n],
-
-            state: state,
-            //best_state: best_state,
-            best_obj: 0.0,
-
-            ..Default::default()
-        };
-        Ok(ft)
-    } //@}
+    //This is put the tableau into a broken state (really just history is lost) 
+    //but allows us to explore neighbor pattern from best state
+    pub fn restore_best_state( &mut self ) {
+        self.state.copy_from( &self.best_state ); 
+    }
 
     //{@
     /// Find the indices of all +bad+ columns, meaning there is at least one
@@ -1037,7 +1010,7 @@ impl FlexTab { //{@
             } 
             // Check if this is the best vertex we have seen.
             if self.state.obj > self.best_obj {
-                //self.best_state.copy_from(&self.state);
+                self.best_state.copy_from(&self.state);
                 self.best_obj = self.state.obj;
             }
             // Check if this vertex is a global optimum.
@@ -1359,6 +1332,7 @@ impl FlexTab { //{@
                 7 => self.is_done_7(),
                 8 => self.is_done_8(),
                 10 => self.is_done_10(),
+                12 => self.is_done_12(),
                 _ => false,
             }
         }
@@ -1421,6 +1395,11 @@ impl FlexTab { //{@
         }
 
         num6th == 80 && num3rd == 20
+    }
+
+    fn is_done_12(&self) -> bool {
+        self.state.flip_grad.iter()
+                            .all( |&x| (0.167 + x).abs() < 0.001 )
     }
 
     pub fn dims(&self) -> (usize, usize) {
