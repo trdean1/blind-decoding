@@ -10,6 +10,7 @@ regex = "*"
 log = "*"
 env_logger = "*"
 fnv = "1.0.3"
+num_cpus = "*"
 
 [profile.release]
 debug = true

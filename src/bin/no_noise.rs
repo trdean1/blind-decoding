@@ -3,17 +3,23 @@ extern crate env_logger;
 #[macro_use]
 extern crate log;
 extern crate nalgebra as na;
+extern crate num_cpus;
 
 use blindsolver::matrix;
 use blindsolver::testlib::{TrialResults, DimensionSpec};
+use std::sync::{Arc, Mutex};
+use std::thread;
 //use blindsolver::tableau::FlexTabError;
 
 fn main() {
     env_logger::init();
 
+    let num_threads = num_cpus::get();
+    eprintln!("Running with {} threads", num_threads);
     let complex = false;
     let use_basis = true; 
     let reps_per = 1000;
+    let reps_per_thread = (reps_per / num_threads) as u64;
     let dims = vec![(2, 2, 8), 
                     (3, 3, 13), 
                     (4, 4, 18), 
@@ -24,16 +30,18 @@ fn main() {
                     //(12,12, 144)
                     ]; 
     let dims = dims.iter().map(|&(n, m, k)| DimensionSpec::new(n, m, k)).collect::<Vec<_>>();
+    let dims = Arc::new(dims);
     //let dims = (0 .. 10).map( |i| DimensionSpec::new(8, 8 + 2*i, 30) )
     //                    .filter(|ref dim| dim.k >= dim.m_rx )
     //                    .collect::<Vec<_>>();
 
 
-    let mut results: Vec<TrialResults> = dims.iter()
+    let results: Vec<TrialResults> = dims.iter()
         .map(|ref d| TrialResults::new(d.n_tx, d.m_rx, d.k, 0f64))
         .collect::<Vec<_>>();
+    let results = Arc::new(Mutex::new(results));
 
-    for ref dim in dims.iter() {
+    for dim in dims.iter() {
         eprintln!("{}", dim);
         if complex && (dim.n_tx & 1 != 0 || dim.m_rx & 1 != 0) {
             warn!("Complex case must have even n");
@@ -44,77 +52,36 @@ fn main() {
             continue;
         }
 
-        let mut solver = blindsolver::Solver::new(dim.n_tx, dim.m_rx, 0.0, 100);
-        // Select X matrix of one specific set of dimensions (n, k).
-        let x = if use_basis {
-            matrix::get_matrix( &[(dim.n_tx, dim.k)] )
-        } else {
-            matrix::rand_pm1_matrix(dim.n_tx, dim.k)
-        };
+        let mut threads = vec![];
+        for _ in 0 .. num_threads {
+            let dim = dim.clone();
+            let results = results.clone();
+            let mut t = thread::spawn(move || {
+                let mut solver = blindsolver::Solver::new(dim.n_tx, dim.m_rx, 0.0, 100);
+                // Select X matrix of one specific set of dimensions (n, k).
+                let x = if use_basis {
+                    matrix::get_matrix( &[(dim.n_tx, dim.k)] )
+                } else {
+                    matrix::rand_pm1_matrix(dim.n_tx, dim.k)
+                };
 
-        trace!("selected x = {}", x);
-        // Get pointer to relevant results tuple for this dimension.
-        let ref mut res = results.iter_mut().find(|ref e| e.dims == **dim).unwrap();
+                trace!("selected x = {}", x);
 
-        for _iter in 0 .. reps_per {
-            if reps_per > 10 {
-                if _iter % (reps_per / 10) == 0 {
-                    eprint!("#");
-                } else if _iter % reps_per == reps_per - 1 {
-                    eprint!("\n");
-                }
-            }
-
-            // Obtain A, Y matrices, then run.
-            let (_a, y) = matrix::y_a_from_x(&x, dim.m_rx, complex);
-            let y_reduced = match matrix::rank_reduce(&y, dim.n_tx) {
-                Some(y) => y,
-                None => { res.error += 1; continue; }
-            };
-            
-            debug!("Y = {:.02}", y);
-            //let timer = std::time::Instant::now();
-            match solver.solve( &y ) {
-                Err(_) => {
-                    /*match e {
-                        FlexTabError::Runout => {
-                            res.runout += 1; // ran out
-                            debug!("ran out of attempts");
-                        },
-                        _ => {
-                            res.error += 1; // something else -- problem
-                            println!("critical error = {}", e);
-                        },
-                    };*/
-                },
-                Ok(ft) => {
-                    // Obtained a result: check if UY = X up to an ATM.
-                    let u = ft.state.get_u();
-                    let uy = u * y_reduced.clone();
-                    if blindsolver::equal_atm( &uy, &x ) {
-                        res.success += 1;
-                    } else {
-                        // UY did +not+ match X, print some results and also
-                        // determine if UY was even a vertex.
-                        //match a.try_inverse() {
-                        //    None => debug!("UNEQUAL: Cannot take a^-1"),
-                        //    Some(inv) => debug!("UNEQUAL: u = {:.3}a^-1 = {:.3}", 
-                        //            ft.best_state.get_u(), inv),
-                        //};
-                        if blindsolver::is_pm1( &uy, ft.get_zthresh() ) {
-                            res.not_atm += 1; // UY = \pm 1
-                        } else {
-                            res.error += 1; // UY != \pm 1 -- problem
-                            debug!("critical error: uy = {:.3}", uy );
-                        }
-                    }
-                },
-            };
+                solver.solve_reps(&x, reps_per_thread, complex);
+                let mut results = results.lock().unwrap();
+                let ref mut res = results.iter_mut().find(|ref e| e.dims == dim).unwrap();
+                **res += solver.get_stats();
+            });
+            threads.push(t);
         }
-        **res += solver.get_stats();
+
+        for mut t in threads {
+            t.join().unwrap();
+        }
     }
 
     // Print overall results.
+    let results = results.lock().unwrap();
     for ref res in results.iter() {
         let mut output = format!("{}: success = {:4} / {:4}, ",
                 res.dims, res.success, res.trials);
@@ -130,3 +97,4 @@ fn main() {
         println!("({},{:.02e})", (res.dims).1, (res.time_elapsed / res.trials as f64) / (res.dims).1 as f64 ); 
     }*/
 }
+

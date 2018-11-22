@@ -283,6 +283,56 @@ impl Solver {
         return_val
     }
 
+    pub fn solve_reps(&mut self, x: &na::DMatrix<f64>, num_reps: u64, complex: bool) {
+        for _iter in 0 .. num_reps {
+            // Obtain A, Y matrices, then run.
+            let (_a, y) = matrix::y_a_from_x(&x, self.m_rx, complex);
+            let y_reduced = match matrix::rank_reduce(&y, self.n_tx) {
+                Some(y) => y,
+                None => { self.stats.error += 1; continue; }
+            };
+            
+            debug!("Y = {:.02}", y);
+
+            match self.solve(&y) {
+                Err(_) => {
+                    /*match e {
+                        FlexTabError::Runout => {
+                            res.runout += 1; // ran out
+                            debug!("ran out of attempts");
+                        },
+                        _ => {
+                            res.error += 1; // something else -- problem
+                            println!("critical error = {}", e);
+                        },
+                    };*/
+                },
+                Ok(ft) => {
+                    // Obtained a result: check if UY = X up to an ATM.
+                    let u = ft.state.get_u();
+                    let uy = u * y_reduced.clone();
+                    if equal_atm(&uy, &x) {
+                        self.stats.success += 1;
+                    } else {
+                        // UY did +not+ match X, print some results and also
+                        // determine if UY was even a vertex.
+                        //match a.try_inverse() {
+                        //    None => debug!("UNEQUAL: Cannot take a^-1"),
+                        //    Some(inv) => debug!("UNEQUAL: u = {:.3}a^-1 = {:.3}", 
+                        //            ft.best_state.get_u(), inv),
+                        //};
+                        if is_pm1(&uy, ft.get_zthresh()) {
+                            self.stats.not_atm += 1; // UY = \pm 1
+                        } else {
+                            self.stats.error += 1; // UY != \pm 1 -- problem
+                            debug!("critical error: uy = {:.3}", uy);
+                        }
+                    }
+                },
+            };
+        }
+    }
+
     pub fn clear_stats( &mut self ) {
         self.stats.clear();
     }
