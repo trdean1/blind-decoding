@@ -5,6 +5,7 @@ extern crate rand;
 
 use rand::distributions::{Normal, Distribution};
 use rand::Rng;
+use rand::seq::SliceRandom;
 use std;
 
 use is_feasible;
@@ -19,6 +20,27 @@ pub fn rand_matrix(nrows: usize, ncols: usize) -> na::DMatrix<f64> { //{@
     let dist = Normal::new(0.0, 1.0);
     for _ in 0 .. (nrows * ncols) {
         data.push(dist.sample(&mut rng));
+    }
+    na::DMatrix::from_column_slice(nrows, ncols, &data)
+} //@}
+
+#[allow(dead_code)]
+//{@
+///Generate a random Gaussian(0, 1) matrix of the given dimensions.
+//@}
+pub fn rand_rayleigh_matrix(nrows: usize, ncols: usize) -> na::DMatrix<f64> { //{@
+    let mut rng = rand::thread_rng();
+    let pm1 = [-1.0, 1.0];
+    let mut data = Vec::with_capacity(nrows * ncols);
+    let dist = Normal::new(0.0, 1.0);
+    for _ in 0 .. (nrows * ncols) {
+        let re = dist.sample(&mut rng);
+        let im = dist.sample(&mut rng);
+        let mut elem = re * re + im * im;
+        elem = elem.sqrt() * pm1.choose( &mut rng ).unwrap();
+        
+
+        data.push( elem );
     }
     na::DMatrix::from_column_slice(nrows, ncols, &data)
 } //@}
@@ -226,7 +248,8 @@ pub fn get_matrix(dims: &[(usize, usize)]) -> na::DMatrix<f64> { //{@
     }
 
     let mut rng = rand::thread_rng();
-    let basemtx = rng.choose(&eligible).unwrap();
+    //let basemtx = rng.choose(&eligible).unwrap();
+    let basemtx = eligible.choose( &mut rng ).unwrap();
     let x = basemtx.fill();
     x
 } //@}
@@ -475,6 +498,33 @@ pub fn delta_log_det(ainv: &na::DMatrix<f64>, delta: &na::DMatrix<f64>,
 mod tests {
     use super::*;
     use self::test::Bencher;
+
+    /*
+    #[test]
+    fn rayleigh_test() {
+
+        let mut max = 0.0;
+        let mut min = 0.0;
+
+        for i in 0 .. 1000 {
+            let mat = rand_rayleigh_matrix(4, 4);
+
+            let svd = na::SVD::new( mat.clone(), false, false );
+
+            max += svd.singular_values.amax();
+            min += svd.singular_values.amin();
+
+        }
+
+        max /= 1000.0;
+        min /= 1000.0;
+
+    
+        println!("{:.04}, {:.04}", max, min);
+        assert!(false);
+    }
+    */
+
 
     #[test]
     fn update_inverse_test() {

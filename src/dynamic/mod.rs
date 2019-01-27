@@ -507,7 +507,7 @@ mod tests {
             let dims = vec![(4,8)];
 
             let x = matrix::get_matrix(&dims[0 .. 1]);
-            let (_a, y) = matrix::y_a_from_x(&x, false );
+            let (_a, y) = matrix::y_a_from_x(&x, 8, false );
             let u_i = matrix::rand_init(&y);
 
             let mut bfs_finder = BfsFinder::new( &y, 1e-9 );
